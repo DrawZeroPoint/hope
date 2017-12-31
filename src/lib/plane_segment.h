@@ -49,6 +49,7 @@
 #include <pcl/point_types.h>
 
 #include <pcl/ModelCoefficients.h>
+#include <pcl/surface/poisson.h>
 
 #include <pcl/sample_consensus/method_types.h>
 #include <pcl/sample_consensus/model_types.h>
@@ -62,7 +63,8 @@
 #include <pcl/surface/concave_hull.h>
 #include <pcl/surface/mls.h>
 
-#include <pcl/visualization/cloud_viewer.h>
+#include <pcl/visualization/pcl_visualizer.h>
+#include <boost/thread/thread.hpp>
 
 #include <math.h>
 #include <vector>
@@ -79,7 +81,7 @@ using namespace cv;
 class PlaneSegment
 {
 public:
-  PlaneSegment(bool use_real_data, string base_frame, float base_to_ground);
+  PlaneSegment(bool use_real_data, string base_frame, float th_area);
   
   void setParams(int dataset_type, float roll, float pitch, 
                  float tx, float ty, float tz, float qx, float qy, float qz, float qw);
@@ -112,6 +114,11 @@ private:
   // Source point cloud and its inliers after z filter
   PointCloudMono::Ptr src_mono_cloud_;
   PointCloud::Ptr src_rgb_cloud_;
+  
+  // Clouds after grid filter
+  PointCloudRGBN::Ptr src_filtered_;
+  NormalCloud::Ptr src_normals_;
+  
   pcl::PointIndices::Ptr src_z_inliers_;
   
   // Subscribe for real point cloud data
@@ -129,10 +136,8 @@ private:
   
   // Target table approximate height
   float table_height_;
-  
-  // height max error 
-  float th_height_;
-  // Table area threshold
+
+  // Support surface area threshold
   float th_area_;
   
   // Distance between base_frame and ground
@@ -149,17 +154,17 @@ private:
   float global_height_temp_;
   
   vector<float> planeZVector_;
+  vector<PointCloudRGBN::Ptr> cloud_fit_parts_;
+  vector<pcl::PointIndices> rg_cluster_indices_;
   
   // Core process for finding planes
   void findAllPlanes();
   
   // Tool functions
   void calRegionGrowing(PointCloudRGBN::Ptr cloud_in, 
-                        pcl::PointCloud<pcl::Normal>::Ptr normals, 
-                        vector<pcl::PointIndices> &clusters);
+                        pcl::PointCloud<pcl::Normal>::Ptr normals);
   
-  void getMeanZofEachCluster(vector<pcl::PointIndices> indices_in, 
-                             PointCloudRGBN::Ptr cloud_in);
+  void getMeanZofEachCluster(PointCloudRGBN::Ptr cloud_in);
   
   /**
    * @brief extractPlaneForEachZ
@@ -173,9 +178,9 @@ private:
   /**
    * @brief extractPlane extract points which have similar z value
    * @param z_in target z value
-   * @param cloud_in source point cloud
+   * @param cloud_norm_fit point cloud fulfill normal criterion
    */
-  void extractPlane(float z_in, PointCloudRGBN::Ptr cloud_norm_fit);
+  void extractPlane(size_t id, float z_in, PointCloudRGBN::Ptr &cloud_norm_fit);
   
   
   void visualizeResult();
@@ -187,6 +192,13 @@ private:
   bool getSourceCloud();
   
   HighResTimer hst_;
+  
+  
+  void poisson_reconstruction(NormalPointCloud::Ptr point_cloud, 
+                              pcl::PolygonMesh &mesh);
+  pcl::PolygonMesh mesh(const PointCloudMono::Ptr point_cloud, NormalCloud::Ptr normals);
+  
+  NormalCloud::Ptr estimateNorm(PointCloudMono::Ptr cloud_in, float norm_r);
 };
 
 #endif // PLANE_SEGMENT_H

@@ -141,7 +141,7 @@ int main(int argc, char **argv)
   }
   else if (argc == 10) {
     int arg_index = 1;
-    string path_prefix = "/home/aicrobo/TUM/rgbd_dataset_freiburg1_xyz/";
+    string path_prefix = "/home/aicrobo/TUM/rgbd_dataset_freiburg3_long_office_household/";
     path_rgb = path_prefix + "rgb/" + argv[arg_index++];
     path_depth = path_prefix + "depth/" + argv[arg_index++];
     
@@ -161,8 +161,8 @@ int main(int argc, char **argv)
   
   ros::NodeHandle nh;
   ros::NodeHandle pnh("~");
-
-  PlaneSegment hope(use_real_data_, base_frame_, 0.4);
+  
+  PlaneSegment hope(use_real_data_, base_frame_, 0.01);
   PointCloud::Ptr src_cloud(new PointCloud);
   
   if (use_real_data_) {
@@ -178,6 +178,7 @@ int main(int argc, char **argv)
     // Pre-captured images are used for testing on benchmarks
     Mat rgb = imread(path_rgb);
     Mat depth = imread(path_depth, -1); // Using flag<0 to read the image without changing its type
+    
     //imshow("rgb", rgb);
     //imshow("depth", depth);
     //waitKey();
@@ -204,5 +205,5 @@ int main(int argc, char **argv)
 
 /* Use example in terminal
  * hope_node 1305031128.747363.png 1305031128.754646.png 1.2788 0.5814 1.4567 0.6650 0.6515 -0.2806 -0.2334
- * 
+ * hope_node 1341847980.822978.png 1341847980.822989.png -0.6821 2.6914 1.7371 0.0003 0.8609 -0.5085 -0.0151
  */

@@ -21,8 +21,6 @@
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 
-#include <pcl/visualization/pcl_visualizer.h>
-
 //OpenCV
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/core/core.hpp>

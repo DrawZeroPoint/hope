@@ -18,6 +18,7 @@
 #include <pcl/io/pcd_io.h>
 
 #include <pcl/features/normal_3d.h>
+#include <pcl/features/normal_3d_omp.h>
 #include <pcl/features/principal_curvatures.h>
 
 #include <pcl/filters/conditional_removal.h>
@@ -47,13 +48,13 @@
 #include <pcl/surface/concave_hull.h>
 #include <pcl/surface/mls.h>
 
-#include <pcl/visualization/pcl_visualizer.h>
-
 using namespace std;
 
 typedef pcl::PointCloud<pcl::PointXYZRGB> PointCloud;
 typedef pcl::PointCloud<pcl::PointXYZ> PointCloudMono;
 typedef pcl::PointCloud<pcl::PointXYZRGBNormal> PointCloudRGBN;
+typedef pcl::PointCloud<pcl::Normal> NormalCloud;
+typedef pcl::PointCloud<pcl::PointNormal> NormalPointCloud;
 
 class Utilities
 {
@@ -64,7 +65,8 @@ public:
                          PointCloudMono::Ptr cloud);
   
   static void estimateNorm(PointCloudMono::Ptr cloud_in, 
-                           PointCloudRGBN::Ptr &cloud_out,
+                           PointCloudRGBN::Ptr &cloud_out, 
+                           NormalCloud::Ptr &normals_out,
                            float norm_r, float grid_sz, bool down_sp);
   
   static void generateName(int count, string pref, string surf, string &name);
@@ -86,7 +88,7 @@ public:
                        PointCloudMono::Ptr &cloud_out);
   
   static void cutCloud(pcl::ModelCoefficients::Ptr coeff_in, float th_distance,
-                       PointCloudMono::Ptr cloud_in, 
+                       PointCloudRGBN::Ptr cloud_in, vector<int> &inliers_cut,
                        PointCloudMono::Ptr &cloud_out);
   
   static void projectCloud(pcl::ModelCoefficients::Ptr coeff_in, 
@@ -115,6 +117,14 @@ public:
   static void getCloudByInliers(PointCloudRGBN::Ptr cloud_in, 
                                 PointCloudRGBN::Ptr &cloud_out,
                                 pcl::PointIndices::Ptr inliers, bool negative, bool organized);
+  
+  /**
+   * @brief checkWithIn Check if ref_inliers contains elements in tgt_inliers
+   * @param ref_inliers
+   * @param tgt_inliers
+   * @return rate of containment 0~1
+   */
+  static float checkWithIn(pcl::PointIndices::Ptr ref_inliers, pcl::PointIndices::Ptr tgt_inliers);
   
   /**
    * @brief shrinkHull Shrink the 2D hull by distance dis according to the center

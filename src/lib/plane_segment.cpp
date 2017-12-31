@@ -4,17 +4,17 @@
 
 // Normal threshold, let (nx, ny, nz) be the unit normal vector of point p,
 // |nz| > th_norm_ means p is from plane, notice p is transformed with camera orientation
-float th_norm_ = 0.7;
+float th_norm_ = 0.8;
 
 // Region growing threshold
 float th_smooth_ = 8;
 
 // Voxel grid threshold
-float th_leaf_ = 0.01;
+float th_leaf_ = 0.02;
 
 // Points whose z value are within the range defined by th_deltaz_ are considered in plane
 // th_deltaz_ must be 2 times bigger than th_leaf_
-float th_deltaz_ = 2 * th_leaf_;
+float th_deltaz_ = 4 * th_leaf_;
 
 // Distance threshold for plane patch clustering
 float th_cluster_ = 2 * th_leaf_;
@@ -22,17 +22,18 @@ float th_cluster_ = 2 * th_leaf_;
 // Depth threshold for filtering source cloud, only used for real data
 float th_max_depth_ = 8.0;
 
-PlaneSegment::PlaneSegment(bool use_real_data, string base_frame, float base_to_ground) :
+PlaneSegment::PlaneSegment(bool use_real_data, string base_frame, float th_area) :
   use_real_data_(use_real_data),
   fi_(new FetchRGBD),
   pub_it_(nh_),
   src_mono_cloud_(new PointCloudMono),
   src_rgb_cloud_(new PointCloud),
+  src_filtered_(new PointCloudRGBN),
+  src_normals_(new NormalCloud),
   src_z_inliers_(new pcl::PointIndices),
   m_tf_(new Transform),
   base_frame_(base_frame),
-  base_link_above_ground_(base_to_ground),
-  th_height_(0.2),
+  th_area_(th_area),
   cloud_viewer(new pcl::visualization::PCLVisualizer("HOPE Result")),
   hst_("total")
 {
@@ -48,7 +49,7 @@ PlaneSegment::PlaneSegment(bool use_real_data, string base_frame, float base_to_
   pub_cloud_ = nh_.advertise<sensor_msgs::PointCloud2>("/vision/points", 1, true);
   
   
-  cloud_viewer->setBackgroundColor(0, 0, 0);
+  cloud_viewer->setBackgroundColor(0.2, 0.22, 0.24);
 }
 
 void PlaneSegment::setParams(int dataset_type, float roll, float pitch, 
@@ -87,7 +88,8 @@ void PlaneSegment::getHorizontalPlanes(PointCloud::Ptr cloud)
     }
     PointCloudMono::Ptr temp(new PointCloudMono);
     Utilities::pointTypeTransfer(src_rgb_cloud_, temp);
-    Utilities::getCloudByZ(temp, src_z_inliers_, src_mono_cloud_, 0.3, th_max_depth_);
+    // To remove Nan with z value
+    Utilities::getCloudByZ(temp, src_z_inliers_, src_mono_cloud_, 0.0, th_max_depth_);
   }
   
   findAllPlanes();
@@ -140,18 +142,19 @@ void PlaneSegment::findAllPlanes()
   
   // Clear temp
   planeZVector_.clear();
+  cloud_fit_parts_.clear();
+  rg_cluster_indices_.clear();
   plane_coeff_.clear();
   plane_hull_.clear();
   global_area_temp_ = 0.0;
   global_height_temp_ = 0.0;
   
   // Calculate the normal of source cloud
-  PointCloudRGBN::Ptr src_norm(new PointCloudRGBN);
-  Utilities::estimateNorm(src_mono_cloud_, src_norm, 2*th_leaf_, th_leaf_, true);
+  Utilities::estimateNorm(src_mono_cloud_, src_filtered_, src_normals_, 3*th_leaf_, th_leaf_, true);
   
   // Extract all points whose norm indicates that the point belongs to plane
   pcl::PointIndices::Ptr idx_norm_fit(new pcl::PointIndices);
-  Utilities::getCloudByNorm(src_norm, idx_norm_fit, th_norm_);
+  Utilities::getCloudByNorm(src_filtered_, idx_norm_fit, th_norm_);
   
   if (idx_norm_fit->indices.empty()) {
     ROS_DEBUG("PlaneSegment: No point normal fit horizontal plane.");
@@ -159,11 +162,11 @@ void PlaneSegment::findAllPlanes()
   }
   
   PointCloudRGBN::Ptr cloud_norm_fit(new PointCloudRGBN);
-  Utilities::getCloudByInliers(src_norm, cloud_norm_fit, idx_norm_fit, false, false);
+  Utilities::getCloudByInliers(src_filtered_, cloud_norm_fit, idx_norm_fit, false, false);
   
   //PointCloudMono::Ptr cloud_mono_fit(new PointCloudMono);
   //Utilities::pointTypeTransfer(cloud_norm_fit, cloud_mono_fit);
-  
+//  publishCloud(cloud_norm_fit, pub_max_plane_);
   
   if (cloud_norm_fit->points.empty()) {
     ROS_DEBUG("PlaneSegment: No point from horizontal plane detected.");
@@ -184,12 +187,11 @@ void PlaneSegment::findAllPlanes()
     ++i;
   }
   // Perform clustering, cause the scene may contain multiple planes
-  vector<pcl::PointIndices> clusters;
-  calRegionGrowing(cloud_norm_fit, norm_fit, clusters);
+  calRegionGrowing(cloud_norm_fit, norm_fit);
   
   // Region growing tires the whole cloud apart. Based on that we judge each part by mean z value
   // to determine whether some parts with similiar z value come from the same plane
-  getMeanZofEachCluster(clusters, cloud_norm_fit);
+  getMeanZofEachCluster(cloud_norm_fit);
   
   // Extract planes from the points with similar mean z,
   // the planes are stored in vector plane_hull_ with its coeff stored in plane_coeff_
@@ -204,8 +206,7 @@ void PlaneSegment::findAllPlanes()
 }
 
 void PlaneSegment::calRegionGrowing(PointCloudRGBN::Ptr cloud_in, 
-                                    pcl::PointCloud<pcl::Normal>::Ptr normals,
-                                    vector<pcl::PointIndices> &clusters)
+                                    pcl::PointCloud<pcl::Normal>::Ptr normals)
 {
   pcl::RegionGrowing<pcl::PointXYZRGBNormal, pcl::Normal> reg;
   pcl::search::Search<pcl::PointXYZRGBNormal>::Ptr tree = boost::shared_ptr<pcl::search::Search<pcl::PointXYZRGBNormal> > 
@@ -219,20 +220,19 @@ void PlaneSegment::calRegionGrowing(PointCloudRGBN::Ptr cloud_in,
   reg.setInputNormals(normals);
   reg.setSmoothnessThreshold(th_smooth_ / 180.0 * M_PI);
   
-  reg.extract(clusters);
+  reg.extract(rg_cluster_indices_);
 }
 
-void PlaneSegment::getMeanZofEachCluster(vector<pcl::PointIndices> indices_in, 
-                                         PointCloudRGBN::Ptr cloud_in)
+void PlaneSegment::getMeanZofEachCluster(PointCloudRGBN::Ptr cloud_in)
 {
-  if (indices_in.empty())
+  if (rg_cluster_indices_.empty())
     ROS_DEBUG("PlaneSegment: Region growing get nothing.");
   
   else {
     size_t k = 0;
     // Traverse each part to determine its mean Z
-    for (vector<pcl::PointIndices>::const_iterator it = indices_in.begin(); 
-         it != indices_in.end(); ++it) {
+    for (vector<pcl::PointIndices>::const_iterator it = rg_cluster_indices_.begin(); 
+         it != rg_cluster_indices_.end(); ++it) {
       PointCloudRGBN::Ptr cloud_fit_part(new PointCloudRGBN);
       int count = 0;
       
@@ -247,6 +247,9 @@ void PlaneSegment::getMeanZofEachCluster(vector<pcl::PointIndices> indices_in,
       cloud_fit_part->height = 1;
       cloud_fit_part->is_dense = true;
       
+      // Store initial segments of plane patches from region growing
+      cloud_fit_parts_.push_back(cloud_fit_part);
+      
       // Point type convention
       PointCloudMono::Ptr cloud_fit_part_t(new PointCloudMono);
       Utilities::pointTypeTransfer(cloud_fit_part, cloud_fit_part_t);
@@ -259,7 +262,7 @@ void PlaneSegment::getMeanZofEachCluster(vector<pcl::PointIndices> indices_in,
     
     ROS_DEBUG("Hypothetic plane number: %d", planeZVector_.size());
     // Z is ordered from small to large, i.e., low to high
-    sort(planeZVector_.begin(), planeZVector_.end());
+    //sort(planeZVector_.begin(), planeZVector_.end());
   }
 }
 
@@ -274,61 +277,19 @@ float PlaneSegment::getCloudMeanZ(PointCloudMono::Ptr cloud_in)
     ct++;
   }
   return mid/ct;
-  
-//  // Remove the farest point in each loop
-//  PointCloudMono::Ptr cloud_local_temp (new PointCloudMono);
-//  PointCloudMono::Ptr cloud_temp (new PointCloudMono);
-//  cloud_temp = cloud_in;
-  
-//  float mid, zrange;
-//  while (cloud_temp->points.size() > 2) {
-//    float dis_high = 0.0;
-//    float dis_low = 0.0;
-//    int max_high = -1;
-//    int max_low = -1;
-//    pcl::PointIndices::Ptr pointToRemove(new pcl::PointIndices);
-//    Utilities::getAverage(cloud_temp, mid, zrange);
-//    if (zrange <= th_deltaz_)
-//      break;
-    
-//    // Remove both upper and bottom points
-//    size_t ct = 0;
-//    for (PointCloudMono::const_iterator pit = cloud_temp->begin();
-//         pit != cloud_temp->end();++pit) {
-//      float dis = pit->z - mid;
-//      if (dis - dis_high >= th_leaf_) {
-//        dis_high = dis;
-//        max_high = ct;
-//      }
-//      if (dis - dis_low <= - th_leaf_) {
-//        dis_low = dis;
-//        max_low = ct;
-//      }
-//      ct++;
-//    }
-//    if (max_low < 0 && max_high < 0)
-//      break;
-//    if (max_high >= 0)
-//      pointToRemove->indices.push_back(max_high);
-//    if (max_low >= 0)
-//      pointToRemove->indices.push_back(max_low);
-    
-//    Utilities::getCloudByInliers(cloud_temp, cloud_local_temp, 
-//                                 pointToRemove, true, false);
-//    cloud_temp = cloud_local_temp;
-//  }
-//  return mid;
 }
 
 void PlaneSegment::extractPlaneForEachZ(PointCloudRGBN::Ptr cloud_norm_fit)
 {
+  size_t id = 0;
   for (vector<float>::iterator cit = planeZVector_.begin(); 
        cit != planeZVector_.end(); cit++) {
-    extractPlane(*cit, cloud_norm_fit);
+    extractPlane(id, *cit, cloud_norm_fit);
+    id++;
   }
 }
 
-void PlaneSegment::extractPlane(float z_in, PointCloudRGBN::Ptr cloud_norm_fit)
+void PlaneSegment::extractPlane(size_t id, float z_in, PointCloudRGBN::Ptr &cloud_norm_fit)
 {
   pcl::ModelCoefficients::Ptr coeff(new pcl::ModelCoefficients);
   // Plane function: ax + by + cz + d = 0, here coeff[3] = d = -cz
@@ -338,36 +299,62 @@ void PlaneSegment::extractPlane(float z_in, PointCloudRGBN::Ptr cloud_norm_fit)
   coeff->values.push_back(-z_in);
   
   // Use source cloud as input, get projected cloud for clustering
-  PointCloudMono::Ptr cloud_projected(new PointCloudMono);
+  PointCloudMono::Ptr cloud_fit_proj(new PointCloudMono);
+  PointCloudMono::Ptr cloud_src_proj(new PointCloudMono);
   // Points within certain distance (th_deltaz_) to the plane model defined by the coeff 
   // is projected onto the hypothesis plane, which is horizontal by its nature
   // TODO:consider using source_cloud instead of norm fit cloud here
-  //Utilities::cutCloud(coeff, th_deltaz_, cloud_norm_fit, cloud_projected);
-  Utilities::cutCloud(coeff, th_deltaz_, src_mono_cloud_, cloud_projected);
+  vector<int> proj_inliers;
+  Utilities::cutCloud(coeff, th_deltaz_, cloud_norm_fit, proj_inliers, cloud_fit_proj);
+  //Utilities::cutCloud(coeff, th_deltaz_, src_mono_cloud_, cloud_src_proj);
   
   // Since there may be multiple planes having similar mean Z, we need do clustering
   // to merge adjacent clusters and divide distant clusters
-  vector<pcl::PointIndices> cluster_indices;
-  Utilities::clusterExtract(cloud_projected, cluster_indices, th_cluster_, 3, 307200);
+  vector<pcl::PointIndices> fit_proj_inliers;
+  Utilities::clusterExtract(cloud_fit_proj, fit_proj_inliers, th_cluster_, 4, 307200);
   
-  cout << "Plane cluster number: " << cluster_indices.size() << " at z: " << z_in << endl;
+  //vector<pcl::PointIndices> src_proj_inliers;
+  //Utilities::clusterExtract(cloud_src_proj, src_proj_inliers, th_cluster_, 3, 307200);
+  
+  cout << "Plane cluster number: " << fit_proj_inliers.size() << " at z: " << z_in << endl;
   
   // Travese each merged clusters of indices to extract corresponding plane patch
-  for (vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin(); 
-       it != cluster_indices.end (); ++it) {
-    PointCloudMono::Ptr cloud_near_z(new PointCloudMono);
+  size_t ct = 0;
+  for (vector<pcl::PointIndices>::const_iterator it = fit_proj_inliers.begin(); 
+       it != fit_proj_inliers.end (); ++it) {
+    // Get the indices for the plane patch
+    pcl::PointIndices::Ptr idx_expand (new pcl::PointIndices);
+    for (size_t e = 0; e < it->indices.size(); ++e) {
+      idx_expand->indices.push_back(proj_inliers[it->indices[e]]);
+    }
+    
+    pcl::PointIndices::Ptr idx_rg (new pcl::PointIndices);
+    idx_rg->indices = rg_cluster_indices_[id].indices;
+    
+    // The plane patch extracted with z should contain the original region
+    float rate = Utilities::checkWithIn(idx_expand, idx_rg);
+    if (rate < 0.1)
+      continue;
+    
+    // Extract one plane patch
+    PointCloudMono::Ptr cluster_near_z(new PointCloudMono);
     for (vector<int>::const_iterator pit = it->indices.begin(); 
          pit != it->indices.end(); ++pit)
-      cloud_near_z->points.push_back(cloud_projected->points[*pit]);
+      cluster_near_z->points.push_back(cloud_fit_proj->points[*pit]);
     
-    cloud_near_z->width = cloud_near_z->points.size();
-    cloud_near_z->height = 1;
-    cloud_near_z->is_dense = true;
+    
+    PointCloudRGBN::Ptr temp(new PointCloudRGBN);
+    Utilities::getCloudByInliers(cloud_norm_fit, temp, idx_expand, true, true);
+    cloud_norm_fit = temp;
+    
+    cluster_near_z->width = cluster_near_z->points.size();
+    cluster_near_z->height = 1;
+    cluster_near_z->is_dense = true;
     
     // Use convex hull to represent the plane patch
     PointCloudMono::Ptr cloud_hull(new PointCloudMono);
     pcl::ConvexHull<pcl::PointXYZ> hull;
-    hull.setInputCloud(cloud_near_z);
+    hull.setInputCloud(cluster_near_z);
     hull.setComputeAreaVolume(true);
     hull.reconstruct(*cloud_hull);
     float area_hull = hull.getTotalArea();
@@ -397,32 +384,28 @@ void PlaneSegment::visualizeResult()
 {
   // For visualizing in RViz
   publishCloud(src_rgb_cloud_, pub_cloud_);
-  publishCloud(plane_hull_[10], pub_max_plane_);
+  publishCloud(plane_max_hull_, pub_max_plane_);
   
-  cloud_viewer->removeAllPointClouds();
+  cloud_viewer->initCameraParameters();
   
   // Add source colored cloud for reference
   string name;
-//  Utilities::generateName(0, "source_", "", name);
-//  pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> src_rgb(src_rgb_cloud_);
-//  cloud_viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 100, name);
-//  if (!cloud_viewer->updatePointCloud(src_rgb_cloud_, src_rgb, name)) {
-//    cloud_viewer->addPointCloud(src_rgb_cloud_, src_rgb, name);
-//  }
+  Utilities::generateName(0, "source_", "", name);
+  pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> src_rgb(src_rgb_cloud_);
+  
+  // Point size must be set after adding point cloud
+  cloud_viewer->addPointCloud<pcl::PointXYZRGB>(src_rgb_cloud_, src_rgb, name);
+  //cloud_viewer->addPointCloudNormals<pcl::PointXYZRGBNormal, pcl::Normal>(src_filtered_, src_normals_, 10, 0.05, "src_normals");
+  cloud_viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1.0, name);
   
   for (size_t i = 0; i < plane_hull_.size(); i++) {
-    pcl::visualization::PointCloudColorHandlerRandom<pcl::PointXYZ> rgb(plane_hull_[i]);
-    
     Utilities::generateName(i, "plane_", "", name);
-    cloud_viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, name);
-    
-    if (!cloud_viewer->updatePointCloud(plane_hull_[i], rgb, name)) {
-      cloud_viewer->addPointCloud(plane_hull_[i], rgb, name);
-    }
+    pcl::visualization::PointCloudColorHandlerRandom<pcl::PointXYZ> rgb(plane_hull_[i]);
+    cloud_viewer->addPointCloud<pcl::PointXYZ>(plane_hull_[i], rgb, name);
+    cloud_viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 10.0, name);
   }
   
   cloud_viewer->addCoordinateSystem(0.5);
-  cloud_viewer->initCameraParameters();
   
   while (!cloud_viewer->wasStopped())
     cloud_viewer->spinOnce();
@@ -436,4 +419,94 @@ void PlaneSegment::publishCloud(PointTPtr cloud, ros::Publisher pub)
   ros_cloud.header.frame_id = base_frame_;
   ros_cloud.header.stamp = ros::Time(0);
   pub.publish(ros_cloud);
+}
+
+void PlaneSegment::poisson_reconstruction(NormalPointCloud::Ptr point_cloud, 
+                                          pcl::PolygonMesh& mesh)
+{
+  // Initialize poisson reconstruction
+  pcl::Poisson<pcl::PointNormal> poisson;
+  
+  /*
+     * Set the maximum depth of the tree used in Poisson surface reconstruction.
+     * A higher value means more iterations which could lead to better results but
+     * it is also more computationally heavy.
+     */
+  poisson.setDepth(10);
+  poisson.setInputCloud(point_cloud);
+  
+  // Perform the Poisson surface reconstruction algorithm
+  poisson.reconstruct(mesh);
+}
+
+/**
+ * Reconstruct a point cloud to a mesh by estimate the normals of the point cloud
+ *
+ * @param point_cloud The input point cloud that will be reconstructed
+ * @return Returns a reconstructed mesh
+ */
+pcl::PolygonMesh PlaneSegment::mesh(const PointCloudMono::Ptr point_cloud, NormalCloud::Ptr normals)
+{
+  // Add the normals to the point cloud
+  NormalPointCloud::Ptr cloud_with_normals(new NormalPointCloud);
+  pcl::concatenateFields(*point_cloud, *normals, *cloud_with_normals);
+  
+  // Point cloud to mesh reconstruction
+  pcl::PolygonMesh mesh;
+  poisson_reconstruction(cloud_with_normals, mesh);
+  
+  return mesh;
+}
+
+NormalCloud::Ptr PlaneSegment::estimateNorm(PointCloudMono::Ptr cloud_in, float norm_r)
+{
+  NormalCloud::Ptr cloud_norm(new NormalCloud);
+  
+  /// Basic method
+  // Create the normal estimation class, and pass the input dataset to it
+  pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> ne;
+  ne.setInputCloud(cloud_in);
+  
+  // Create an empty kdtree representation, and pass it to the normal estimation object.
+  // Its content will be filled inside the object, based on the given input dataset 
+  // (as no other search surface is given).
+  pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>);
+  ne.setSearchMethod(tree);
+  ne.setRadiusSearch(norm_r); // in meter
+  
+  // Compute the features
+  ne.compute(*cloud_norm);
+  
+  /// Do it in parallel
+  //  // Declare PCL objects needed to perform normal estimation
+  //  pcl::NormalEstimationOMP<pcl::PointXYZ, pcl::Normal> normal_estimation;
+  //  pcl::search::KdTree<pcl::PointXYZ>::Ptr search_tree(new pcl::search::KdTree<pcl::PointXYZ>);
+  
+  //  // Set input parameters for normal estimation
+  //  search_tree->setInputCloud(cloud_fit);
+  //  normal_estimation.setInputCloud(cloud_fit);
+  //  normal_estimation.setSearchMethod(search_tree);
+  
+  //  /*
+  //   * When estimating normals, the algorithm looks at the nearest neighbors of every point
+  //   * and fits a plane to these points as close as it can. The normal of this plane is
+  //   * the estimated normal of the point.
+  //   * This sets how many of the nearest neighbors to look at when estimating normals.
+  //   * Is a rough setting for accuracy that can be adjusted.
+  //   * A lower number here means that corners in the point cloud will be more accurate,
+  //   * too low a number will cause problems.
+  //   */
+  //  normal_estimation.setKSearch(10);
+  
+  //  // Perform normal estimation algorithm
+  //  normal_estimation.compute(*cloud_norm);
+  
+  // Reverse the direction of all normals so that the face of the object points outwards.
+  // Should not be necessary but it is easier when visualising the object in MeshLab etc.
+  for (size_t i = 0; i < cloud_norm->size(); ++i) {
+    cloud_norm->points[i].normal_x *= -1;
+    cloud_norm->points[i].normal_y *= -1;
+    cloud_norm->points[i].normal_z *= -1;
+  }
+  return cloud_norm;
 }

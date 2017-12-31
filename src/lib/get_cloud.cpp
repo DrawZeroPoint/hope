@@ -208,35 +208,35 @@ bool GetCloud::getColorCloud(Mat rgb, Mat depth, PointCloud::Ptr &cloud,
   cloud->width  = depth.cols;
   cloud->is_dense = false;
   cloud->resize(cloud->height * cloud->width);
+  // Param for TMU dataset
+  float focalLength = 517.0;
+  float centerX = 318.6;
+  float centerY = 255.3;
+  float scalingFactor = 5000.0;
   
   size_t i = 0;
   for (PointCloud::iterator pit = cloud->begin(); 
        pit != cloud->end(); ++pit) {
-
-    // Param for TMU dataset
-    float focalLength = 517.0;
-    float centerX = 318.6;
-    float centerY = 255.3;
-    float scalingFactor = 5000.0;
-    
     float x, y;
-    float z = float(depth.at<ushort>(i%640, i/640)) / scalingFactor;
+    int c = i % 640;
+    int r = i / 640;
+    float z = float(depth.at<ushort>(r, c)) / scalingFactor;
     if(z < max_depth && z > min_depth) {
-      x = (i/640 - centerX) * z / focalLength;
-      y = (i%640 - centerY) * z / focalLength;
+      x = (c - centerX) * z / focalLength;
+      y = (r - centerY) * z / focalLength;
     }
     else {
       x = y = z = std::numeric_limits<float>::quiet_NaN();
     }
     
-    Vec3b c = rgb.at<Vec3b>(i%640, i/640);
+    Vec3b vc = rgb.at<Vec3b>(r, c);
     
     pit->x = x;
     pit->y = y;
     pit->z = z;
-    pit->r = c[0];
-    pit->g = c[1];
-    pit->b = c[2];
+    pit->r = vc[2];
+    pit->g = vc[1];
+    pit->b = vc[0];
     ++i;
   }
 }
