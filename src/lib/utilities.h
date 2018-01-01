@@ -11,6 +11,8 @@
 //PCL
 #include <pcl/common/common.h>
 #include <pcl/common/transforms.h>
+#include <pcl/common/centroid.h>
+#include <pcl/common/eigen.h>
 
 #include <pcl/console/parse.h>
 #include <pcl/console/time.h>
@@ -43,10 +45,14 @@
 #include <pcl/segmentation/sac_segmentation.h>
 #include <pcl/segmentation/extract_clusters.h>
 #include <pcl/segmentation/region_growing.h>
+#include <pcl/segmentation/extract_polygonal_prism_data.h>
+
 
 #include <pcl/surface/convex_hull.h>
 #include <pcl/surface/concave_hull.h>
 #include <pcl/surface/mls.h>
+#include <pcl/surface/gp3.h>
+
 
 using namespace std;
 
@@ -69,6 +75,9 @@ public:
                            NormalCloud::Ptr &normals_out,
                            float norm_r, float grid_sz, bool down_sp);
   
+  static NormalCloud::Ptr estimateNorm(PointCloudMono::Ptr cloud_in, float norm_r);
+  
+  
   static void generateName(int count, string pref, string surf, string &name);
   
   static void getAverage(PointCloudMono::Ptr cloud_in, float &avr, float &deltaz);
@@ -82,10 +91,6 @@ public:
   static void clusterExtract(PointCloudMono::Ptr cloud_in, 
                              vector<pcl::PointIndices> &cluster_indices,
                              float th_cluster, int minsize, int maxsize);
-  
-  static void cutCloud(pcl::ModelCoefficients::Ptr coeff_in, float th_distance, 
-                       PointCloudRGBN::Ptr cloud_in,
-                       PointCloudMono::Ptr &cloud_out);
   
   static void cutCloud(pcl::ModelCoefficients::Ptr coeff_in, float th_distance,
                        PointCloudRGBN::Ptr cloud_in, vector<int> &inliers_cut,
@@ -112,6 +117,9 @@ public:
   static void getCloudByZ(PointCloudMono::Ptr cloud_in, pcl::PointIndices::Ptr &inliers, 
                           PointCloudMono::Ptr &cloud_out, float z_min, float z_max);
   
+  static void getCloudByZ(PointCloud::Ptr cloud_in, pcl::PointIndices::Ptr &inliers, 
+                          PointCloud::Ptr &cloud_out, float z_min, float z_max);
+  
   static void getCloudByInliers(PointCloudMono::Ptr cloud_in, PointCloudMono::Ptr &cloud_out, 
                                 pcl::PointIndices::Ptr inliers, bool negative, bool organized);
   static void getCloudByInliers(PointCloudRGBN::Ptr cloud_in, 
@@ -124,7 +132,7 @@ public:
    * @param tgt_inliers
    * @return rate of containment 0~1
    */
-  static float checkWithIn(pcl::PointIndices::Ptr ref_inliers, pcl::PointIndices::Ptr tgt_inliers);
+  static bool checkWithIn(pcl::PointIndices::Ptr ref_inliers, pcl::PointIndices::Ptr tgt_inliers);
   
   /**
    * @brief shrinkHull Shrink the 2D hull by distance dis according to the center
@@ -176,6 +184,12 @@ public:
                               pcl::PointXY p, pcl::PointXY &pc);
   
   static void smartOffset(pcl::PointXYZ &p_in, float off_xy, float off_z);
+  static pcl::PolygonMesh generateMesh(const PointCloudMono::Ptr point_cloud, NormalCloud::Ptr normals);
+  
+  static float getCloudMeanZ(PointCloudMono::Ptr cloud_in);
+  
+  static float getCloudMeanZ(PointCloudRGBN::Ptr cloud_in);
+  
 private:
   static float determinant(float v1, float v2, float v3, float v4);
   

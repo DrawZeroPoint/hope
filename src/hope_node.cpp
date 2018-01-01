@@ -141,7 +141,7 @@ int main(int argc, char **argv)
   }
   else if (argc == 10) {
     int arg_index = 1;
-    string path_prefix = "/home/aicrobo/TUM/rgbd_dataset_freiburg3_long_office_household/";
+    string path_prefix = "/home/aicrobo/TUM/rgbd_dataset_freiburg1_rpy/";
     path_rgb = path_prefix + "rgb/" + argv[arg_index++];
     path_depth = path_prefix + "depth/" + argv[arg_index++];
     
@@ -205,5 +205,13 @@ int main(int argc, char **argv)
 
 /* Use example in terminal
  * hope_node 1305031128.747363.png 1305031128.754646.png 1.2788 0.5814 1.4567 0.6650 0.6515 -0.2806 -0.2334
- * hope_node 1341847980.822978.png 1341847980.822989.png -0.6821 2.6914 1.7371 0.0003 0.8609 -0.5085 -0.0151
+ * 
+ * rgbd_dataset_freiburg3_long_office_household/
+ * 1341847980.822978.png 1341847980.822989.png -0.6821 2.6914 1.7371 0.0003 0.8609 -0.5085 -0.0151
+ * 1341847996.574796.png 1341847996.574812.png 1.7985 -0.3048 1.5855 0.6819 0.5066 -0.3276 -0.4136
+ * 1341848045.674943.png 1341848045.707020.png -1.5177 1.3347 1.4077 0.2563 0.8630 -0.4345 -0.0278
+ * 
+ * rgbd_dataset_freiburg1_rpy/
+ * 1305031230.598825.png 1305031230.598843.png 1.2742 0.5998 1.5466 0.6037 0.6605 -0.4430 -0.0554
+
  */

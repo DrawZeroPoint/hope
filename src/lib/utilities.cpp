@@ -59,8 +59,41 @@ void Utilities::estimateNorm(PointCloudMono::Ptr cloud_in,
   ne.setSearchMethod(tree);
   ne.setRadiusSearch(norm_r); // in meter
   
-  // Compute the features
+  // Compute the normals
   ne.compute(*normals_out);
+  
+  // Generate rgbn cloud
+  for (size_t i = 0; i < cloud_out->size(); ++i) {
+    cloud_out->points[i].x = cloud_fit->points[i].x;
+    cloud_out->points[i].y = cloud_fit->points[i].y;
+    cloud_out->points[i].z = cloud_fit->points[i].z;
+    cloud_out->points[i].r = 255;
+    cloud_out->points[i].g = 255;
+    cloud_out->points[i].b = 255;
+    cloud_out->points[i].normal_x = normals_out->points[i].normal_x;
+    cloud_out->points[i].normal_y = normals_out->points[i].normal_y;
+    cloud_out->points[i].normal_z = normals_out->points[i].normal_z;
+  }
+}
+
+NormalCloud::Ptr Utilities::estimateNorm(PointCloudMono::Ptr cloud_in, float norm_r)
+{
+  NormalCloud::Ptr cloud_norm(new NormalCloud);
+  
+  /// Basic method
+  // Create the normal estimation class, and pass the input dataset to it
+  pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> ne;
+  ne.setInputCloud(cloud_in);
+  
+  // Create an empty kdtree representation, and pass it to the normal estimation object.
+  // Its content will be filled inside the object, based on the given input dataset 
+  // (as no other search surface is given).
+  pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>);
+  ne.setSearchMethod(tree);
+  ne.setRadiusSearch(norm_r); // in meter
+  
+  // Compute the features
+  ne.compute(*cloud_norm);
   
   /// Do it in parallel
   //  // Declare PCL objects needed to perform normal estimation
@@ -84,27 +117,16 @@ void Utilities::estimateNorm(PointCloudMono::Ptr cloud_in,
   //  normal_estimation.setKSearch(10);
   
   //  // Perform normal estimation algorithm
-  //  normal_estimation.compute(*normals_out);
+  //  normal_estimation.compute(*cloud_norm);
   
-  //  // Reverse the direction of all normals so that the face of the object points outwards.
-  //  // Should not be necessary but it is easier when visualising the object in MeshLab etc.
-  //  for (size_t i = 0; i < normals->size(); ++i) {
-  //      normals->points[i].normal_x *= -1;
-  //      normals->points[i].normal_y *= -1;
-  //      normals->points[i].normal_z *= -1;
-  //  }
-  
-  for (size_t i = 0; i < cloud_out->size(); ++i) {
-    cloud_out->points[i].x = cloud_fit->points[i].x;
-    cloud_out->points[i].y = cloud_fit->points[i].y;
-    cloud_out->points[i].z = cloud_fit->points[i].z;
-    cloud_out->points[i].r = 255;
-    cloud_out->points[i].g = 255;
-    cloud_out->points[i].b = 255;
-    cloud_out->points[i].normal_x = normals_out->points[i].normal_x;
-    cloud_out->points[i].normal_y = normals_out->points[i].normal_y;
-    cloud_out->points[i].normal_z = normals_out->points[i].normal_z;
+  // Reverse the direction of all normals so that the face of the object points outwards.
+  // Should not be necessary but it is easier when visualising the object in MeshLab etc.
+  for (size_t i = 0; i < cloud_norm->size(); ++i) {
+    cloud_norm->points[i].normal_x *= -1;
+    cloud_norm->points[i].normal_y *= -1;
+    cloud_norm->points[i].normal_z *= -1;
   }
+  return cloud_norm;
 }
 
 void Utilities::preProcess(PointCloudMono::Ptr cloud_in, 
@@ -140,21 +162,6 @@ void Utilities::pointTypeTransfer(PointCloud::Ptr cloud_in,
     cloud_out->points[i].y = cloud_in->points[i].y;
     cloud_out->points[i].z = cloud_in->points[i].z;
   }
-}
-
-void Utilities::cutCloud(pcl::ModelCoefficients::Ptr coeff_in, float th_distance,
-                         PointCloudRGBN::Ptr cloud_in, 
-                         PointCloudMono::Ptr &cloud_out)
-{
-  vector<int> inliers_cut;
-  Eigen::Vector4f coeffs(coeff_in->values[0], coeff_in->values[1],
-      coeff_in->values[2], coeff_in->values[3]);
-  
-  PointCloudMono::Ptr cloudSourceFiltered_t(new PointCloudMono);
-  pointTypeTransfer(cloud_in, cloudSourceFiltered_t);
-  pcl::SampleConsensusModelPlane<pcl::PointXYZ> scmp(cloudSourceFiltered_t);
-  scmp.selectWithinDistance(coeffs, th_distance, inliers_cut);
-  scmp.projectPoints(inliers_cut, coeffs, *cloud_out, false);
 }
 
 void Utilities::cutCloud(pcl::ModelCoefficients::Ptr coeff_in, float th_distance,
@@ -284,6 +291,21 @@ void Utilities::getCloudByZ(PointCloudMono::Ptr cloud_in,
   pass.filter(*cloud_out);
 }
 
+void Utilities::getCloudByZ(PointCloud::Ptr cloud_in, 
+                            pcl::PointIndices::Ptr &inliers, 
+                            PointCloud::Ptr &cloud_out, 
+                            float z_min, float z_max)
+{
+  // Create the filtering object
+  pcl::PassThrough<pcl::PointXYZRGB> pass;
+  pass.setInputCloud(cloud_in);
+  pass.setFilterFieldName("z");
+  pass.setFilterLimits(z_min, z_max);
+  //pass.setFilterLimitsNegative (true);
+  pass.filter(inliers->indices);
+  pass.filter(*cloud_out);
+}
+
 void Utilities::getCloudByInliers(PointCloudMono::Ptr cloud_in, 
                                   PointCloudMono::Ptr &cloud_out,
                                   pcl::PointIndices::Ptr inliers, 
@@ -310,23 +332,104 @@ void Utilities::getCloudByInliers(PointCloudRGBN::Ptr cloud_in,
   extract.filter(*cloud_out);
 }
 
-float Utilities::checkWithIn(pcl::PointIndices::Ptr ref_inliers, 
-                             pcl::PointIndices::Ptr tgt_inliers)
+bool Utilities::checkWithIn(pcl::PointIndices::Ptr ref_inliers, 
+                            pcl::PointIndices::Ptr tgt_inliers)
 {
   int size_ref = ref_inliers->indices.size();
   int size_tgt = tgt_inliers->indices.size();
-  float rate = 0.0;
+  int half_size = size_tgt * 0.5;
+  
+  // We take the advantage that all inliers are in order small to large
+  // So sort is unnecessary
+  //sort(ref_inliers->indices.begin(), ref_inliers->indices.end());
+  //sort(tgt_inliers->indices.begin(), tgt_inliers->indices.end());
+  
   int within = 0;
+  
+  if (tgt_inliers->indices[size_tgt - 1] < ref_inliers->indices[0] ||
+      tgt_inliers->indices[0] > ref_inliers->indices[size_ref - 1]) {
+    return false;
+  }
+  
+  size_t start_pos = 0;
+  
   for (size_t e = 0; e < size_tgt; ++e) {
-    for (size_t i = 0; i < size_ref; ++i) {
+    for (size_t i = start_pos; i < size_ref; ++i) {
       if (tgt_inliers->indices[e] == ref_inliers->indices[i]) {
         within++;
+        start_pos = i + 1;
         break;
       }
     }
+    if (within > half_size) {
+      return true;
+    }
   }
-  rate = float(within)/float(size_tgt);
-  return rate;
+}
+
+float Utilities::getCloudMeanZ(PointCloudMono::Ptr cloud_in)
+{
+  // A simple yet easy to understand method
+  float mid = 0.0;
+  size_t ct = 0;
+  for (PointCloudMono::const_iterator pit = cloud_in->begin();
+       pit != cloud_in->end(); ++pit) {
+    mid += pit->z;
+    ct++;
+  }
+  return mid/ct;
+}
+
+float Utilities::getCloudMeanZ(PointCloudRGBN::Ptr cloud_in)
+{
+  // A simple yet easy to understand method
+  float mid = 0.0;
+  size_t ct = 0;
+  for (PointCloudRGBN::const_iterator pit = cloud_in->begin();
+       pit != cloud_in->end(); ++pit) {
+    if (!isfinite(pit->z))
+      cerr << "nan" << endl;
+    else {
+      mid += pit->z;
+      ct++;
+    }
+  }
+  return mid/ct;
+}
+
+pcl::PolygonMesh Utilities::generateMesh(const PointCloudMono::Ptr point_cloud, 
+                                         NormalCloud::Ptr normals)
+{
+  //    NormalCloud::Ptr normals(new NormalCloud);
+  //    normals->height = plane_hull_[i]->height;
+  //    normals->width  = plane_hull_[i]->width;
+  //    normals->is_dense = true;
+  //    normals->resize(normals->height * normals->width);
+  //    for (size_t j = 0; j < normals->size(); ++j) {
+  //      normals->points[j].normal_x = 0;
+  //      normals->points[j].normal_y = 0;
+  //      normals->points[j].normal_z = 1;
+  //    }
+  
+  // Add the normals to the point cloud
+  NormalPointCloud::Ptr cloud_with_normals(new NormalPointCloud);
+  pcl::concatenateFields(*point_cloud, *normals, *cloud_with_normals);
+  pcl::search::KdTree<pcl::PointNormal>::Ptr tree(new pcl::search::KdTree<pcl::PointNormal>);
+  tree->setInputCloud(cloud_with_normals);                
+  pcl::GreedyProjectionTriangulation<pcl::PointNormal> gp3;
+  pcl::PolygonMesh triangles;                               
+  
+  gp3.setSearchRadius(0.08);
+  gp3.setMu(2.5);
+  gp3.setMaximumNearestNeighbors (100);
+  gp3.setMaximumSurfaceAngle(M_PI);
+  gp3.setMinimumAngle(0);
+  gp3.setMaximumAngle(2*M_PI/3);
+  gp3.setNormalConsistency(false);
+  gp3.setInputCloud (cloud_with_normals);
+  gp3.setSearchMethod(tree);
+  gp3.reconstruct(triangles);
+  
 }
 
 void Utilities::shrinkHull(PointCloudMono::Ptr cloud, 
@@ -384,6 +487,7 @@ void Utilities::shrinkHull(PointCloudMono::Ptr cloud,
 bool Utilities::isInHull(PointCloudMono::Ptr hull, pcl::PointXY p_in, 
                          pcl::PointXY &offset, pcl::PointXY &p_closest)
 {
+  //pcl::isXYPointIn2DXYPolygon(p_in, *hull);
   // Step 1: get cloest point of p_in in each sector
   size_t i = 0;
   bool has_sector_1 = false;

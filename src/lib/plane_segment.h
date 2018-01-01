@@ -89,11 +89,15 @@ public:
   void getHorizontalPlanes(PointCloud::Ptr cloud);
   
   // Container for storing result planes
+  vector<PointCloudMono::Ptr> plane_points_;
   vector<pcl::ModelCoefficients::Ptr> plane_coeff_;
-  vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> plane_hull_;
+  vector<PointCloudMono::Ptr> plane_hull_;
+  vector<pcl::PolygonMesh> plane_mesh_;
+  
   // Container for storing the largest plane (except the ground)
   pcl::ModelCoefficients::Ptr plane_max_coeff_;
   pcl::PointCloud<pcl::PointXYZ>::Ptr plane_max_hull_;
+  pcl::PolygonMesh plane_max_mesh_;
   
 private:
   bool use_real_data_;
@@ -116,8 +120,12 @@ private:
   PointCloud::Ptr src_rgb_cloud_;
   
   // Clouds after grid filter
-  PointCloudRGBN::Ptr src_filtered_;
+  PointCloudRGBN::Ptr src_rgbn_cloud_;
+  // Normals for grid filtered cloud
   NormalCloud::Ptr src_normals_;
+  // Filtered normal index and corresponding cloud
+  pcl::PointIndices::Ptr idx_norm_fit_;
+  PointCloudRGBN::Ptr cloud_norm_fit_;
   
   pcl::PointIndices::Ptr src_z_inliers_;
   
@@ -133,27 +141,12 @@ private:
   
   ros::Publisher pub_max_plane_;
   ros::Publisher pub_cloud_;
-  
-  // Target table approximate height
-  float table_height_;
 
   // Support surface area threshold
   float th_area_;
-  
-  // Distance between base_frame and ground
-  float base_link_above_ground_;
-  
-  // Graspable area center xy in base_link frame
-  float grasp_area_x_;
-  float grasp_area_y_;
-  float tolerance_;
-  // Distance between object center and base
-  float z_offset_;
-  
   float global_area_temp_;
-  float global_height_temp_;
   
-  vector<float> planeZVector_;
+  vector<float> plane_z_value_;
   vector<PointCloudRGBN::Ptr> cloud_fit_parts_;
   vector<pcl::PointIndices> rg_cluster_indices_;
   
@@ -164,7 +157,7 @@ private:
   void calRegionGrowing(PointCloudRGBN::Ptr cloud_in, 
                         pcl::PointCloud<pcl::Normal>::Ptr normals);
   
-  void getMeanZofEachCluster(PointCloudRGBN::Ptr cloud_in);
+  void getMeanZofEachCluster(PointCloudRGBN::Ptr cloud_norm_fit);
   
   /**
    * @brief extractPlaneForEachZ
@@ -172,8 +165,6 @@ private:
    * @param cloud_in source cloud
    */
   void extractPlaneForEachZ(PointCloudRGBN::Ptr cloud_norm_fit);
-  
-  float getCloudMeanZ(PointCloudMono::Ptr cloud_in);
   
   /**
    * @brief extractPlane extract points which have similar z value
@@ -184,7 +175,7 @@ private:
   
   
   void visualizeResult();
-  boost::shared_ptr<pcl::visualization::PCLVisualizer> cloud_viewer;
+  boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer;
   
   // For publishing and receiving point cloud
   template <typename PointTPtr>
@@ -193,12 +184,11 @@ private:
   
   HighResTimer hst_;
   
-  
+  // Reconstruct mesh from point cloud
   void poisson_reconstruction(NormalPointCloud::Ptr point_cloud, 
                               pcl::PolygonMesh &mesh);
   pcl::PolygonMesh mesh(const PointCloudMono::Ptr point_cloud, NormalCloud::Ptr normals);
-  
-  NormalCloud::Ptr estimateNorm(PointCloudMono::Ptr cloud_in, float norm_r);
+
 };
 
 #endif // PLANE_SEGMENT_H
