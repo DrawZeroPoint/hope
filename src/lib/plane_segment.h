@@ -72,6 +72,7 @@
 
 #include "fetch_rgbd.h"
 #include "high_res_timer.h"
+#include "hope.h"
 #include "transform.h"
 #include "utilities.h"
 
@@ -81,7 +82,7 @@ using namespace cv;
 class PlaneSegment
 {
 public:
-  PlaneSegment(bool use_real_data, string base_frame, float th_area);
+  PlaneSegment(bool use_real_data, string base_frame, float th_xy, float th_z);
   
   void setParams(int dataset_type, float roll, float pitch, 
                  float tx, float ty, float tz, float qx, float qy, float qz, float qw);
@@ -126,6 +127,7 @@ private:
   // Filtered normal index and corresponding cloud
   pcl::PointIndices::Ptr idx_norm_fit_;
   PointCloudRGBN::Ptr cloud_norm_fit_;
+  PointCloudMono::Ptr cloud_norm_fit_mono_;
   
   pcl::PointIndices::Ptr src_z_inliers_;
   
@@ -143,12 +145,11 @@ private:
   ros::Publisher pub_cloud_;
 
   // Support surface area threshold
-  float th_area_;
   float global_area_temp_;
   
   vector<float> plane_z_value_;
   vector<PointCloudRGBN::Ptr> cloud_fit_parts_;
-  vector<pcl::PointIndices> rg_cluster_indices_;
+  vector<pcl::PointIndices> seed_clusters_indices_;
   
   // Core process for finding planes
   void findAllPlanes();
@@ -159,12 +160,16 @@ private:
   
   void getMeanZofEachCluster(PointCloudRGBN::Ptr cloud_norm_fit);
   
+  void getMeanZofEachCluster(PointCloudMono::Ptr cloud_norm_fit_mono);
+  
   /**
    * @brief extractPlaneForEachZ
    * Merge clouds which from the same plane with equal z value
    * @param cloud_in source cloud
    */
   void extractPlaneForEachZ(PointCloudRGBN::Ptr cloud_norm_fit);
+  
+  void extractPlaneForEachZ(PointCloudMono::Ptr cloud_norm_fit);
   
   /**
    * @brief extractPlane extract points which have similar z value
@@ -173,6 +178,8 @@ private:
    */
   void extractPlane(size_t id, float z_in, PointCloudRGBN::Ptr &cloud_norm_fit);
   
+  
+  void extractPlane(size_t id, float z_in, PointCloudMono::Ptr &cloud_norm_fit_mono);
   
   void visualizeResult();
   boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer;
@@ -188,7 +195,12 @@ private:
   void poisson_reconstruction(NormalPointCloud::Ptr point_cloud, 
                               pcl::PolygonMesh &mesh);
   pcl::PolygonMesh mesh(const PointCloudMono::Ptr point_cloud, NormalCloud::Ptr normals);
-
+  
+  void calInitClusters(PointCloudMono::Ptr cloud_in);
+  void ZRGEachCluster(PointCloudMono::Ptr cloud_norm_fit_mono);
+  void ZGCluster(PointCloudMono::Ptr cloud_norm_fit_mono);
+  void getPlane(size_t id, float z_in, PointCloudMono::Ptr &cloud_norm_fit_mono);
+  void getFakeColorCloud(float z, PointCloudMono::Ptr cloud_in, PointCloud::Ptr &cloud_out);
 };
 
 #endif // PLANE_SEGMENT_H

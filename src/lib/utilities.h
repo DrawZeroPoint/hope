@@ -66,28 +66,6 @@ class Utilities
 {
 public:
   Utilities();
-  
-  static void msgToCloud(const PointCloud::ConstPtr msg, 
-                         PointCloudMono::Ptr cloud);
-  
-  static void estimateNorm(PointCloudMono::Ptr cloud_in, 
-                           PointCloudRGBN::Ptr &cloud_out, 
-                           NormalCloud::Ptr &normals_out,
-                           float norm_r, float grid_sz, bool down_sp);
-  
-  static NormalCloud::Ptr estimateNorm(PointCloudMono::Ptr cloud_in, float norm_r);
-  
-  
-  static void generateName(int count, string pref, string surf, string &name);
-  
-  static void getAverage(PointCloudMono::Ptr cloud_in, float &avr, float &deltaz);
-  
-  static void pointTypeTransfer(PointCloudRGBN::Ptr cloud_in, 
-                                PointCloudMono::Ptr &cloud_out);
-  
-  static void pointTypeTransfer(PointCloud::Ptr cloud_in, 
-                                PointCloudMono::Ptr &cloud_out);
-  
   static void clusterExtract(PointCloudMono::Ptr cloud_in, 
                              vector<pcl::PointIndices> &cluster_indices,
                              float th_cluster, int minsize, int maxsize);
@@ -95,6 +73,61 @@ public:
   static void cutCloud(pcl::ModelCoefficients::Ptr coeff_in, float th_distance,
                        PointCloudRGBN::Ptr cloud_in, vector<int> &inliers_cut,
                        PointCloudMono::Ptr &cloud_out);
+  
+  static void cutCloud(pcl::ModelCoefficients::Ptr coeff_in, float th_distance,
+                       PointCloudMono::Ptr cloud_in, vector<int> &inliers_cut,
+                       PointCloudMono::Ptr &cloud_out);
+  
+  static void estimateNorm(PointCloudMono::Ptr cloud_in, 
+                           PointCloudRGBN::Ptr &cloud_out, 
+                           NormalCloud::Ptr &normals_out,
+                           float norm_r);
+  
+  static void estimateNorm(PointCloudMono::Ptr cloud_in, 
+                           NormalCloud::Ptr &normals_out,
+                           float norm_r);
+  
+  static void getAverage(PointCloudMono::Ptr cloud_in, float &avr, float &deltaz);
+  
+  static void getCloudByInliers(PointCloudMono::Ptr cloud_in, PointCloudMono::Ptr &cloud_out, 
+                                pcl::PointIndices::Ptr inliers, bool negative, bool organized);
+  
+  static void getCloudByInliers(NormalCloud::Ptr cloud_in, NormalCloud::Ptr &cloud_out, 
+                                pcl::PointIndices::Ptr inliers, bool negative, bool organized);
+  
+  static void getCloudByInliers(PointCloudRGBN::Ptr cloud_in, 
+                                PointCloudRGBN::Ptr &cloud_out,
+                                pcl::PointIndices::Ptr inliers, bool negative, bool organized);
+  
+  static void getCloudByNorm(PointCloudRGBN::Ptr cloud_in, pcl::PointIndices::Ptr &inliers, 
+                             float th_norm);
+  
+  static void getCloudByNorm(NormalCloud::Ptr cloud_in, pcl::PointIndices::Ptr &inliers, float th_norm);
+
+  static void getCloudByZ(PointCloudMono::Ptr cloud_in, pcl::PointIndices::Ptr &inliers, 
+                          PointCloudMono::Ptr &cloud_out, float z_min, float z_max);
+  
+  static void getCloudByZ(PointCloud::Ptr cloud_in, pcl::PointIndices::Ptr &inliers, 
+                          PointCloud::Ptr &cloud_out, float z_min, float z_max);
+  
+  static float getCloudMeanZ(PointCloudMono::Ptr cloud_in);
+  
+  static float getCloudMeanZ(PointCloudRGBN::Ptr cloud_in);
+  
+  static pcl::PolygonMesh getMesh(const PointCloudMono::Ptr point_cloud, NormalCloud::Ptr normals);
+  
+  static void getName(int count, string pref, int surf, string &name);
+  
+  static void msgToCloud(const PointCloud::ConstPtr msg, 
+                         PointCloudMono::Ptr cloud);
+  static void pointTypeTransfer(PointCloudRGBN::Ptr cloud_in, 
+                                PointCloudMono::Ptr &cloud_out);
+  
+  static void pointTypeTransfer(PointCloud::Ptr cloud_in, 
+                                PointCloudMono::Ptr &cloud_out);
+  
+  static void downSampling(PointCloudMono::Ptr cloud_in, 
+                         PointCloudMono::Ptr &cloud_out, float gird_sz);
   
   static void projectCloud(pcl::ModelCoefficients::Ptr coeff_in, 
                            PointCloudMono::Ptr cloud_in, 
@@ -107,25 +140,6 @@ public:
   static void rotateBack(PointCloudMono::Ptr cloud_in, 
                          PointCloudMono::Ptr &cloud_out,
                          Eigen::Matrix4f transform_inv);
-  
-  static void preProcess(PointCloudMono::Ptr cloud_in, 
-                         PointCloudMono::Ptr &cloud_out, float gird_sz);
-  
-  static void getCloudByNorm(PointCloudRGBN::Ptr cloud_in, pcl::PointIndices::Ptr &inliers, 
-                             float th_norm);
-  
-  static void getCloudByZ(PointCloudMono::Ptr cloud_in, pcl::PointIndices::Ptr &inliers, 
-                          PointCloudMono::Ptr &cloud_out, float z_min, float z_max);
-  
-  static void getCloudByZ(PointCloud::Ptr cloud_in, pcl::PointIndices::Ptr &inliers, 
-                          PointCloud::Ptr &cloud_out, float z_min, float z_max);
-  
-  static void getCloudByInliers(PointCloudMono::Ptr cloud_in, PointCloudMono::Ptr &cloud_out, 
-                                pcl::PointIndices::Ptr inliers, bool negative, bool organized);
-  static void getCloudByInliers(PointCloudRGBN::Ptr cloud_in, 
-                                PointCloudRGBN::Ptr &cloud_out,
-                                pcl::PointIndices::Ptr inliers, bool negative, bool organized);
-  
   /**
    * @brief checkWithIn Check if ref_inliers contains elements in tgt_inliers
    * @param ref_inliers
@@ -183,13 +197,8 @@ public:
   static void getClosestPoint(pcl::PointXY p1, pcl::PointXY p2, 
                               pcl::PointXY p, pcl::PointXY &pc);
   
-  static void smartOffset(pcl::PointXYZ &p_in, float off_xy, float off_z);
-  static pcl::PolygonMesh generateMesh(const PointCloudMono::Ptr point_cloud, NormalCloud::Ptr normals);
-  
-  static float getCloudMeanZ(PointCloudMono::Ptr cloud_in);
-  
-  static float getCloudMeanZ(PointCloudRGBN::Ptr cloud_in);
-  
+  static float shortRainbowColorMap(const double value, const double min, const double max);
+
 private:
   static float determinant(float v1, float v2, float v3, float v4);
   

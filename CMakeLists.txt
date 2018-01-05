@@ -22,6 +22,12 @@ find_package(catkin REQUIRED COMPONENTS
 
 find_package(Boost COMPONENTS system filesystem regex REQUIRED)
 
+find_package(PCL 1.7 REQUIRED)
+
+include_directories(${PCL_INCLUDE_DIRS})
+link_directories(${PCL_LIBRARY_DIRS})
+add_definitions(${PCL_DEFINITIONS})
+
 catkin_package(
 
 )
@@ -36,6 +42,7 @@ add_library(${PROJECT_NAME}
   src/lib/fetch_rgbd.cpp
   src/lib/get_cloud.cpp
   src/lib/high_res_timer.cpp
+  src/lib/hope.cpp
   src/lib/transform.cpp
   src/lib/plane_segment.cpp
   src/lib/utilities.cpp
@@ -43,6 +50,7 @@ add_library(${PROJECT_NAME}
   src/lib/fetch_rgbd.h
   src/lib/get_cloud.h
   src/lib/high_res_timer.h
+  src/lib/hope.h
   src/lib/transform.h
   src/lib/plane_segment.h
   src/lib/utilities.h
@@ -54,6 +62,7 @@ add_library(${PROJECT_NAME}
 add_executable(${PROJECT_NAME}_node src/hope_node.cpp)
 
 # Specify libraries to link a library or executable target against
-target_link_libraries(${PROJECT_NAME}_node
-  ${catkin_LIBRARIES} ${PROJECT_NAME} ${GLOG_LIB}
-)
+target_link_libraries(${PROJECT_NAME}_node ${catkin_LIBRARIES} ${PROJECT_NAME} ${GLOG_LIB})
+
+add_executable(view_cloud src/view_cloud.cpp)
+target_link_libraries(view_cloud ${PCL_LIBRARIES})

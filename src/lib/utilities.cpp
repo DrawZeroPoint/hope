@@ -5,12 +5,12 @@ Utilities::Utilities()
 {
 }
 
-void Utilities::generateName(int count, string pref, string surf, string &name)
+void Utilities::getName(int count, string pref, int surf, string &name)
 {
   std::ostringstream ost;
-  ost << count;
+  ost << count << surf;
   std::string temp(ost.str());
-  name = pref + temp + surf;
+  name = pref + temp;
 }
 
 void Utilities::msgToCloud(const PointCloud::ConstPtr msg,
@@ -34,52 +34,8 @@ void Utilities::msgToCloud(const PointCloud::ConstPtr msg,
 void Utilities::estimateNorm(PointCloudMono::Ptr cloud_in, 
                              PointCloudRGBN::Ptr &cloud_out,
                              NormalCloud::Ptr &normals_out,
-                             float norm_r, float grid_sz, bool down_sp)
+                             float norm_r)
 {
-  PointCloudMono::Ptr cloud_fit(new PointCloudMono);
-  if (down_sp)
-    preProcess(cloud_in, cloud_fit, grid_sz);
-  else
-    cloud_fit = cloud_in;
-  
-  cloud_out->height = cloud_fit->height;
-  cloud_out->width  = cloud_fit->width;
-  cloud_out->is_dense = false;
-  cloud_out->resize(cloud_out->height * cloud_out->width);
-  
-  /// Basic method
-  // Create the normal estimation class, and pass the input dataset to it
-  pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> ne;
-  ne.setInputCloud(cloud_fit);
-  
-  // Create an empty kdtree representation, and pass it to the normal estimation object.
-  // Its content will be filled inside the object, based on the given input dataset 
-  // (as no other search surface is given).
-  pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>);
-  ne.setSearchMethod(tree);
-  ne.setRadiusSearch(norm_r); // in meter
-  
-  // Compute the normals
-  ne.compute(*normals_out);
-  
-  // Generate rgbn cloud
-  for (size_t i = 0; i < cloud_out->size(); ++i) {
-    cloud_out->points[i].x = cloud_fit->points[i].x;
-    cloud_out->points[i].y = cloud_fit->points[i].y;
-    cloud_out->points[i].z = cloud_fit->points[i].z;
-    cloud_out->points[i].r = 255;
-    cloud_out->points[i].g = 255;
-    cloud_out->points[i].b = 255;
-    cloud_out->points[i].normal_x = normals_out->points[i].normal_x;
-    cloud_out->points[i].normal_y = normals_out->points[i].normal_y;
-    cloud_out->points[i].normal_z = normals_out->points[i].normal_z;
-  }
-}
-
-NormalCloud::Ptr Utilities::estimateNorm(PointCloudMono::Ptr cloud_in, float norm_r)
-{
-  NormalCloud::Ptr cloud_norm(new NormalCloud);
-  
   /// Basic method
   // Create the normal estimation class, and pass the input dataset to it
   pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> ne;
@@ -92,8 +48,8 @@ NormalCloud::Ptr Utilities::estimateNorm(PointCloudMono::Ptr cloud_in, float nor
   ne.setSearchMethod(tree);
   ne.setRadiusSearch(norm_r); // in meter
   
-  // Compute the features
-  ne.compute(*cloud_norm);
+  // Compute the normals
+  ne.compute(*normals_out);
   
   /// Do it in parallel
   //  // Declare PCL objects needed to perform normal estimation
@@ -101,37 +57,66 @@ NormalCloud::Ptr Utilities::estimateNorm(PointCloudMono::Ptr cloud_in, float nor
   //  pcl::search::KdTree<pcl::PointXYZ>::Ptr search_tree(new pcl::search::KdTree<pcl::PointXYZ>);
   
   //  // Set input parameters for normal estimation
-  //  search_tree->setInputCloud(cloud_fit);
-  //  normal_estimation.setInputCloud(cloud_fit);
+  //  search_tree->setInputCloud(cloud_in);
+  //  normal_estimation.setInputCloud(cloud_in);
   //  normal_estimation.setSearchMethod(search_tree);
   
   //  /*
-  //   * When estimating normals, the algorithm looks at the nearest neighbors of every point
-  //   * and fits a plane to these points as close as it can. The normal of this plane is
-  //   * the estimated normal of the point.
-  //   * This sets how many of the nearest neighbors to look at when estimating normals.
-  //   * Is a rough setting for accuracy that can be adjusted.
-  //   * A lower number here means that corners in the point cloud will be more accurate,
-  //   * too low a number will cause problems.
-  //   */
-  //  normal_estimation.setKSearch(10);
+  //     * When estimating normals, the algorithm looks at the nearest neighbors of every point
+  //     * and fits a plane to these points as close as it can. The normal of this plane is
+  //     * the estimated normal of the point.
+  //     * This sets how many of the nearest neighbors to look at when estimating normals.
+  //     * Is a rough setting for accuracy that can be adjusted.
+  //     * A lower number here means that corners in the point cloud will be more accurate,
+  //     * too low a number will cause problems.
+  //     */
+  //  normal_estimation.setKSearch(6);
   
   //  // Perform normal estimation algorithm
-  //  normal_estimation.compute(*cloud_norm);
+  //  normal_estimation.compute(*normals_out);
   
-  // Reverse the direction of all normals so that the face of the object points outwards.
-  // Should not be necessary but it is easier when visualising the object in MeshLab etc.
-  for (size_t i = 0; i < cloud_norm->size(); ++i) {
-    cloud_norm->points[i].normal_x *= -1;
-    cloud_norm->points[i].normal_y *= -1;
-    cloud_norm->points[i].normal_z *= -1;
+  cloud_out->height = cloud_in->height;
+  cloud_out->width  = cloud_in->width;
+  cloud_out->is_dense = false;
+  cloud_out->resize(cloud_out->height * cloud_out->width);
+  
+  // Generate rgbn cloud
+  for (size_t i = 0; i < cloud_out->size(); ++i) {
+    cloud_out->points[i].x = cloud_in->points[i].x;
+    cloud_out->points[i].y = cloud_in->points[i].y;
+    cloud_out->points[i].z = cloud_in->points[i].z;
+    cloud_out->points[i].r = 255;
+    cloud_out->points[i].g = 255;
+    cloud_out->points[i].b = 255;
+    cloud_out->points[i].normal_x = normals_out->points[i].normal_x;
+    cloud_out->points[i].normal_y = normals_out->points[i].normal_y;
+    cloud_out->points[i].normal_z = normals_out->points[i].normal_z;
   }
-  return cloud_norm;
 }
 
-void Utilities::preProcess(PointCloudMono::Ptr cloud_in, 
-                           PointCloudMono::Ptr &cloud_out,
-                           float gird_sz)
+void Utilities::estimateNorm(PointCloudMono::Ptr cloud_in, 
+                             NormalCloud::Ptr &normals_out,
+                             float norm_r)
+{
+  /// Basic method
+  // Create the normal estimation class, and pass the input dataset to it
+  pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> ne;
+  ne.setInputCloud(cloud_in);
+  
+  // Create an empty kdtree representation, and pass it to the normal estimation object.
+  // Its content will be filled inside the object, based on the given input dataset 
+  // (as no other search surface is given).
+  pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>);
+  ne.setSearchMethod(tree);
+  ne.setRadiusSearch(norm_r); // in meter
+  
+  // Compute the normals
+  ne.compute(*normals_out);
+}
+
+void Utilities::downSampling(PointCloudMono::Ptr cloud_in, 
+                             PointCloudMono::Ptr &cloud_out,
+                             float gird_sz)
 {
   // Create the filtering object
   pcl::VoxelGrid<pcl::PointXYZ> vg;
@@ -174,6 +159,18 @@ void Utilities::cutCloud(pcl::ModelCoefficients::Ptr coeff_in, float th_distance
   PointCloudMono::Ptr cloudSourceFiltered_t(new PointCloudMono);
   pointTypeTransfer(cloud_in, cloudSourceFiltered_t);
   pcl::SampleConsensusModelPlane<pcl::PointXYZ> scmp(cloudSourceFiltered_t);
+  scmp.selectWithinDistance(coeffs, th_distance, inliers_cut);
+  scmp.projectPoints(inliers_cut, coeffs, *cloud_out, false);
+}
+
+void Utilities::cutCloud(pcl::ModelCoefficients::Ptr coeff_in, float th_distance,
+                         PointCloudMono::Ptr cloud_in, vector<int> &inliers_cut,
+                         PointCloudMono::Ptr &cloud_out)
+{
+  Eigen::Vector4f coeffs(coeff_in->values[0], coeff_in->values[1],
+      coeff_in->values[2], coeff_in->values[3]);
+  
+  pcl::SampleConsensusModelPlane<pcl::PointXYZ> scmp(cloud_in);
   scmp.selectWithinDistance(coeffs, th_distance, inliers_cut);
   scmp.projectPoints(inliers_cut, coeffs, *cloud_out, false);
 }
@@ -276,6 +273,23 @@ void Utilities::getCloudByNorm(PointCloudRGBN::Ptr cloud_in,
   }
 }
 
+void Utilities::getCloudByNorm(NormalCloud::Ptr cloud_in, 
+                               pcl::PointIndices::Ptr &inliers, 
+                               float th_norm)
+{
+  size_t i = 0;
+  for (NormalCloud::const_iterator pit = cloud_in->begin();
+       pit != cloud_in->end();++pit) {
+    float n_z = pit->normal_z;
+    // If point normal fulfill this criterion, consider it from plane
+    // Here we use absolute value cause the normal direction may be opposite to
+    // the z-axis due to the algorithm's settings
+    if (fabs(n_z) > th_norm)
+      inliers->indices.push_back(i);
+    ++i;
+  }
+}
+
 void Utilities::getCloudByZ(PointCloudMono::Ptr cloud_in, 
                             pcl::PointIndices::Ptr &inliers, 
                             PointCloudMono::Ptr &cloud_out, 
@@ -312,6 +326,19 @@ void Utilities::getCloudByInliers(PointCloudMono::Ptr cloud_in,
                                   bool negative, bool organized)
 {
   pcl::ExtractIndices<pcl::PointXYZ> extract;
+  extract.setNegative(negative);
+  extract.setInputCloud(cloud_in);
+  extract.setIndices(inliers);
+  extract.setKeepOrganized(organized);
+  extract.filter(*cloud_out);
+}
+
+void Utilities::getCloudByInliers(NormalCloud::Ptr cloud_in, 
+                                  NormalCloud::Ptr &cloud_out,
+                                  pcl::PointIndices::Ptr inliers, 
+                                  bool negative, bool organized)
+{
+  pcl::ExtractIndices<pcl::Normal> extract;
   extract.setNegative(negative);
   extract.setInputCloud(cloud_in);
   extract.setIndices(inliers);
@@ -374,8 +401,12 @@ float Utilities::getCloudMeanZ(PointCloudMono::Ptr cloud_in)
   size_t ct = 0;
   for (PointCloudMono::const_iterator pit = cloud_in->begin();
        pit != cloud_in->end(); ++pit) {
-    mid += pit->z;
-    ct++;
+    if (!isfinite(pit->z))
+      cerr << "nan" << endl;
+    else {
+      mid += pit->z;
+      ct++;
+    }
   }
   return mid/ct;
 }
@@ -397,8 +428,8 @@ float Utilities::getCloudMeanZ(PointCloudRGBN::Ptr cloud_in)
   return mid/ct;
 }
 
-pcl::PolygonMesh Utilities::generateMesh(const PointCloudMono::Ptr point_cloud, 
-                                         NormalCloud::Ptr normals)
+pcl::PolygonMesh Utilities::getMesh(const PointCloudMono::Ptr point_cloud, 
+                                    NormalCloud::Ptr normals)
 {
   //    NormalCloud::Ptr normals(new NormalCloud);
   //    normals->height = plane_hull_[i]->height;
@@ -621,6 +652,50 @@ void Utilities::getClosestPoint(pcl::PointXY p1, pcl::PointXY p2,
   pc.x = A/B*(pc.y - p1.y) + p1.x;
 }
 
+float Utilities::shortRainbowColorMap(const double value, 
+                                      const double min, 
+                                      const double max) {
+  uint8_t r, g, b;
+  
+  // Normalize value to [0, 1]
+  double value_normalized = (value - min) / (max - min);
+  
+  double a = (1.0f - value_normalized) / 0.25f;
+  int X = static_cast<int>(floor(a));
+  int Y = static_cast<int>(floor(255.0f * (a - X)));
+  
+  switch (X) {
+  case 0: 
+    r = 255;
+    g = Y;
+    b = 0;
+    break;
+  case 1: 
+    r = 255 - Y;
+    g = 255;
+    b = 0;
+    break;
+  case 2: 
+    r = 0;
+    g = 255;
+    b = Y;
+    break;
+  case 3: 
+    r = 0;
+    g = 255-Y;
+    b = 255;
+    break;
+  case 4: 
+    r = 0;
+    g = 0;
+    b = 255;
+    break;
+  }
+  
+  uint32_t rgb = ((uint32_t)r << 16 | (uint32_t)g << 8 | (uint32_t)b);
+  return *reinterpret_cast<float*>(&rgb);
+}
+
 float Utilities::pointToSegDist(float x, float y, float x1, float y1, float x2, float y2)
 {
   float cross = (x2 - x1) * (x - x1) + (y2 - y1) * (y - y1);
@@ -635,18 +710,4 @@ float Utilities::pointToSegDist(float x, float y, float x1, float y1, float x2, 
   float px = x1 + (x2 - x1) * r;
   float py = y1 + (y2 - y1) * r;
   return sqrt((x - px) * (x - px) + (py - y) * (py - y));
-}
-
-void Utilities::smartOffset(pcl::PointXYZ &p_in, float off_xy, float off_z)
-{
-  //  float y_off = off_xy / sqrt(1 + pow(p_in.x / p_in.y, 2)) * p_in.y / fabs(p_in.y);
-  //  float x_off = p_in.x / p_in.y * y_off;
-  
-  float rad = atan2(p_in.y, p_in.x);
-  float y_off = off_xy * sin(rad);
-  float x_off = off_xy * cos(rad);  
-  p_in.x += x_off;
-  p_in.y += y_off;
-  // To solve the issue that the detected point is higher than optimal position
-  p_in.z += off_z;
 }

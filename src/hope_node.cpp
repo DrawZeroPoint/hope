@@ -141,7 +141,7 @@ int main(int argc, char **argv)
   }
   else if (argc == 10) {
     int arg_index = 1;
-    string path_prefix = "/home/aicrobo/TUM/rgbd_dataset_freiburg1_rpy/";
+    string path_prefix = "/home/aicrobo/TUM/rgbd_dataset_freiburg1_desk/";
     path_rgb = path_prefix + "rgb/" + argv[arg_index++];
     path_depth = path_prefix + "depth/" + argv[arg_index++];
     
@@ -162,7 +162,9 @@ int main(int argc, char **argv)
   ros::NodeHandle nh;
   ros::NodeHandle pnh("~");
   
-  PlaneSegment hope(use_real_data_, base_frame_, 0.01);
+  float xy_resolution = 0.01; // In meter
+  float z_resolution = 0.002; // In meter
+  PlaneSegment hope(use_real_data_, base_frame_, xy_resolution, z_resolution);
   PointCloud::Ptr src_cloud(new PointCloud);
   
   if (use_real_data_) {
@@ -197,7 +199,6 @@ int main(int argc, char **argv)
     // Filter the cloud with range 0.3-8.0m cause most RGB-D sensors are unreliable outside this range
     // But if Lidar data is used, try expand the range
     m_gc.getColorCloud(rgb, depth, src_cloud, 8.0, 0.3);
-    
     hope.getHorizontalPlanes(src_cloud);
   }
   return 0;
@@ -213,5 +214,9 @@ int main(int argc, char **argv)
  * 
  * rgbd_dataset_freiburg1_rpy/
  * 1305031230.598825.png 1305031230.598843.png 1.2742 0.5998 1.5466 0.6037 0.6605 -0.4430 -0.0554
-
+ * 
+ * rgbd_dataset_freiburg1_desk
+ * 1305031467.559763.png 1305031467.552164.png 1.6647 -0.2096 1.4409 0.7630 0.4318 -0.2384 -0.4176
+ * 1305031473.167060.png 1305031473.158420.png 0.9454 -0.0042 1.2882 0.8978 0.2745 -0.0950 -0.3311
+ 
  */
