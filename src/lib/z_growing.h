@@ -1,5 +1,5 @@
-#ifndef HOPE_H
-#define HOPE_H
+#ifndef ZGROWING_H
+#define ZGROWING_H
 
 #include <pcl/segmentation/region_growing.h>
 
@@ -15,7 +15,7 @@
 #include <time.h>
 
 
-class PCL_EXPORTS Hope : public pcl::PCLBase<pcl::PointXYZ>
+class ZGrowing : public pcl::PCLBase<pcl::PointXYZ>
 {
 public:
   typedef pcl::search::Search <pcl::PointXYZ> KdTree;
@@ -28,10 +28,10 @@ public:
   using pcl::PCLBase <pcl::PointXYZ>::deinitCompute;
   
 public:
-  Hope();
+  ZGrowing();
   
   virtual
-  ~Hope();
+  ~ZGrowing();
   
   /** \brief Get the minimum number of points that a cluster needs to contain in order to be considered valid. */
   int
@@ -66,13 +66,13 @@ public:
   
   /** \brief Returns smoothness threshold. */
   float
-  getSmoothnessThreshold () const;
+  getZThreshold () const;
   
   /** \brief Allows to set smoothness threshold used for testing the points.
     * \param[in] theta new threshold value for the angle between normals
     */
   void
-  setSmoothnessThreshold (float theta);
+  setZThreshold (float theta);
   
   
   /** \brief Returns the number of nearest neighbours used for KNN. */
@@ -173,12 +173,6 @@ protected:
   /** \brief Thershold used for testing the smoothness between points. */
   float z_threshold_;
   
-  /** \brief Thershold used in residual test. */
-  float residual_threshold_;
-  
-  /** \brief Thershold used in curvature test. */
-  float curvature_threshold_;
-  
   /** \brief Number of neighbours to find. */
   unsigned int neighbour_number_;
   
@@ -204,9 +198,6 @@ protected:
   
   /** \brief Stores the number of segments. */
   int number_of_segments_;
-  
-public:
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
-#endif // HOPE_H
+#endif

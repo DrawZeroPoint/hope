@@ -4,6 +4,7 @@
 #include <ros/ros.h>
 
 //STL
+#include <iostream> 
 #include <string>
 #include <vector>
 #include <math.h>
@@ -53,6 +54,8 @@
 #include <pcl/surface/mls.h>
 #include <pcl/surface/gp3.h>
 
+#include <Eigen/Dense>
+#include <Eigen/Eigenvalues>
 
 using namespace std;
 
@@ -66,95 +69,90 @@ class Utilities
 {
 public:
   Utilities();
-  static void clusterExtract(PointCloudMono::Ptr cloud_in, 
-                             vector<pcl::PointIndices> &cluster_indices,
-                             float th_cluster, int minsize, int maxsize);
   
-  static void cutCloud(pcl::ModelCoefficients::Ptr coeff_in, float th_distance,
-                       PointCloudRGBN::Ptr cloud_in, vector<int> &inliers_cut,
-                       PointCloudMono::Ptr &cloud_out);
+  void calRegionGrowing(PointCloudRGBN::Ptr cloud_in, int minsz, int maxsz, int nb, int smooth, 
+                        pcl::PointCloud<pcl::Normal>::Ptr normals, vector<pcl::PointIndices> &inliers);  
   
-  static void cutCloud(pcl::ModelCoefficients::Ptr coeff_in, float th_distance,
-                       PointCloudMono::Ptr cloud_in, vector<int> &inliers_cut,
-                       PointCloudMono::Ptr &cloud_out);
-  
-  static void estimateNorm(PointCloudMono::Ptr cloud_in, 
-                           PointCloudRGBN::Ptr &cloud_out, 
-                           NormalCloud::Ptr &normals_out,
-                           float norm_r);
-  
-  static void estimateNorm(PointCloudMono::Ptr cloud_in, 
-                           NormalCloud::Ptr &normals_out,
-                           float norm_r);
-  
-  static void getAverage(PointCloudMono::Ptr cloud_in, float &avr, float &deltaz);
-  
-  static void getCloudByInliers(PointCloudMono::Ptr cloud_in, PointCloudMono::Ptr &cloud_out, 
-                                pcl::PointIndices::Ptr inliers, bool negative, bool organized);
-  
-  static void getCloudByInliers(NormalCloud::Ptr cloud_in, NormalCloud::Ptr &cloud_out, 
-                                pcl::PointIndices::Ptr inliers, bool negative, bool organized);
-  
-  static void getCloudByInliers(PointCloudRGBN::Ptr cloud_in, 
-                                PointCloudRGBN::Ptr &cloud_out,
-                                pcl::PointIndices::Ptr inliers, bool negative, bool organized);
-  
-  static void getCloudByNorm(PointCloudRGBN::Ptr cloud_in, pcl::PointIndices::Ptr &inliers, 
-                             float th_norm);
-  
-  static void getCloudByNorm(NormalCloud::Ptr cloud_in, pcl::PointIndices::Ptr &inliers, float th_norm);
-
-  static void getCloudByZ(PointCloudMono::Ptr cloud_in, pcl::PointIndices::Ptr &inliers, 
-                          PointCloudMono::Ptr &cloud_out, float z_min, float z_max);
-  
-  static void getCloudByZ(PointCloud::Ptr cloud_in, pcl::PointIndices::Ptr &inliers, 
-                          PointCloud::Ptr &cloud_out, float z_min, float z_max);
-  
-  static float getCloudMeanZ(PointCloudMono::Ptr cloud_in);
-  
-  static float getCloudMeanZ(PointCloudRGBN::Ptr cloud_in);
-  
-  static pcl::PolygonMesh getMesh(const PointCloudMono::Ptr point_cloud, NormalCloud::Ptr normals);
-  
-  static void getName(int count, string pref, int surf, string &name);
-  
-  static void msgToCloud(const PointCloud::ConstPtr msg, 
-                         PointCloudMono::Ptr cloud);
-  static void pointTypeTransfer(PointCloudRGBN::Ptr cloud_in, 
-                                PointCloudMono::Ptr &cloud_out);
-  
-  static void pointTypeTransfer(PointCloud::Ptr cloud_in, 
-                                PointCloudMono::Ptr &cloud_out);
-  
-  static void downSampling(PointCloudMono::Ptr cloud_in, 
-                         PointCloudMono::Ptr &cloud_out, float gird_sz);
-  
-  static void projectCloud(pcl::ModelCoefficients::Ptr coeff_in, 
-                           PointCloudMono::Ptr cloud_in, 
-                           PointCloudMono::Ptr &cloud_out);
-  
-  static void rotateCloudXY(PointCloudRGBN::Ptr cloud_in, 
-                            PointCloudRGBN::Ptr &cloud_out,
-                            float rx, float ry, Eigen::Matrix4f &transform_inv);
-  
-  static void rotateBack(PointCloudMono::Ptr cloud_in, 
-                         PointCloudMono::Ptr &cloud_out,
-                         Eigen::Matrix4f transform_inv);
   /**
    * @brief checkWithIn Check if ref_inliers contains elements in tgt_inliers
    * @param ref_inliers
    * @param tgt_inliers
    * @return rate of containment 0~1
    */
-  static bool checkWithIn(pcl::PointIndices::Ptr ref_inliers, pcl::PointIndices::Ptr tgt_inliers);
+  bool checkWithIn(pcl::PointIndices::Ptr ref_inliers, pcl::PointIndices::Ptr tgt_inliers);
+  
+  void clusterExtract(PointCloudMono::Ptr cloud_in, 
+                      vector<pcl::PointIndices> &cluster_indices,
+                      float th_cluster, int minsize, int maxsize);
+  
+  void cutCloud(pcl::ModelCoefficients::Ptr coeff_in, float th_distance,
+                PointCloudRGBN::Ptr cloud_in, vector<int> &inliers_cut,
+                PointCloudMono::Ptr &cloud_out);
+  
+  void cutCloud(pcl::ModelCoefficients::Ptr coeff_in, float th_distance,
+                PointCloudMono::Ptr cloud_in, vector<int> &inliers_cut,
+                PointCloudMono::Ptr &cloud_out);
+  
+  void downSampling(PointCloudMono::Ptr cloud_in, 
+                    PointCloudMono::Ptr &cloud_out, float gird_sz, float z_sz );
+  
+  void estimateNorm(PointCloudMono::Ptr cloud_in, 
+                    PointCloudRGBN::Ptr &cloud_out, 
+                    NormalCloud::Ptr &normals_out,
+                    float norm_r);
+  
+  void estimateNorm(PointCloudMono::Ptr cloud_in, 
+                    NormalCloud::Ptr &normals_out,
+                    float norm_r);
+  
+  void getAverage(PointCloudMono::Ptr cloud_in, float &avr, float &deltaz);
   
   /**
-   * @brief shrinkHull Shrink the 2D hull by distance dis according to the center
-   * @param cloud Hull cloud in XY plane
-   * @param cloud_sk Shrinked cloud in XY plane
-   * @param dis in meter
+   * @brief getClosestPoint
+   * Given line segment (p1,p2) and point p, get the closest point p_c of p on (p1,p2)
+   * with accuracy acc
+   * @param p1
+   * @param p2
+   * @param p
+   * @param p_c
+   * @param acc
    */
-  static void shrinkHull(PointCloudMono::Ptr cloud, PointCloudMono::Ptr &cloud_sk, float dis);
+  void getClosestPoint(pcl::PointXY p1, pcl::PointXY p2, 
+                       pcl::PointXY p, pcl::PointXY &pc);
+  
+  void getCloudByInliers(PointCloudMono::Ptr cloud_in, PointCloudMono::Ptr &cloud_out, 
+                         pcl::PointIndices::Ptr inliers, bool negative, bool organized);
+  
+  void getCloudByInliers(NormalCloud::Ptr cloud_in, NormalCloud::Ptr &cloud_out, 
+                         pcl::PointIndices::Ptr inliers, bool negative, bool organized);
+  
+  void getCloudByInliers(PointCloudRGBN::Ptr cloud_in, 
+                         PointCloudRGBN::Ptr &cloud_out,
+                         pcl::PointIndices::Ptr inliers, bool negative, bool organized);
+  
+  void getCloudByNorm(PointCloudRGBN::Ptr cloud_in, pcl::PointIndices::Ptr &inliers, 
+                      float th_norm);
+  
+  void getCloudByNorm(NormalCloud::Ptr cloud_in, pcl::PointIndices::Ptr &inliers, float th_norm);
+  
+  void getCloudByZ(PointCloudMono::Ptr cloud_in, pcl::PointIndices::Ptr &inliers, 
+                   PointCloudMono::Ptr &cloud_out, float z_min, float z_max);
+  
+  void getCloudByZ(PointCloud::Ptr cloud_in, pcl::PointIndices::Ptr &inliers, 
+                   PointCloud::Ptr &cloud_out, float z_min, float z_max);
+  
+  float getCloudMeanZ(PointCloudMono::Ptr cloud_in);
+  
+  float getCloudMeanZ(PointCloudRGBN::Ptr cloud_in);
+  
+  pcl::PolygonMesh getMesh(const PointCloudMono::Ptr point_cloud, NormalCloud::Ptr normals);
+  
+  void getMinMax(std::vector<int> vec, int &minv, int &maxv);
+  
+  string getName(int count, string pref, int surf);
+  
+  void getOccupancyMap(PointCloudMono::Ptr cloud_src, PointCloudMono::Ptr cloud_upper, std::vector<int> occupy,
+                       PointCloud::Ptr &cloud_out);
   
   /**
    * @brief isInHull
@@ -164,9 +162,51 @@ public:
    * @param offset Distance between p_in and its nearest point on hull
    * @return 
    */
-  static bool isInHull(PointCloudMono::Ptr hull, pcl::PointXY p_in, 
-                       pcl::PointXY &offset, pcl::PointXY &p_closest);
+  bool isInHull(PointCloudMono::Ptr hull, pcl::PointXY p_in, 
+                pcl::PointXY &offset, pcl::PointXY &p_closest);
   
+  bool isInVector(int id, vector<int> vec);
+  
+  void msgToCloud(const PointCloud::ConstPtr msg, 
+                  PointCloudMono::Ptr cloud);
+  
+  bool pcaAnalyse(const PointCloud::ConstPtr cloud_2d_in, float &max_dis);
+  
+  float pointToSegDist(float x, float y, float x1, float y1, float x2, float y2);
+  
+  void pointTypeTransfer(PointCloudRGBN::Ptr cloud_in, 
+                         PointCloudMono::Ptr &cloud_out);
+  
+  void pointTypeTransfer(PointCloud::Ptr cloud_in, 
+                         PointCloudMono::Ptr &cloud_out);
+  
+  void pointTypeTransfer(PointCloudMono::Ptr cloud_in, 
+                         PointCloud::Ptr &cloud_out, int r, int g, int b);
+  
+  void planeTo2D(float z, PointCloudMono::Ptr cloud_in, 
+                 PointCloudMono::Ptr &cloud_out);
+  
+  void projectCloud(pcl::ModelCoefficients::Ptr coeff_in, 
+                    PointCloudMono::Ptr cloud_in, 
+                    PointCloudMono::Ptr &cloud_out);
+  
+  void rotateCloudXY(PointCloudRGBN::Ptr cloud_in, 
+                     PointCloudRGBN::Ptr &cloud_out,
+                     float rx, float ry, Eigen::Matrix4f &transform_inv);
+  
+  void rotateBack(PointCloudMono::Ptr cloud_in, 
+                  PointCloudMono::Ptr &cloud_out,
+                  Eigen::Matrix4f transform_inv);
+  
+  /**
+   * @brief shrinkHull Shrink the 2D hull by distance dis according to the center
+   * @param cloud Hull cloud in XY plane
+   * @param cloud_sk Shrinked cloud in XY plane
+   * @param dis in meter
+   */
+  void shrinkHull(PointCloudMono::Ptr cloud, PointCloudMono::Ptr &cloud_sk, float dis);
+  
+  float shortRainbowColorMap(const double value, const double min, const double max);
   /**
    * @brief tryExpandROI
    * Expand given ROI by pad in both xy direction
@@ -179,30 +219,13 @@ public:
    * @param pad Expand value in px, can be negtive
    * @return false if the given ROI is abnormal, else return true
    */
-  static bool tryExpandROI(int &minx, int &miny, int &maxx, int &maxy, int pad, 
-                           int width = 640, int height = 480);
+  bool tryExpandROI(int &minx, int &miny, int &maxx, int &maxy, int pad, 
+                    int width = 640, int height = 480);
   
-  static float pointToSegDist(float x, float y, float x1, float y1, float x2, float y2);
+  private:
+  float determinant(float v1, float v2, float v3, float v4);
   
-  /**
-   * @brief getClosestPoint
-   * Given line segment (p1,p2) and point p, get the closest point p_c of p on (p1,p2)
-   * with accuracy acc
-   * @param p1
-   * @param p2
-   * @param p
-   * @param p_c
-   * @param acc
-   */
-  static void getClosestPoint(pcl::PointXY p1, pcl::PointXY p2, 
-                              pcl::PointXY p, pcl::PointXY &pc);
-  
-  static float shortRainbowColorMap(const double value, const double min, const double max);
-
-private:
-  static float determinant(float v1, float v2, float v3, float v4);
-  
-  static bool isIntersect(pcl::PointXY p1, pcl::PointXY p2, pcl::PointXY p3, pcl::PointXY p4);
+  bool isIntersect(pcl::PointXY p1, pcl::PointXY p2, pcl::PointXY p3, pcl::PointXY p4);
 };
 
 #endif // UTILITIES_H

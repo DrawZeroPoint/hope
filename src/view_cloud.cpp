@@ -214,8 +214,8 @@ boost::shared_ptr<pcl::visualization::PCLVisualizer> interactionCustomizationVis
   viewer->setBackgroundColor (0, 0, 0);
   viewer->addCoordinateSystem (1.0);
   
-  viewer->registerKeyboardCallback (keyboardEventOccurred, (void*)viewer.get ());
-  viewer->registerMouseCallback (mouseEventOccurred, (void*)viewer.get ());
+  viewer->registerKeyboardCallback(keyboardEventOccurred, (void*)viewer.get ());
+  viewer->registerMouseCallback(mouseEventOccurred, (void*)viewer.get ());
   
   return (viewer);
 }

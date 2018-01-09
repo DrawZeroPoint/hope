@@ -1,14 +1,12 @@
-#include "hope.h"
+#include "z_growing.h"
 
-Hope::Hope() :
+ZGrowing::ZGrowing() :
   min_pts_per_cluster_ (1),
   max_pts_per_cluster_ (std::numeric_limits<int>::max ()),
   smooth_mode_flag_ (true),
   curvature_flag_ (true),
   residual_flag_ (false),
-  z_threshold_ (30.0f / 180.0f * static_cast<float> (M_PI)),
-  residual_threshold_ (0.05f),
-  curvature_threshold_ (0.05f),
+  z_threshold_ (0.003),
   neighbour_number_ (30),
   search_ (),
   point_neighbours_ (0),
@@ -21,7 +19,7 @@ Hope::Hope() :
   
 }
 
-Hope::~Hope ()
+ZGrowing::~ZGrowing ()
 {
   if (search_ != 0)
     search_.reset ();
@@ -34,84 +32,84 @@ Hope::~Hope ()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 int
-Hope::getMinClusterSize ()
+ZGrowing::getMinClusterSize ()
 {
   return (min_pts_per_cluster_);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void
-Hope::setMinClusterSize (int min_cluster_size)
+ZGrowing::setMinClusterSize (int min_cluster_size)
 {
   min_pts_per_cluster_ = min_cluster_size;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 int
-Hope::getMaxClusterSize ()
+ZGrowing::getMaxClusterSize ()
 {
   return (max_pts_per_cluster_);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void
-Hope::setMaxClusterSize (int max_cluster_size)
+ZGrowing::setMaxClusterSize (int max_cluster_size)
 {
   max_pts_per_cluster_ = max_cluster_size;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 bool
-Hope::getSmoothModeFlag () const
+ZGrowing::getSmoothModeFlag () const
 {
   return (smooth_mode_flag_);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void
-Hope::setSmoothModeFlag (bool value)
+ZGrowing::setSmoothModeFlag (bool value)
 {
   smooth_mode_flag_ = value;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 float
-Hope::getSmoothnessThreshold () const
+ZGrowing::getZThreshold () const
 {
   return (z_threshold_);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void
-Hope::setSmoothnessThreshold (float theta)
+ZGrowing::setZThreshold (float theta)
 {
   z_threshold_ = theta;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 unsigned int
-Hope::getNumberOfNeighbours () const
+ZGrowing::getNumberOfNeighbours () const
 {
   return (neighbour_number_);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void
-Hope::setNumberOfNeighbours (unsigned int neighbour_number)
+ZGrowing::setNumberOfNeighbours (unsigned int neighbour_number)
 {
   neighbour_number_ = neighbour_number;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-Hope::KdTreePtr
-Hope::getSearchMethod () const
+ZGrowing::KdTreePtr
+ZGrowing::getSearchMethod () const
 {
   return (search_);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void
-Hope::setSearchMethod (const KdTreePtr& tree)
+ZGrowing::setSearchMethod (const KdTreePtr& tree)
 {
   if (search_ != 0)
     search_.reset ();
@@ -121,7 +119,7 @@ Hope::setSearchMethod (const KdTreePtr& tree)
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void
-Hope::extract (std::vector <pcl::PointIndices>& clusters)
+ZGrowing::extract (std::vector <pcl::PointIndices>& clusters)
 {
   clusters_.clear ();
   clusters.clear ();
@@ -168,7 +166,7 @@ Hope::extract (std::vector <pcl::PointIndices>& clusters)
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 bool
-Hope::prepareForSegmentation ()
+ZGrowing::prepareForSegmentation ()
 {
   // if user forgot to pass point cloud or if it is empty
   if ( input_->points.size () == 0 )
@@ -196,7 +194,7 @@ Hope::prepareForSegmentation ()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void
-Hope::findPointNeighbours ()
+ZGrowing::findPointNeighbours ()
 {
   int point_number = static_cast<int> (indices_->size ());
   std::vector<int> neighbours;
@@ -229,7 +227,7 @@ Hope::findPointNeighbours ()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void
-Hope::applySmoothRegionGrowingAlgorithm ()
+ZGrowing::applySmoothRegionGrowingAlgorithm ()
 {
   int num_of_pts = static_cast<int> (indices_->size ());
   point_labels_.resize (input_->points.size (), -1);
@@ -285,7 +283,7 @@ Hope::applySmoothRegionGrowingAlgorithm ()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 int
-Hope::growRegion (int initial_seed, int segment_number)
+ZGrowing::growRegion (int initial_seed, int segment_number)
 {
   std::queue<int> seeds;
   seeds.push (initial_seed);
@@ -335,7 +333,7 @@ Hope::growRegion (int initial_seed, int segment_number)
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 bool
-Hope::validatePoint (int initial_seed, int point, int nghbr, bool& is_a_seed) const
+ZGrowing::validatePoint (int initial_seed, int point, int nghbr, bool& is_a_seed) const
 {
   is_a_seed = true;
   
@@ -367,7 +365,7 @@ Hope::validatePoint (int initial_seed, int point, int nghbr, bool& is_a_seed) co
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void
-Hope::assembleRegions ()
+ZGrowing::assembleRegions ()
 {
   int number_of_segments = static_cast<int> (num_pts_in_segment_.size ());
   int number_of_points = static_cast<int> (input_->points.size ());
@@ -399,7 +397,7 @@ Hope::assembleRegions ()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void
-Hope::getSegmentFromPoint (int index, pcl::PointIndices& cluster)
+ZGrowing::getSegmentFromPoint (int index, pcl::PointIndices& cluster)
 {
   cluster.indices.clear ();
   
@@ -466,5 +464,3 @@ Hope::getSegmentFromPoint (int index, pcl::PointIndices& cluster)
   
   deinitCompute ();
 }
-
-#define PCL_INSTANTIATE_RegionGrowing(T) template class pcl::RegionGrowing<T, pcl::Normal>;

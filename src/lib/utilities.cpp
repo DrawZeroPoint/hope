@@ -5,12 +5,46 @@ Utilities::Utilities()
 {
 }
 
-void Utilities::getName(int count, string pref, int surf, string &name)
+std::string Utilities::getName(int count, string pref, int surf)
 {
+  std::string name;
   std::ostringstream ost;
   ost << count << surf;
   std::string temp(ost.str());
   name = pref + temp;
+  return name;
+}
+
+void Utilities::getOccupancyMap(PointCloudMono::Ptr cloud_src, PointCloudMono::Ptr cloud_upper, 
+                                std::vector<int> occupy, PointCloud::Ptr &cloud_out)
+{
+  int minv, maxv;
+  getMinMax(occupy, minv, maxv); 
+  cloud_out->resize(cloud_src->size() + cloud_upper->size());
+  
+  size_t k = 0;
+  for (PointCloudMono::const_iterator pit = cloud_src->begin(); 
+       pit != cloud_src->end(); ++pit) {
+    float rgb = Utilities::shortRainbowColorMap(occupy[k], minv, maxv);
+    
+    cloud_out->points[k].x = pit->x;
+    cloud_out->points[k].y = pit->y;
+    cloud_out->points[k].z = pit->z;
+    cloud_out->points[k].rgb = rgb;
+    k++;
+  }
+  
+  size_t j = 0;
+  for (PointCloudMono::const_iterator pit = cloud_upper->begin(); 
+       pit != cloud_upper->end(); ++pit) {
+    cloud_out->points[cloud_src->size() + j].x = pit->x;
+    cloud_out->points[cloud_src->size() + j].y = pit->y;
+    cloud_out->points[cloud_src->size() + j].z = pit->z;
+    cloud_out->points[cloud_src->size() + j].r = 255;
+    cloud_out->points[cloud_src->size() + j].g = 0;
+    cloud_out->points[cloud_src->size() + j].b = 0;
+    j++;
+  }
 }
 
 void Utilities::msgToCloud(const PointCloud::ConstPtr msg,
@@ -29,6 +63,181 @@ void Utilities::msgToCloud(const PointCloud::ConstPtr msg,
     cloud->points[i].z = pit->z;
     ++i;
   }
+}
+
+bool Utilities::pcaAnalyse(const PointCloud::ConstPtr cloud_2d_in, float &max_dis)
+{
+  size_t sz = cloud_2d_in->points.size();
+  if (sz <= 1) return false;
+  else if (sz == 2) {
+    max_dis = pcl::euclideanDistance(cloud_2d_in->points[0], cloud_2d_in->points[1]);
+    return true;
+  }
+  
+  Eigen::Matrix2Xf data(2, sz);
+  for (size_t i = 0; i < sz; ++i) {
+    data(0, i) = cloud_2d_in->points[i].x;
+    data(1, i) = cloud_2d_in->points[i].y;
+  }
+  
+  Eigen::Vector2f mean = data.rowwise().mean();
+  
+  Eigen::MatrixXf tmp(2, sz);  
+  for (int r = 0; r < 2; ++r) {  
+    for (int c = 0; c < sz; ++c) {  
+      tmp(r, c) = data(r, c) - mean(r);  
+    }  
+  }
+  
+  Eigen::MatrixXf C = (tmp * tmp.transpose()) / (sz - 1);
+  
+  Eigen::EigenSolver<Eigen::MatrixXf> es(C);
+  // The result is complex number
+  complex<float> lambda0 = es.eigenvalues()[0];
+  complex<float> lambda1 = es.eigenvalues()[1];
+  Eigen::MatrixXcf V = es.eigenvectors();
+  
+  // The max axis
+  complex<float> val_x;
+  complex<float> val_y;
+  if (lambda0.real() > lambda1.real()) {
+    val_x = V.col(0)[0];
+    val_y = V.col(0)[1];
+  }
+  else {
+    val_x = V.col(1)[0];
+    val_y = V.col(1)[1];
+  }
+  
+  Eigen::Vector2f axis0;
+  axis0(0) = val_x.real();
+  axis0(1) = val_y.real();
+  
+  Eigen::Vector2f data_point;
+  float vmin = FLT_MAX;
+  float vmax = -FLT_MAX;
+  int idmax = -1;
+  int idmin = -1;
+  for (size_t i = 0; i < sz; ++i) {
+    data_point(0) = tmp(0, i);
+    data_point(1) = tmp(1, i);
+    
+    float v = axis0.transpose() * data_point; // Dot product
+    if (v > vmax) {
+      vmax = v;
+      idmax = i;
+    }
+    if (v < vmin) {
+      vmin = v;
+      idmin = i;
+    }
+  }
+  if (idmin >= 0 && idmax >= 0) {
+    max_dis = pcl::euclideanDistance(cloud_2d_in->points[idmin], cloud_2d_in->points[idmax]);
+    return true;
+  }
+  else
+    return false;
+  
+  // For debug
+  /*
+  sz = 10;
+  vector<vector<float>> vec{ { 2.5f, 0.5f, 2.2f, 1.9f, 3.1f, 2.3, 2, 1, 1.5, 1.1},  
+  { 2.4f, 0.7f, 2.9f, 2.2f, 3.0, 2.7, 1.6, 1.1, 1.6, 0.9 }};  
+  const int rows{ 2 }, cols{ 10 };  
+  
+  std::vector<float> vec_;  
+  for (int i = 0; i < 2; ++i) {  
+    vec_.insert(vec_.begin() + i * cols, vec[i].begin(), vec[i].end());  
+  }
+  Eigen::Map<Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> data(vec_.data(), rows, cols);   
+
+  //fprintf(stderr, "source matrix:\n");  
+  //std::cout << data << std::endl; 
+  
+  Eigen::Vector2f mean = data.rowwise().mean();  
+  //std::cout << "print mean: " << std::endl << mean << std::endl; 
+  
+  Eigen::MatrixXf tmp(2, sz);  
+  for (int r = 0; r < 2; ++r) {  
+    for (int c = 0; c < sz; ++c) {  
+      tmp(r, c) = data(r, c) - mean(r);  
+    }  
+  }
+  
+  Eigen::MatrixXf C = (tmp * tmp.transpose()) / (sz - 1);
+  std::cout << "print covariance matrix: " << std::endl << tmp << std::endl;
+  
+  Eigen::EigenSolver<Eigen::MatrixXf> es(C);
+  
+  // The result is complex number
+  complex<float> lambda0 = es.eigenvalues()[0];
+  complex<float> lambda1 = es.eigenvalues()[1];
+  //cout << "... and A * v = " << endl << A.cast<complex<double> >() * v << endl << endl;
+  Eigen::MatrixXcf V = es.eigenvectors();
+  
+  // The max axis
+  complex<float> val_x;
+  complex<float> val_y;
+  if (lambda0.real() > lambda1.real()) {
+    val_x = V.col(0)[0];
+    val_y = V.col(0)[1];
+  }
+  else {
+    val_x = V.col(1)[0];
+    val_y = V.col(1)[1];
+  }
+  
+  Eigen::Vector2f axis0;
+  axis0(0) = val_x.real();
+  axis0(1) = val_y.real();
+  std::cout << "Main axis: " << std::endl << axis0(0) << axis0(1) << std::endl;
+  
+  Eigen::Vector2f data_point;
+  float vmin = FLT_MAX;
+  float vmax = -FLT_MAX;
+  int idmax = -1;
+  int idmin = -1;
+  for (size_t i = 0; i < sz; ++i) {
+    data_point(0) = tmp(0, i);
+    data_point(1) = tmp(1, i);
+    
+    float v = axis0.transpose()*data_point;
+    std::cout << "v: " << std::endl << v << std::endl;
+    if (v > vmax) {
+      vmax = v;
+      idmax = i;
+    }
+    if (v < vmin) {
+      vmin = v;
+      idmin = i;
+    }
+  }
+  std::cout << "Farest point id: " << std::endl << idmin << idmax << std::endl;
+  if (idmin >= 0 && idmax >= 0) {
+    return true;
+  }
+  else
+    return false;
+  */
+}
+
+void Utilities::calRegionGrowing(PointCloudRGBN::Ptr cloud_in, int minsz, int maxsz, int nb, int smooth,
+                                 pcl::PointCloud<pcl::Normal>::Ptr normals, vector<pcl::PointIndices> &inliers)
+{
+  pcl::RegionGrowing<pcl::PointXYZRGBNormal, pcl::Normal> reg;
+  pcl::search::Search<pcl::PointXYZRGBNormal>::Ptr tree = boost::shared_ptr<pcl::search::Search<pcl::PointXYZRGBNormal> > 
+      (new pcl::search::KdTree<pcl::PointXYZRGBNormal>);
+  
+  reg.setMinClusterSize(minsz);
+  reg.setMaxClusterSize(maxsz);
+  reg.setSearchMethod(tree);
+  reg.setNumberOfNeighbours(nb);
+  reg.setInputCloud(cloud_in);
+  reg.setInputNormals(normals);
+  reg.setSmoothnessThreshold(smooth / 180.0 * M_PI);
+  
+  reg.extract(inliers);
 }
 
 void Utilities::estimateNorm(PointCloudMono::Ptr cloud_in, 
@@ -116,13 +325,30 @@ void Utilities::estimateNorm(PointCloudMono::Ptr cloud_in,
 
 void Utilities::downSampling(PointCloudMono::Ptr cloud_in, 
                              PointCloudMono::Ptr &cloud_out,
-                             float gird_sz)
+                             float gird_sz, float z_sz)
 {
   // Create the filtering object
   pcl::VoxelGrid<pcl::PointXYZ> vg;
   vg.setInputCloud(cloud_in);
-  vg.setLeafSize(gird_sz, gird_sz, gird_sz);
+  vg.setLeafSize(gird_sz, gird_sz, z_sz);
   vg.filter(*cloud_out);
+}
+
+void Utilities::planeTo2D(float z, PointCloudMono::Ptr cloud_in, 
+                          PointCloudMono::Ptr &cloud_out)
+{
+  cloud_out->width = cloud_in->width;
+  cloud_out->height = cloud_in->height;
+  cloud_out->resize(cloud_out->width *cloud_out->height);
+  
+  size_t k = 0;
+  for (PointCloudMono::const_iterator pit = cloud_in->begin(); 
+       pit != cloud_in->end(); ++pit) {
+    cloud_out->points[k].x = pit->x;
+    cloud_out->points[k].y = pit->y;
+    cloud_out->points[k].z = z;
+    k++;
+  }
 }
 
 void Utilities::pointTypeTransfer(PointCloudRGBN::Ptr cloud_in, 
@@ -146,6 +372,22 @@ void Utilities::pointTypeTransfer(PointCloud::Ptr cloud_in,
     cloud_out->points[i].x = cloud_in->points[i].x;
     cloud_out->points[i].y = cloud_in->points[i].y;
     cloud_out->points[i].z = cloud_in->points[i].z;
+  }
+}
+
+void Utilities::pointTypeTransfer(PointCloudMono::Ptr cloud_in, 
+                                  PointCloud::Ptr &cloud_out,
+                                  int r, int g, int b)
+{
+  cloud_out->resize(cloud_in->size());
+  
+  for (size_t i = 0; i < cloud_in->points.size(); i++) {
+    cloud_out->points[i].x = cloud_in->points[i].x;
+    cloud_out->points[i].y = cloud_in->points[i].y;
+    cloud_out->points[i].z = cloud_in->points[i].z;
+    cloud_out->points[i].r = r;
+    cloud_out->points[i].g = g;
+    cloud_out->points[i].b = b;
   }
 }
 
@@ -277,6 +519,7 @@ void Utilities::getCloudByNorm(NormalCloud::Ptr cloud_in,
                                pcl::PointIndices::Ptr &inliers, 
                                float th_norm)
 {
+  inliers->indices.clear();
   size_t i = 0;
   for (NormalCloud::const_iterator pit = cloud_in->begin();
        pit != cloud_in->end();++pit) {
@@ -460,7 +703,14 @@ pcl::PolygonMesh Utilities::getMesh(const PointCloudMono::Ptr point_cloud,
   gp3.setInputCloud (cloud_with_normals);
   gp3.setSearchMethod(tree);
   gp3.reconstruct(triangles);
-  
+}
+
+void Utilities::getMinMax(std::vector<int> vec, int &minv, int &maxv)
+{
+  // Small to large
+  sort(vec.begin(), vec.end());
+  minv = vec[0];
+  maxv = vec[vec.size() - 1];
 }
 
 void Utilities::shrinkHull(PointCloudMono::Ptr cloud, 
@@ -650,6 +900,15 @@ void Utilities::getClosestPoint(pcl::PointXY p1, pcl::PointXY p2,
   
   pc.y = (p.x - p1.x + A/B*p1.y + B/A*p.y)/(A/B + B/A);
   pc.x = A/B*(pc.y - p1.y) + p1.x;
+}
+
+bool Utilities::isInVector(int id, vector<int> vec)
+{
+  for (size_t i = 0; i < vec.size(); ++i) {
+    if (id == vec[i])
+      return true;
+  }
+  return false;
 }
 
 float Utilities::shortRainbowColorMap(const double value, 

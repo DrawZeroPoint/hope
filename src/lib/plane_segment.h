@@ -8,6 +8,7 @@
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/image_encodings.h>
 #include <sensor_msgs/CameraInfo.h>
+#include <geometry_msgs/PolygonStamped.h>
 
 #include <image_transport/image_transport.h>
 #include <image_transport/subscriber_filter.h>
@@ -72,7 +73,7 @@
 
 #include "fetch_rgbd.h"
 #include "high_res_timer.h"
-#include "hope.h"
+#include "z_growing.h"
 #include "transform.h"
 #include "utilities.h"
 
@@ -89,13 +90,19 @@ public:
   
   void getHorizontalPlanes(PointCloud::Ptr cloud);
   
-  // Container for storing result planes
+  // Container for storing indimentdiate results
   vector<PointCloudMono::Ptr> plane_points_;
-  vector<pcl::ModelCoefficients::Ptr> plane_coeff_;
+  
   vector<PointCloudMono::Ptr> plane_hull_;
   vector<pcl::PolygonMesh> plane_mesh_;
   
+  // Container for storing final results
+  vector<PointCloud::Ptr> plane_results_;
+  vector<pcl::ModelCoefficients::Ptr> plane_coeff_;
+  
+  
   // Container for storing the largest plane (except the ground)
+  PointCloud::Ptr plane_max_result_;
   pcl::ModelCoefficients::Ptr plane_max_coeff_;
   pcl::PointCloud<pcl::PointXYZ>::Ptr plane_max_hull_;
   pcl::PolygonMesh plane_max_mesh_;
@@ -119,6 +126,7 @@ private:
   // Source point cloud and its inliers after z filter
   PointCloudMono::Ptr src_mono_cloud_;
   PointCloud::Ptr src_rgb_cloud_;
+  PointCloudMono::Ptr src_sp_cloud_;
   
   // Clouds after grid filter
   PointCloudRGBN::Ptr src_rgbn_cloud_;
@@ -138,14 +146,19 @@ private:
   FetchRGBD *fi_;
   // The transform object can't be shared between Classes
   Transform *m_tf_;
+  
+  Utilities *utl_;
+  
   // Frame for point cloud to transfer
   string base_frame_;
   
   ros::Publisher pub_max_plane_;
   ros::Publisher pub_cloud_;
+  ros::Publisher pub_max_mesh_;
 
   // Support surface area threshold
   float global_area_temp_;
+  int global_size_temp_;
   
   vector<float> plane_z_value_;
   vector<PointCloudRGBN::Ptr> cloud_fit_parts_;
@@ -155,31 +168,11 @@ private:
   void findAllPlanes();
   
   // Tool functions
-  void calRegionGrowing(PointCloudRGBN::Ptr cloud_in, 
-                        pcl::PointCloud<pcl::Normal>::Ptr normals);
-  
   void getMeanZofEachCluster(PointCloudRGBN::Ptr cloud_norm_fit);
   
   void getMeanZofEachCluster(PointCloudMono::Ptr cloud_norm_fit_mono);
   
-  /**
-   * @brief extractPlaneForEachZ
-   * Merge clouds which from the same plane with equal z value
-   * @param cloud_in source cloud
-   */
-  void extractPlaneForEachZ(PointCloudRGBN::Ptr cloud_norm_fit);
-  
   void extractPlaneForEachZ(PointCloudMono::Ptr cloud_norm_fit);
-  
-  /**
-   * @brief extractPlane extract points which have similar z value
-   * @param z_in target z value
-   * @param cloud_norm_fit point cloud fulfill normal criterion
-   */
-  void extractPlane(size_t id, float z_in, PointCloudRGBN::Ptr &cloud_norm_fit);
-  
-  
-  void extractPlane(size_t id, float z_in, PointCloudMono::Ptr &cloud_norm_fit_mono);
   
   void visualizeResult();
   boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer;
@@ -198,9 +191,11 @@ private:
   
   void calInitClusters(PointCloudMono::Ptr cloud_in);
   void ZRGEachCluster(PointCloudMono::Ptr cloud_norm_fit_mono);
-  void ZGCluster(PointCloudMono::Ptr cloud_norm_fit_mono);
+  void clusterWithZGrowing(PointCloudMono::Ptr cloud_norm_fit_mono);
   void getPlane(size_t id, float z_in, PointCloudMono::Ptr &cloud_norm_fit_mono);
-  void getFakeColorCloud(float z, PointCloudMono::Ptr cloud_in, PointCloud::Ptr &cloud_out);
+  bool errorAnalyse(float z, PointCloudMono::Ptr cloud_in, PointCloud::Ptr &cloud_out, bool fix_z);
+  void publishMesh(pcl::PolygonMesh mesh, ros::Publisher pub);
+  void findPlaneWithPCL();
 };
 
 #endif // PLANE_SEGMENT_H

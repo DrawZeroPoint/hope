@@ -4,6 +4,9 @@
 
 #include <math.h>
 #include <string.h>
+#include <iostream> 
+#include <iomanip>
+#include <fstream>  
 
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/image_encodings.h>
@@ -51,7 +54,7 @@
 using namespace std;
 using namespace cv;
 
-enum dataset{DEFAULT, TUM};
+enum dataset{DEFAULT, TUM_SINGLE, TUM_LIST};
 
 // Publishers
 
@@ -72,57 +75,47 @@ float pitch_angle_;
 
 float tx_, ty_, tz_, qx_, qy_, qz_, qw_;
 
-//void publishMarker(geometry_msgs::PoseStamped pose)
-//{
-//  visualization_msgs::Marker marker;
-//  // Set the frame ID and timestamp. See the TF tutorials for information on these.
-//  marker.header.frame_id = pose.header.frame_id;
-//  marker.header.stamp = pose.header.stamp;
-
-//  // Set the namespace and id for this marker. This serves to create a unique ID
-//  // Any marker sent with the same namespace and id will overwrite the old one
-//  marker.ns = "put";
-//  marker.id = 0;
-
-//  marker.type = shape;
-//  marker.action = visualization_msgs::Marker::ADD;
-
-//  // Set the pose of the marker, which is a full 6DOF pose
-//  // relative to the frame/time specified in the header
-//  marker.points.resize(2);
-//  // The point at index 0 is assumed to be the start point,
-//  // and the point at index 1 is assumed to be the end.
-//  marker.points[0].x = pose.pose.position.x;
-//  marker.points[0].y = pose.pose.position.y;
-//  marker.points[0].z = pose.pose.position.z;
-
-//  marker.points[1].x = pose.pose.position.x;
-//  marker.points[1].y = pose.pose.position.y;
-//  marker.points[1].z = pose.pose.position.z + 0.15; // arrow height = 0.15m
-
-//  // scale.x is the shaft diameter, and scale.y is the head diameter.
-//  // If scale.z is not zero, it specifies the head length.
-//  // Set the scale of the marker -- 1x1x1 here means 1m on a side
-//  marker.scale.x = 0.01;
-//  marker.scale.y = 0.015;
-//  marker.scale.z = 0.04;
-
-//  // Set the color -- be sure to set alpha as non-zero value!
-//  // Use yellow to separate from grasp marker
-//  marker.color.r = 1.0f;
-//  marker.color.g = 0.0f;
-//  marker.color.b = 1.0f;
-//  marker.color.a = 1.0;
-
-//  putPubMarker_.publish(marker);
-//}
+void fraseInput(string input, vector<string> &vrgb, vector<string> &vdepth, 
+                vector<vector<float> > &vq)
+{  
+  ifstream list(input.c_str());
+  
+  if(!list){  
+    cout << "Unable to open list" << endl;  
+    return;
+  }
+  char rgb[27];
+  char depth[27];
+  float qx, qy, qz, qw;
+  
+  float s, tx, ty, tz;
+  string line;
+  while (getline(list, line)) {
+    sscanf(line.c_str(), "%f %s %s %f %f %f %f %f %f %f",
+           &s, &rgb, &depth, &tx, &ty, &tz, &qx, &qy, &qz, &qw);
+    ostringstream rgb_ost;
+    rgb_ost << rgb;
+    ostringstream dep_ost;
+    dep_ost << depth;
+    vrgb.push_back(rgb_ost.str());
+    vdepth.push_back(dep_ost.str());
+    vector<float> q;
+    q.push_back(qx);
+    q.push_back(qy);
+    q.push_back(qz);
+    q.push_back(qw);
+    vq.push_back(q);
+  }
+}
 
 int main(int argc, char **argv)
 {
   ros::init(argc, argv, "hope_node");
   
+  string path_prefix;
   string path_rgb;
   string path_depth;
+  string path_list_all;
   dataset type;
   
   if (argc == 1) {
@@ -139,11 +132,19 @@ int main(int argc, char **argv)
     ROS_INFO("Using default dataset.");
     type = DEFAULT;
   }
+  else if (argc == 2) {
+    int arg_index = 1;
+    path_prefix = argv[arg_index++];
+    path_list_all = path_prefix + "all.txt";
+    
+    ROS_INFO("Using image list of TUM RGB-D SLAM dataset.");
+    type = TUM_LIST;
+  }
   else if (argc == 10) {
     int arg_index = 1;
-    string path_prefix = "/home/aicrobo/TUM/rgbd_dataset_freiburg1_desk/";
-    path_rgb = path_prefix + "rgb/" + argv[arg_index++];
-    path_depth = path_prefix + "depth/" + argv[arg_index++];
+    path_prefix = "/home/aicrobo/TUM/rgbd_dataset_freiburg1_desk/";
+    path_rgb = path_prefix + argv[arg_index++];
+    path_depth = path_prefix + argv[arg_index++];
     
     tx_ = atof(argv[arg_index++]);
     ty_ = atof(argv[arg_index++]);
@@ -152,8 +153,8 @@ int main(int argc, char **argv)
     qy_ = atof(argv[arg_index++]);
     qz_ = atof(argv[arg_index++]);
     qw_ = atof(argv[arg_index++]);
-    ROS_INFO("Using TUM RGB-D SLAM dataset.");
-    type = TUM;
+    ROS_INFO("Using single pair of rgb and depth image of TUM RGB-D SLAM dataset.");
+    type = TUM_SINGLE;
   }
   else {
     return -1;
@@ -162,8 +163,8 @@ int main(int argc, char **argv)
   ros::NodeHandle nh;
   ros::NodeHandle pnh("~");
   
-  float xy_resolution = 0.01; // In meter
-  float z_resolution = 0.002; // In meter
+  float xy_resolution = 0.03; // In meter
+  float z_resolution = 0.008; // In meter
   PlaneSegment hope(use_real_data_, base_frame_, xy_resolution, z_resolution);
   PointCloud::Ptr src_cloud(new PointCloud);
   
@@ -174,49 +175,53 @@ int main(int argc, char **argv)
     }
   }
   else {
-    // Set camera pose for point cloud transferation
-    hope.setParams(type, roll_angle_, pitch_angle_, tx_, ty_, tz_, qx_, qy_, qz_, qw_);
-    
-    // Pre-captured images are used for testing on benchmarks
-    Mat rgb = imread(path_rgb);
-    Mat depth = imread(path_depth, -1); // Using flag<0 to read the image without changing its type
-    
-    //imshow("rgb", rgb);
-    //imshow("depth", depth);
-    //waitKey();
-    
-    // The rgb images from TUM dataset are in CV_8UC3 type while the depth images are in CV_16UC1
-    // The rgb image should be phrased with Vec3b while the depth with ushort
-    cout << "Image type: rgb: " << rgb.type() << " depth: " << depth.type() << endl;
-    
-    //    // Camera intrinsic parameters for TUM RGB-D SLAM dataset
-    //    float fx = 591.1; 	 	 	
-    //    float fy = 590.1;
-    //    float cx = 331.0;
-    //    float cy = 234.0;
-    
-    GetCloud m_gc;
-    // Filter the cloud with range 0.3-8.0m cause most RGB-D sensors are unreliable outside this range
-    // But if Lidar data is used, try expand the range
-    m_gc.getColorCloud(rgb, depth, src_cloud, 8.0, 0.3);
-    hope.getHorizontalPlanes(src_cloud);
+    if (type == DEFAULT || type == TUM_SINGLE) {
+      // Set camera pose for point cloud transferation
+      hope.setParams(type, roll_angle_, pitch_angle_, tx_, ty_, tz_, qx_, qy_, qz_, qw_);
+      
+      // Pre-captured images are used for testing on benchmarks
+      Mat rgb = imread(path_rgb);
+      Mat depth = imread(path_depth, -1); // Using flag<0 to read the image without changing its type
+      
+      //imshow("rgb", rgb);
+      //imshow("depth", depth);
+      //waitKey();
+      
+      // The rgb images from TUM dataset are in CV_8UC3 type while the depth images are in CV_16UC1
+      // The rgb image should be phrased with Vec3b while the depth with ushort
+      cout << "Image type: rgb: " << rgb.type() << " depth: " << depth.type() << endl;
+ 
+      GetCloud m_gc;
+      // Filter the cloud with range 0.3-8.0m cause most RGB-D sensors are unreliable outside this range
+      // But if Lidar data is used, try expand the range
+      m_gc.getColorCloud(rgb, depth, src_cloud, 8.0, 0.3);
+      hope.getHorizontalPlanes(src_cloud);
+    }
+    else if (type == TUM_LIST) {
+      vector<string> vrgb;
+      vector<string> vdepth;
+      vector<vector<float> > vq;
+      fraseInput(path_list_all, vrgb, vdepth, vq);
+      for (size_t i = 0; i < vrgb.size(); ++i) {
+        
+        hope.setParams(type, roll_angle_, pitch_angle_, tx_, ty_, tz_,
+                       vq[i][0], vq[i][1], vq[i][2], vq[i][3]);
+        
+        // Pre-captured images are used for testing on benchmarks
+        Mat rgb = imread(path_prefix + "/" + vrgb[i]);
+        Mat depth = imread(path_prefix + "/" + vdepth[i], -1);
+        
+        //imshow("rgb", rgb);
+        //imshow("depth", depth);
+        //waitKey();
+
+        GetCloud m_gc;
+        // Filter the cloud with range 0.3-8.0m cause most RGB-D sensors are unreliable outside this range
+        // But if Lidar data is used, try expand the range
+        m_gc.getColorCloud(rgb, depth, src_cloud, 8.0, 0.3);
+        hope.getHorizontalPlanes(src_cloud);
+      }
+    }
   }
   return 0;
 }
-
-/* Use example in terminal
- * hope_node 1305031128.747363.png 1305031128.754646.png 1.2788 0.5814 1.4567 0.6650 0.6515 -0.2806 -0.2334
- * 
- * rgbd_dataset_freiburg3_long_office_household/
- * 1341847980.822978.png 1341847980.822989.png -0.6821 2.6914 1.7371 0.0003 0.8609 -0.5085 -0.0151
- * 1341847996.574796.png 1341847996.574812.png 1.7985 -0.3048 1.5855 0.6819 0.5066 -0.3276 -0.4136
- * 1341848045.674943.png 1341848045.707020.png -1.5177 1.3347 1.4077 0.2563 0.8630 -0.4345 -0.0278
- * 
- * rgbd_dataset_freiburg1_rpy/
- * 1305031230.598825.png 1305031230.598843.png 1.2742 0.5998 1.5466 0.6037 0.6605 -0.4430 -0.0554
- * 
- * rgbd_dataset_freiburg1_desk
- * 1305031467.559763.png 1305031467.552164.png 1.6647 -0.2096 1.4409 0.7630 0.4318 -0.2384 -0.4176
- * 1305031473.167060.png 1305031473.158420.png 0.9454 -0.0042 1.2882 0.8978 0.2745 -0.0950 -0.3311
- 
- */
