@@ -1,5 +1,71 @@
 #include "utilities.h"
 
+Vec3b pascal_map[] = {
+  Vec3b(0,0,0),
+  Vec3b(128,0,0),
+  Vec3b(0,128,0),
+  Vec3b(128,128,0),
+  Vec3b(0,0,128),
+  Vec3b(128,0,128),
+  Vec3b(0,128,128),
+  Vec3b(128,128,128),
+  Vec3b(64,0,0),
+  Vec3b(192,0,0),
+  Vec3b(64,128,0),
+  Vec3b(192,128,0),
+  Vec3b(64,0,128),
+  Vec3b(192,0,128),
+  Vec3b(64,128,128),
+  Vec3b(192,128,128),
+  Vec3b(0,64,0),
+  Vec3b(128,64,0),
+  Vec3b(0,192,0),
+  Vec3b(128,192,0),
+  Vec3b(0,64,128),
+  Vec3b(128,64,128),
+  Vec3b(0,192,128),
+  Vec3b(128,192,128),
+  Vec3b(64,64,0),
+  Vec3b(192,64,0),
+  Vec3b(64,192,0),
+  Vec3b(192,192,0),
+  Vec3b(64,64,128),
+  Vec3b(192,64,128),
+  Vec3b(64,192,128),
+  Vec3b(192,192,128),
+  Vec3b(0,0,64),
+  Vec3b(128,0,64),
+  Vec3b(0,128,64),
+  Vec3b(128,128,64),
+  Vec3b(0,0,192),
+  Vec3b(128,0,192),
+  Vec3b(0,128,192),
+  Vec3b(128,128,192),
+  Vec3b(64,0,64),
+  Vec3b(192,0,64),
+  Vec3b(64,128,64),
+  Vec3b(192,128,64),
+  Vec3b(64,0,192),
+  Vec3b(192,0,192),
+  Vec3b(64,128,192),
+  Vec3b(192,128,192),
+  Vec3b(0,64,64),
+  Vec3b(128,64,64),
+  Vec3b(0,192,64),
+  Vec3b(128,192,64),
+  Vec3b(0,64,192),
+  Vec3b(128,64,192),
+  Vec3b(0,192,192),
+  Vec3b(128,192,192),
+  Vec3b(64,64,64),
+  Vec3b(192,64,64),
+  Vec3b(64,192,64),
+  Vec3b(192,192,64),
+  Vec3b(64,64,192),
+  Vec3b(192,64,192),
+  Vec3b(64,192,192),
+  Vec3b(192,192,192)
+};
 
 Utilities::Utilities()
 {
@@ -9,7 +75,9 @@ std::string Utilities::getName(int count, string pref, int surf)
 {
   std::string name;
   std::ostringstream ost;
-  ost << count << surf;
+  ost << count;
+  if (surf >= 0)
+     ost << surf;
   std::string temp(ost.str());
   name = pref + temp;
   return name;
@@ -669,6 +737,31 @@ float Utilities::getCloudMeanZ(PointCloudRGBN::Ptr cloud_in)
     }
   }
   return mid/ct;
+}
+
+Vec3f Utilities::getColorWithID(int id)
+{
+  // id should start from 0
+  Vec3f cf(0.0, 0.0, 0.0);
+  if (id > 62 || id < 0)
+    return cf;
+  Vec3b c = pascal_map[id + 1];
+  cf[0] = float(c[0])/256;
+  cf[1] = float(c[1])/256;
+  cf[2] = float(c[2])/256;
+  return cf;
+}
+
+float Utilities::getDistance(vector<float> v1, vector<float> v2)
+{
+  float rst = 0.0;
+  assert(v1.size() == v2.size());
+  for (size_t i = 0; i < v1.size(); ++i) {
+    float f1 = v1[i];
+    float f2 = v2[i];
+    rst += fabs(f1 - f2);
+  }
+  return rst;
 }
 
 pcl::PolygonMesh Utilities::getMesh(const PointCloudMono::Ptr point_cloud, 

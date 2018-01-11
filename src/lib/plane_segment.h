@@ -1,6 +1,7 @@
 #ifndef PLANE_SEGMENT_H
 #define PLANE_SEGMENT_H
 
+// ROS
 #include <ros/ros.h>
 #include <nodelet/nodelet.h>
 
@@ -18,14 +19,14 @@
 #include <message_filters/sync_policies/approximate_time.h>
 
 #include <geometry_msgs/PoseStamped.h>
-
 #include <cv_bridge/cv_bridge.h>
+#include <pcl_conversions/pcl_conversions.h>
+
+// OpenCV
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/opencv.hpp>
 
-#include <pcl_conversions/pcl_conversions.h>
-
-//PCL
+// PCL
 #include <pcl/common/common.h>
 #include <pcl/common/transforms.h>
 
@@ -67,10 +68,12 @@
 #include <pcl/visualization/pcl_visualizer.h>
 #include <boost/thread/thread.hpp>
 
+// STL
 #include <math.h>
 #include <vector>
 #include <string>
 
+// HOPE
 #include "fetch_rgbd.h"
 #include "high_res_timer.h"
 #include "z_growing.h"
@@ -79,6 +82,39 @@
 
 using namespace std;
 using namespace cv;
+
+struct sensor_orientation {
+  float roll;
+  float pitch;
+  float yaw;
+  float qx;
+  float qy;
+  float qz;
+  float qw;
+};
+
+class HopeResult
+{
+public:
+  HopeResult();
+  
+  /// Container for storing final results
+  vector<PointCloud::Ptr> plane_results_;
+  vector<PointCloud::Ptr> plane_points_;
+  vector<PointCloud::Ptr> plane_hull_;
+  vector<pcl::PolygonMesh> plane_mesh_;
+  vector<vector<float> > plane_params_; // z area
+  
+  /// Container for storing the largest plane
+  PointCloud::Ptr plane_max_result_;
+  PointCloud::Ptr plane_max_points_;
+  PointCloud::Ptr plane_max_hull_;
+  pcl::PolygonMesh plane_max_mesh_;
+  vector<float> plane_max_param_;
+  
+  /// Container of plane id
+  
+};
 
 class PlaneSegment
 {
@@ -90,112 +126,99 @@ public:
   
   void getHorizontalPlanes(PointCloud::Ptr cloud);
   
-  // Container for storing indimentdiate results
-  vector<PointCloudMono::Ptr> plane_points_;
-  
-  vector<PointCloudMono::Ptr> plane_hull_;
-  vector<pcl::PolygonMesh> plane_mesh_;
-  
-  // Container for storing final results
+  /// Container for storing final results
   vector<PointCloud::Ptr> plane_results_;
-  vector<pcl::ModelCoefficients::Ptr> plane_coeff_;
-  
-  
-  // Container for storing the largest plane (except the ground)
+  vector<PointCloudMono::Ptr> plane_points_;
+  vector<PointCloud::Ptr> plane_hull_;
+  vector<pcl::PolygonMesh> plane_mesh_;
+  vector<vector<float> > plane_coeff_;
+
+  /// Container for storing the largest plane
   PointCloud::Ptr plane_max_result_;
-  pcl::ModelCoefficients::Ptr plane_max_coeff_;
-  pcl::PointCloud<pcl::PointXYZ>::Ptr plane_max_hull_;
+  PointCloudMono::Ptr plane_max_points_;
+  PointCloud::Ptr plane_max_hull_;
   pcl::PolygonMesh plane_max_mesh_;
+  vector<float> plane_max_coeff_;  
   
 private:
   bool use_real_data_;
   int dataset_type_;
   
-  // Predefined camera orientations if not using real data
-  // In RPY
+  /// Predefined camera orientations if not using real data
+  // In Eular angle
   float roll_;
   float pitch_;
+  float yaw_;
   // In Quaternion
   float qx_, qy_, qz_, qw_;
-  // Camera position in the world coordinate
+  // Camera position in the world coordinates frame
   float tx_, ty_, tz_;
-  
-  ros::NodeHandle nh_;
-  image_transport::ImageTransport pub_it_;
-  
-  // Source point cloud and its inliers after z filter
-  PointCloudMono::Ptr src_mono_cloud_;
-  PointCloud::Ptr src_rgb_cloud_;
-  PointCloudMono::Ptr src_sp_cloud_;
-  
-  // Clouds after grid filter
-  PointCloudRGBN::Ptr src_rgbn_cloud_;
-  // Normals for grid filtered cloud
-  NormalCloud::Ptr src_normals_;
-  // Filtered normal index and corresponding cloud
-  pcl::PointIndices::Ptr idx_norm_fit_;
-  PointCloudRGBN::Ptr cloud_norm_fit_;
-  PointCloudMono::Ptr cloud_norm_fit_mono_;
-  
-  pcl::PointIndices::Ptr src_z_inliers_;
-  
-  // Subscribe for real point cloud data
-  ros::Subscriber sub_pointcloud_;
-  void cloudCallback(const sensor_msgs::PointCloud2ConstPtr &cloud_msg);
-  
-  FetchRGBD *fi_;
-  // The transform object can't be shared between Classes
-  Transform *m_tf_;
-  
-  Utilities *utl_;
-  
   // Frame for point cloud to transfer
   string base_frame_;
   
+  /// Support surface point number threshold
+  int global_size_temp_;
+  vector<vector<float> > global_result_temp_;
+  vector<int> global_id_temp_;
+  
+  /// ROS stuff
+  ros::NodeHandle nh_;
+  image_transport::ImageTransport pub_it_;
+  // ROS pub-sub
+  ros::Subscriber sub_pointcloud_;
+  void cloudCallback(const sensor_msgs::PointCloud2ConstPtr &cloud_msg);
   ros::Publisher pub_max_plane_;
   ros::Publisher pub_cloud_;
   ros::Publisher pub_max_mesh_;
-
-  // Support surface area threshold
-  float global_area_temp_;
-  int global_size_temp_;
-  
-  vector<float> plane_z_value_;
-  vector<PointCloudRGBN::Ptr> cloud_fit_parts_;
-  vector<pcl::PointIndices> seed_clusters_indices_;
-  
-  // Core process for finding planes
-  void findAllPlanes();
-  
-  // Tool functions
-  void getMeanZofEachCluster(PointCloudRGBN::Ptr cloud_norm_fit);
-  
-  void getMeanZofEachCluster(PointCloudMono::Ptr cloud_norm_fit_mono);
-  
-  void extractPlaneForEachZ(PointCloudMono::Ptr cloud_norm_fit);
-  
-  void visualizeResult();
-  boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer;
-  
-  // For publishing and receiving point cloud
   template <typename PointTPtr>
   void publishCloud(PointTPtr cloud, ros::Publisher pub);
   bool getSourceCloud();
   
+  /// Intermediate results
+  // Source cloud index from raw cloud (contain Nans)
+  pcl::PointIndices::Ptr src_z_inliers_;
+  // Source point cloud
+  PointCloud::Ptr src_rgb_cloud_;
+  PointCloudMono::Ptr src_mono_cloud_;
+  // Source cloud after down sampling
+  PointCloudMono::Ptr src_sp_cloud_;
+  // Normals of down sampling cloud
+  NormalCloud::Ptr src_normals_;
+  // Normal filtered cloud index and corresponding cloud
+  pcl::PointIndices::Ptr idx_norm_fit_;
+  PointCloudMono::Ptr cloud_norm_fit_mono_;
+  // Clustered points
+  vector<float> plane_z_values_;
+  vector<PointCloudRGBN::Ptr> cloud_fit_parts_;
+  vector<pcl::PointIndices> seed_clusters_indices_;
+  
+  /// Tool objects
+  FetchRGBD *fi_;
+  Transform *tf_;
+  Utilities *utl_;
   HighResTimer hst_;
+  boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer;
+  
+  /// Core process for finding planes
+  void findAllPlanes();
+  void findPlaneWithPCL();
+  
+  /// Tool functions
+  void reset();
+  void getMeanZofEachCluster(PointCloudMono::Ptr cloud_norm_fit_mono);
+  void extractPlaneForEachZ(PointCloudMono::Ptr cloud_norm_fit);
+  void clusterWithZGrowing(PointCloudMono::Ptr cloud_norm_fit_mono);
+  void getPlane(size_t id, float z_in, PointCloudMono::Ptr &cloud_norm_fit_mono);
+  bool errorAnalyse(float z, PointCloudMono::Ptr cloud_in, PointCloud::Ptr &cloud_out, bool fix_z);
+  int checkSimiliar(vector<float> coeff);
+  void setID();
+  void visualizeResult(bool display_source, bool display_raw, bool display_err, bool display_hull);
   
   // Reconstruct mesh from point cloud
   void poisson_reconstruction(NormalPointCloud::Ptr point_cloud, 
                               pcl::PolygonMesh &mesh);
   pcl::PolygonMesh mesh(const PointCloudMono::Ptr point_cloud, NormalCloud::Ptr normals);
   
-  void calInitClusters(PointCloudMono::Ptr cloud_in);
-  void ZRGEachCluster(PointCloudMono::Ptr cloud_norm_fit_mono);
-  void clusterWithZGrowing(PointCloudMono::Ptr cloud_norm_fit_mono);
-  void getPlane(size_t id, float z_in, PointCloudMono::Ptr &cloud_norm_fit_mono);
-  bool errorAnalyse(float z, PointCloudMono::Ptr cloud_in, PointCloud::Ptr &cloud_out, bool fix_z);
-  void publishMesh(pcl::PolygonMesh mesh, ros::Publisher pub);
-  void findPlaneWithPCL();
 };
 
 #endif // PLANE_SEGMENT_H

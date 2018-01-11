@@ -3,13 +3,17 @@
 
 #include <ros/ros.h>
 
-//STL
+// STL
 #include <iostream> 
 #include <string>
 #include <vector>
 #include <math.h>
 
-//PCL
+// OpenCV
+#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/opencv.hpp>
+
+// PCL
 #include <pcl/common/common.h>
 #include <pcl/common/transforms.h>
 #include <pcl/common/centroid.h>
@@ -58,6 +62,7 @@
 #include <Eigen/Eigenvalues>
 
 using namespace std;
+using namespace cv;
 
 typedef pcl::PointCloud<pcl::PointXYZRGB> PointCloud;
 typedef pcl::PointCloud<pcl::PointXYZ> PointCloudMono;
@@ -144,6 +149,10 @@ public:
   float getCloudMeanZ(PointCloudMono::Ptr cloud_in);
   
   float getCloudMeanZ(PointCloudRGBN::Ptr cloud_in);
+  
+  Vec3f getColorWithID(int id);
+  
+  float getDistance(vector<float> v1, vector<float> v2);
   
   pcl::PolygonMesh getMesh(const PointCloudMono::Ptr point_cloud, NormalCloud::Ptr normals);
   

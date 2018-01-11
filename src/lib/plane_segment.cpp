@@ -22,14 +22,12 @@ PlaneSegment::PlaneSegment(bool use_real_data, string base_frame, float th_xy, f
   pub_it_(nh_),
   src_mono_cloud_(new PointCloudMono),
   src_rgb_cloud_(new PointCloud),
-  src_rgbn_cloud_(new PointCloudRGBN),
-  cloud_norm_fit_(new PointCloudRGBN),
   cloud_norm_fit_mono_(new PointCloudMono),
   src_sp_cloud_(new PointCloudMono),
   src_normals_(new NormalCloud),
   idx_norm_fit_(new pcl::PointIndices),
   src_z_inliers_(new pcl::PointIndices),
-  m_tf_(new Transform),
+  tf_(new Transform),
   utl_(new Utilities),
   base_frame_(base_frame),
   viewer(new pcl::visualization::PCLVisualizer("HOPE Result")),
@@ -42,7 +40,6 @@ PlaneSegment::PlaneSegment(bool use_real_data, string base_frame, float th_xy, f
   th_norm_ = sqrt(1 / (1 + th_theta_ / 1.414));
   
   // For store max hull id and area
-  global_area_temp_ = 0;
   global_size_temp_ = 0;
   
   // Regist the callback if using real point cloud data
@@ -98,10 +95,10 @@ void PlaneSegment::getHorizontalPlanes(PointCloud::Ptr cloud)
     //viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2.0, name);
     
     if (dataset_type_ >= 1) {
-      m_tf_->doTransform(temp, src_rgb_cloud_, tx_, ty_, tz_, qx_, qy_, qz_, qw_);
+      tf_->doTransform(temp, src_rgb_cloud_, tx_, ty_, tz_, qx_, qy_, qz_, qw_);
     }
     else {
-      m_tf_->doTransform(temp, src_rgb_cloud_, roll_, pitch_);
+      tf_->doTransform(temp, src_rgb_cloud_, roll_, pitch_);
     }
     utl_->pointTypeTransfer(src_rgb_cloud_, src_mono_cloud_);
     //pcl::io::savePCDFile("/home/aicrobo/tum.pcd", *src_mono_cloud_);
@@ -120,7 +117,7 @@ void PlaneSegment::getHorizontalPlanes(PointCloud::Ptr cloud)
   hst_.stop();
   hst_.print();
   
-  visualizeResult();
+  visualizeResult(false, false, true, true);
 }
 
 bool PlaneSegment::getSourceCloud()
@@ -153,8 +150,8 @@ void PlaneSegment::cloudCallback(const sensor_msgs::PointCloud2ConstPtr &msg)
   // Get cloud within range represented by z value
   utl_->getCloudByZ(temp_mono, src_z_inliers_, temp_filtered, 0.3, th_max_depth_);
   
-  m_tf_->getTransform(base_frame_, msg->header.frame_id);
-  m_tf_->doTransform(temp_filtered, src_mono_cloud_);
+  tf_->getTransform(base_frame_, msg->header.frame_id);
+  tf_->doTransform(temp_filtered, src_mono_cloud_);
 }
 
 void PlaneSegment::findPlaneWithPCL() 
@@ -183,10 +180,28 @@ void PlaneSegment::findPlaneWithPCL()
   
   PointCloudMono::Ptr temp_in(new PointCloudMono);
   utl_->getCloudByInliers(temp, temp_in, inliers, false, false);
-  string name = utl_->getName(0, "pe_", 0);
+  string name = utl_->getName(0, "pe_", -1);
   pcl::visualization::PointCloudColorHandlerRandom<pcl::PointXYZ> rgb(temp_in);
   viewer->addPointCloud<pcl::PointXYZ>(temp_in, rgb, name);
   viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 6.0, name);
+}
+
+void PlaneSegment::reset()
+{
+  // Clear temp
+  plane_results_.clear();
+  plane_points_.clear();  
+  plane_coeff_.clear();
+  plane_hull_.clear();
+  plane_mesh_.clear();
+  
+  plane_z_values_.clear();
+  cloud_fit_parts_.clear();
+  seed_clusters_indices_.clear();
+  
+  global_size_temp_ = 0;
+  // Reset timer
+  hst_.reset();
 }
 
 void PlaneSegment::findAllPlanes()
@@ -196,17 +211,7 @@ void PlaneSegment::findAllPlanes()
     return;
   }
   
-  // Clear temp
-  plane_results_.clear();
-  plane_z_value_.clear();
-  cloud_fit_parts_.clear();
-  seed_clusters_indices_.clear();
-  plane_coeff_.clear();
-  plane_hull_.clear();
-  plane_mesh_.clear();
-  global_area_temp_ = 0.0;
-  global_size_temp_ = 0;
-  hst_.reset();
+  reset();
   
   utl_->estimateNorm(src_sp_cloud_, src_normals_, 1.01 * th_grid_rsl_); 
   utl_->getCloudByNorm(src_normals_, idx_norm_fit_, th_norm_);
@@ -215,46 +220,9 @@ void PlaneSegment::findAllPlanes()
   
   utl_->getCloudByInliers(src_sp_cloud_, cloud_norm_fit_mono_, idx_norm_fit_, false, false);
   
-  //calInitClusters(cloud_norm_fit_mono_);
-  //getMeanZofEachCluster(cloud_norm_fit_mono_);
-  //extractPlaneForEachZ(cloud_norm_fit_mono_);
-  //ZRGEachCluster(cloud_norm_fit_mono_);
-  
   clusterWithZGrowing(cloud_norm_fit_mono_);
   getMeanZofEachCluster(cloud_norm_fit_mono_);
   extractPlaneForEachZ(cloud_norm_fit_mono_);  
-}
-
-void PlaneSegment::calInitClusters(PointCloudMono::Ptr cloud_in)
-{
-  utl_->clusterExtract(cloud_in, seed_clusters_indices_, th_z_rsl_, 3, 307200);
-}
-
-void PlaneSegment::getMeanZofEachCluster(PointCloudRGBN::Ptr cloud_norm_fit)
-{
-  if (seed_clusters_indices_.empty())
-    ROS_DEBUG("PlaneSegment: Region growing get nothing.");
-  
-  else {
-    size_t k = 0;
-    // Traverse each part to determine its mean Z
-    for (vector<pcl::PointIndices>::const_iterator it = seed_clusters_indices_.begin(); 
-         it != seed_clusters_indices_.end(); ++it) {
-      PointCloudRGBN::Ptr cloud_fit_part(new PointCloudRGBN);
-      
-      pcl::PointIndices::Ptr idx_rg(new pcl::PointIndices);
-      idx_rg->indices = it->indices;
-      utl_->getCloudByInliers(cloud_norm_fit, cloud_fit_part, idx_rg, false, false);
-      
-      float part_mean_z = utl_->getCloudMeanZ(cloud_fit_part);
-      plane_z_value_.push_back(part_mean_z);
-      k++;
-    }
-    
-    ROS_DEBUG("Hypothetic plane number: %d", plane_z_value_.size());
-    // Z is ordered from small to large, i.e., low to high
-    //sort(planeZVector_.begin(), planeZVector_.end());
-  }
 }
 
 void PlaneSegment::getMeanZofEachCluster(PointCloudMono::Ptr cloud_norm_fit_mono)
@@ -274,7 +242,7 @@ void PlaneSegment::getMeanZofEachCluster(PointCloudMono::Ptr cloud_norm_fit_mono
       utl_->getCloudByInliers(cloud_norm_fit_mono, cloud_fit_part, idx_seed, false, false);
       
       if (vis_cluster_) {
-        string name = utl_->getName(k, "part_", 0);
+        string name = utl_->getName(k, "part_", -1);
         pcl::visualization::PointCloudColorHandlerRandom<pcl::PointXYZ> rgb(cloud_fit_part);
         viewer->addPointCloud<pcl::PointXYZ>(cloud_fit_part, rgb, name);
         viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 10.0, name);
@@ -282,11 +250,11 @@ void PlaneSegment::getMeanZofEachCluster(PointCloudMono::Ptr cloud_norm_fit_mono
       
       float part_mean_z = utl_->getCloudMeanZ(cloud_fit_part);
       //cout << "Cluster has " << idx_seed->indices.size() << " points at z: " << part_mean_z << endl;
-      plane_z_value_.push_back(part_mean_z);
+      plane_z_values_.push_back(part_mean_z);
       k++;
     }
     
-    ROS_DEBUG("Hypothetic plane number: %d", plane_z_value_.size());
+    ROS_DEBUG("Hypothetic plane number: %d", plane_z_values_.size());
     // Z is ordered from small to large, i.e., low to high
     //sort(planeZVector_.begin(), planeZVector_.end());
   }
@@ -311,21 +279,22 @@ void PlaneSegment::clusterWithZGrowing(PointCloudMono::Ptr cloud_norm_fit_mono)
 void PlaneSegment::extractPlaneForEachZ(PointCloudMono::Ptr cloud_norm_fit)
 {
   size_t id = 0;
-  for (vector<float>::iterator cit = plane_z_value_.begin(); 
-       cit != plane_z_value_.end(); cit++) {
+  for (vector<float>::iterator cit = plane_z_values_.begin(); 
+       cit != plane_z_values_.end(); cit++) {
     getPlane(id, *cit, cloud_norm_fit);
     id++;
   }
+  setID();
 }
 
 void PlaneSegment::getPlane(size_t id, float z_in, PointCloudMono::Ptr &cloud_norm_fit_mono)
 {
-  pcl::ModelCoefficients::Ptr coeff(new pcl::ModelCoefficients);
+  pcl::ModelCoefficients::Ptr cluster_coeff(new pcl::ModelCoefficients);
   // Plane function: ax + by + cz + d = 0, here coeff[3] = d = -cz
-  coeff->values.push_back(0.0);
-  coeff->values.push_back(0.0);
-  coeff->values.push_back(1.0);
-  coeff->values.push_back(-z_in);
+  cluster_coeff->values.push_back(0.0);
+  cluster_coeff->values.push_back(0.0);
+  cluster_coeff->values.push_back(1.0);
+  cluster_coeff->values.push_back(-z_in);
   
   pcl::PointIndices::Ptr idx_seed (new pcl::PointIndices);
   idx_seed->indices = seed_clusters_indices_[id].indices;
@@ -334,61 +303,40 @@ void PlaneSegment::getPlane(size_t id, float z_in, PointCloudMono::Ptr &cloud_no
   PointCloudMono::Ptr cluster_near_z(new PointCloudMono);
   utl_->getCloudByInliers(cloud_norm_fit_mono, cluster_near_z, idx_seed, false, false);
   
-  PointCloud::Ptr cloud_2d_rgb(new PointCloud);
-  if (!errorAnalyse(z_in, cluster_near_z, cloud_2d_rgb, true)) {
-    return;
-  }
-  plane_results_.push_back(cloud_2d_rgb);
+  PointCloud::Ptr cluster_2d_rgb(new PointCloud);
+  if (!errorAnalyse(z_in, cluster_near_z, cluster_2d_rgb, true)) return;
   
-  if (cloud_2d_rgb->points.size() > global_size_temp_) {
-    plane_max_result_ = cloud_2d_rgb;
-    global_size_temp_ = cloud_2d_rgb->points.size();
-  }
-  
-  //getFakeColorCloud(z_in, cluster_near_z, cloud_proj_fc, true);
+  // If the cluster pass the error check, push it into results vector
+  plane_results_.push_back(cluster_2d_rgb);
+  plane_points_.push_back(cluster_near_z);
   
   // Use convex hull to represent the plane patch
-  //  PointCloudMono::Ptr cloud_hull(new PointCloudMono);
-  //  PointCloud::Ptr cloud_hull_c(new PointCloud);
-  //  pcl::ConvexHull<pcl::PointXYZRGB> hull;
-  //  pcl::PolygonMesh mesh;
-  //  hull.setInputCloud(cloud_proj_fc);
-  //  hull.setComputeAreaVolume(true);
-  //  hull.reconstruct(*cloud_hull_c);
-  //  hull.reconstruct(mesh);
-  //  utl_->pointTypeTransfer(cloud_hull_c, cloud_hull);
+  PointCloud::Ptr cluster_hull(new PointCloud);
+  pcl::ConvexHull<pcl::PointXYZRGB> hull;
+  pcl::PolygonMesh cluster_mesh;
   
-  //  float area_hull = hull.getTotalArea();
+  hull.setInputCloud(cluster_2d_rgb);
+  hull.setComputeAreaVolume(true);
+  hull.reconstruct(*cluster_hull);
+  hull.reconstruct(cluster_mesh);
   
-  // Small plane is filtered here with threshold th_area_
-  //  if (cloud_hull->points.size() > 2 && area_hull > th_area_) {
-  //    /* Select the plane which has similar th_height and
-  //       * largest plane to be the output, notice that z_in is in base_link frame
-  //       * th_height_ is the height of table, base_link is 0.4m above the ground */
-  //    if (area_hull > global_area_temp_) {
-  //      plane_max_hull_ = cloud_hull;
-  //      plane_max_mesh_ = mesh;
-  //      plane_max_coeff_ = coeff;
-  //      // Update temp
-  //      global_area_temp_ = area_hull;
-  //    }
+  plane_hull_.push_back(cluster_hull);
+  plane_mesh_.push_back(cluster_mesh);
   
-  //    //    PointCloud::Ptr cluster_fake(new PointCloud);
-  //    //    getFakeColorCloud(z_in, cluster_near_z, cluster_fake);
-  //    //    string name;
-  //    //    /// Point size must be set after adding point cloud
-  //    //    // Add source colored cloud for reference
-  //    //    utl_->getName(id, "fake_", 0, name);
-  //    //    pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> src_rgb(cluster_fake);
-  //    //    viewer->addPointCloud<pcl::PointXYZRGB>(cluster_fake, src_rgb, name);
-  //    //    viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 16.0, name);
+  float hull_area = hull.getTotalArea();
+  vector<float> coeff;
+  coeff.push_back(z_in);
+  coeff.push_back(hull_area);
+  plane_coeff_.push_back(coeff);
   
-  //    ROS_DEBUG("Found plane with area %f.", area_hull);
-  //    plane_coeff_.push_back(coeff);
-  //    plane_points_.push_back(cluster_near_z);
-  //    plane_hull_.push_back(cloud_hull);
-  //    plane_mesh_.push_back(mesh);
-  //  }
+  if (cluster_2d_rgb->points.size() > global_size_temp_) {
+    plane_max_result_ = cluster_2d_rgb;
+    plane_max_points_ = cluster_near_z;
+    plane_max_hull_ = cluster_hull;
+    plane_max_mesh_ = cluster_mesh;
+    plane_max_coeff_ = coeff;
+    global_size_temp_ = cluster_2d_rgb->points.size();
+  }
 }
 
 bool PlaneSegment::errorAnalyse(float z, PointCloudMono::Ptr cloud_in, 
@@ -434,99 +382,114 @@ bool PlaneSegment::errorAnalyse(float z, PointCloudMono::Ptr cloud_in,
     return false;
 }
 
-void PlaneSegment::visualizeResult()
+void PlaneSegment::setID()
+{
+  if (global_id_temp_.empty()) {
+    for (size_t i = 0; i < plane_coeff_.size(); ++i) {
+      global_id_temp_.push_back(i);
+      global_result_temp_.push_back(plane_coeff_[i]);
+    }
+  }
+  else {
+    vector<int> local_id_temp(plane_coeff_.size(), -1);
+    
+    int total = plane_coeff_.size();
+    while (total > 0) {
+      pair<int, int> p;
+      float distemp = FLT_MAX;
+      for (size_t i = 0; i < plane_coeff_.size(); ++i) {
+        vector<float> coeff = plane_coeff_[i];
+        for (size_t j = 0; j < global_result_temp_.size(); ++j) {
+          vector<float> coeff_prev = global_result_temp_[j];
+          float dis = utl_->getDistance(coeff, coeff_prev);
+          if (dis < distemp) {
+            distemp = dis;
+            p.first = i;
+            p.second = j;
+          }
+        }
+      }
+      total--;
+      local_id_temp[p.first] = p.second;
+    }
+    
+    global_result_temp_.clear();
+    global_id_temp_.clear();
+    for (size_t i = 0; i < plane_coeff_.size(); ++i) {
+      global_id_temp_.push_back(local_id_temp[i]);
+      global_result_temp_.push_back(plane_coeff_[i]);
+    }
+  }
+}
+
+int PlaneSegment::checkSimiliar(vector<float> coeff)
+{
+  int id = -1;
+  float distemp = FLT_MAX;
+  for (size_t i = 0; i < global_result_temp_.size(); ++i) {
+    vector<float> coeff_prev = global_result_temp_[i];
+    float dis = utl_->getDistance(coeff_prev, coeff);
+    if (dis < distemp) {
+      distemp = dis;
+      id = global_id_temp_[i];
+    }
+  }
+  return id;
+}
+
+void PlaneSegment::visualizeResult(bool display_source, bool display_raw, bool display_err, bool display_hull)
 {
   // For visualizing in RViz
-  //publishCloud(src_rgb_cloud_, pub_cloud_);
-  //publishCloud(plane_max_hull_, pub_max_plane_);
+  publishCloud(src_rgb_cloud_, pub_cloud_);
+  publishCloud(plane_max_points_, pub_max_plane_);
   
   // Clear temps
   viewer->removeAllPointClouds();
   viewer->removeAllShapes();
+  string name;
   
-  /// Point size must be set after adding point cloud
-  // Add source colored cloud for reference
-  string name = utl_->getName(0, "source_", 0);
-  pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> src_rgb(src_rgb_cloud_);
-  if (!viewer->updatePointCloud(src_rgb_cloud_, src_rgb, name)){
-    viewer->addPointCloud<pcl::PointXYZRGB>(src_rgb_cloud_, src_rgb, name);
-    viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2.0, name);
+  /// Point size must be set AFTER adding point cloud
+  if (display_source) {
+    // Add source colored cloud for reference
+    name = utl_->getName(0, "source_", -1);
+    pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> src_rgb(src_rgb_cloud_);
+    if (!viewer->updatePointCloud(src_rgb_cloud_, src_rgb, name)){
+      viewer->addPointCloud<pcl::PointXYZRGB>(src_rgb_cloud_, src_rgb, name);
+      viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2.0, name);
+    }
   }
   
-  //viewer->addPointCloudNormals<pcl::PointXYZRGBNormal, pcl::Normal>(src_rgbn_cloud_, src_normals_, 10, 0.05, "src_normals");
-  //viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_OPACITY, 0.9, name);
-  
-  //utl_->getName(0, "max_", 0, name);
-  //pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> occ_rgb(plane_max_result_);
-  //viewer->addPointCloud<pcl::PointXYZRGB>(plane_max_result_, occ_rgb, name);
-  //viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 6.0, name);
-  
-  // Add normal filtered cloud as reference
-  //  utl_->getName(0, "norm_", "", name);
-  //  pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal> src_rgbn(cloud_norm_fit_);
-  //  viewer->addPointCloud<pcl::PointXYZRGBNormal>(cloud_norm_fit_, src_rgbn, name);
-  //  viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 4.0, name);
-  
   for (size_t i = 0; i < plane_results_.size(); i++) {
-    // Add hull points
-    //utl_->getName(i, "hull_", "", name);
-    //pcl::visualization::PointCloudColorHandlerRandom<pcl::PointXYZ> rgb(plane_hull_[i]);
-    //viewer->addPointCloud<pcl::PointXYZ>(plane_hull_[i], rgb, name);
-    //viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 10.0, name);
-    
-    // Add plane points
-    //utl_->getName(i, "plane_", "", name);
-    //pcl::visualization::PointCloudColorHandlerRandom<pcl::PointXYZ> rgb(plane_points_[i]);
-    //viewer->addPointCloud<pcl::PointXYZ>(plane_points_[i], rgb, name);
-    //viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 6.0, name);
-    name = utl_->getName(i, "occ_", 0);
-    pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> occ_rgb(plane_results_[i]);
-    if (!viewer->updatePointCloud(plane_results_[i], occ_rgb, name)){
-      viewer->addPointCloud<pcl::PointXYZRGB>(plane_results_[i], occ_rgb, name);
+    int id = global_id_temp_[i];
+    Vec3f c = utl_->getColorWithID(id);
+    if (display_raw) {
+      // Add raw plane points
+      name = utl_->getName(i, "plane_", -1);
+      viewer->addPointCloud<pcl::PointXYZ>(plane_points_[i], name);
       viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 6.0, name);
+      viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, c[0], c[1], c[2], name);
     }
-    
-    // Add hull polygons
-    //utl_->getName(i, "poly_", 0, name);        
-    
-    // Use Random color
-    //viewer->addPolygonMesh(plane_mesh_[i], name);
-    //viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_OPACITY, 0.9, name);
-    //double red = 0;
-    //double green = 0;
-    //double blue = 0;;
-    //pcl::visualization::getRandomColors(red, green, blue);
-    //viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, red, green, blue, name);
-    
-    // Use point cloud color
-    //PointCloud::Ptr cc(new PointCloud);
-    //pcl::fromPCLPointCloud2(plane_mesh_[i].cloud, *cc);
-    //viewer->addPolygonMesh<pcl::PointXYZRGB>(cc, plane_mesh_[i].polygons, name);
-    
-    // Add model
-    //NormalCloud::Ptr normals(new NormalCloud);
-    //normals->height = plane_points_[i]->height;
-    //normals->width  = plane_points_[i]->width;
-    //normals->is_dense = true;
-    //normals->resize(normals->height * normals->width);
-    //for (size_t j = 0; j < normals->size(); ++j) {
-    // normals->points[j].normal_x = 0;
-    //  normals->points[j].normal_y = 0;
-    //  normals->points[j].normal_z = 1;
-    //}
-    //pcl::PolygonMesh m = utl_->generateMesh(plane_points_[i], normals);
-    //utl_->generateName(i, "model_", "", name);
-    //const double kTableThickness = 0.02;
-    //viewer->addCube(input.x_min, input.x_max, input.y_min, input.y_max,
-    //                input.table_height - kTableThickness, input.table_height, 1.0, 0.0, 0.0,
-    //                "support_surface");
-    //viewer->addPolygonMesh(m, name);
-    //viewer->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_OPACITY,
-    //                                    0.6, name);
-    //viewer->setShapeRenderingProperties(
-    //      pcl::visualization::PCL_VISUALIZER_REPRESENTATION,
-    //      pcl::visualization::PCL_VISUALIZER_REPRESENTATION_WIREFRAME,
-    //      name);
+    if (display_err) {
+      // Add results with error display
+      name = utl_->getName(i, "error_", -1);
+      pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> err_rgb(plane_results_[i]);
+      if (!viewer->updatePointCloud(plane_results_[i], err_rgb, name)){
+        viewer->addPointCloud<pcl::PointXYZRGB>(plane_results_[i], err_rgb, name);
+        viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 6.0, name);
+      }
+    }
+    if (display_hull) {
+      // Add hull points
+      name = utl_->getName(i, "hull_", -1);
+      viewer->addPointCloud<pcl::PointXYZRGB>(plane_hull_[i], name);
+      viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 10.0, name);
+      viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, c[0], c[1], c[2], name);
+      // Add hull mesh
+      name = utl_->getName(i, "mesh_", -1);
+      viewer->addPolygonMesh(plane_mesh_[i], name);
+      viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_OPACITY, 0.9, name);
+      viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, c[0], c[1], c[2], name);
+    }
   }
   
   while (!viewer->wasStopped()) {
@@ -544,15 +507,6 @@ void PlaneSegment::publishCloud(PointTPtr cloud, ros::Publisher pub)
   ros_cloud.header.frame_id = base_frame_;
   ros_cloud.header.stamp = ros::Time(0);
   pub.publish(ros_cloud);
-}
-
-void PlaneSegment::publishMesh(pcl::PolygonMesh mesh, ros::Publisher pub)
-{
-  //  geometry_msgs::PolygonStamped ros_mesh;
-  //  pcl_conversions::fromPCL(mesh, ros_mesh);
-  //  ros_mesh.header.frame_id = base_frame_;
-  //  ros_mesh.header.stamp = ros::Time(0);
-  //  pub.publish(ros_mesh);
 }
 
 void PlaneSegment::poisson_reconstruction(NormalPointCloud::Ptr point_cloud, 
