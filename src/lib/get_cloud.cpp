@@ -239,6 +239,7 @@ bool GetCloud::getColorCloud(Mat rgb, Mat depth, PointCloud::Ptr &cloud,
     pit->b = vc[0];
     ++i;
   }
+
 }
 
 bool GetCloud::getPoint(cv::Mat depth, int row, int col, 

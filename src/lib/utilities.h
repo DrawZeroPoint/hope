@@ -12,6 +12,10 @@
 // OpenCV
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/opencv.hpp>
+#include <opencv2/flann/flann.hpp>
+#include <opencv2/core/core.hpp>
+#include <opencv2/features2d/features2d.hpp>
+#include <opencv2/highgui/highgui.hpp>
 
 // PCL
 #include <pcl/common/common.h>
@@ -175,6 +179,9 @@ public:
                 pcl::PointXY &offset, pcl::PointXY &p_closest);
   
   bool isInVector(int id, vector<int> vec);
+
+  void matchID(vector<vector<float> > global, vector<vector<float> > local,
+               vector<int> &out);
   
   void msgToCloud(const PointCloud::ConstPtr msg, 
                   PointCloudMono::Ptr cloud);
@@ -235,6 +242,10 @@ public:
   float determinant(float v1, float v2, float v3, float v4);
   
   bool isIntersect(pcl::PointXY p1, pcl::PointXY p2, pcl::PointXY p3, pcl::PointXY p4);
+
+  void matFill(vector<vector<float> > features, Mat &out);
+  void matNormalize(Mat in, Mat &out);
+
 };
 
 #endif // UTILITIES_H

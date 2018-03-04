@@ -12,6 +12,7 @@ float th_norm_;
 float th_area_;
 
 // Depth threshold for filtering source cloud, only used for real data
+float th_min_depth_ = 0.3;
 float th_max_depth_ = 8.0;
 
 bool vis_cluster_ = false;
@@ -111,7 +112,7 @@ void PlaneSegment::getHorizontalPlanes(PointCloud::Ptr cloud)
   hst_.start();
   
   findAllPlanes();
-  //  findPlaneWithPCL();
+  //findPlaneWithPCL();
   
   // Stop timer and get total processing time
   hst_.stop();
@@ -148,7 +149,7 @@ void PlaneSegment::cloudCallback(const sensor_msgs::PointCloud2ConstPtr &msg)
   
   PointCloudMono::Ptr temp_filtered(new PointCloudMono);
   // Get cloud within range represented by z value
-  utl_->getCloudByZ(temp_mono, src_z_inliers_, temp_filtered, 0.3, th_max_depth_);
+  utl_->getCloudByZ(temp_mono, src_z_inliers_, temp_filtered, th_min_depth_, th_max_depth_);
   
   tf_->getTransform(base_frame_, msg->header.frame_id);
   tf_->doTransform(temp_filtered, src_mono_cloud_);
@@ -220,9 +221,10 @@ void PlaneSegment::findAllPlanes()
   
   utl_->getCloudByInliers(src_sp_cloud_, cloud_norm_fit_mono_, idx_norm_fit_, false, false);
   
-  clusterWithZGrowing(cloud_norm_fit_mono_);
-  getMeanZofEachCluster(cloud_norm_fit_mono_);
+  zClustering(cloud_norm_fit_mono_); // -> seed_clusters_indices_
+  getMeanZofEachCluster(cloud_norm_fit_mono_); // -> plane_z_values_
   extractPlaneForEachZ(cloud_norm_fit_mono_);  
+  setID();
 }
 
 void PlaneSegment::getMeanZofEachCluster(PointCloudMono::Ptr cloud_norm_fit_mono)
@@ -232,7 +234,7 @@ void PlaneSegment::getMeanZofEachCluster(PointCloudMono::Ptr cloud_norm_fit_mono
   
   else {
     size_t k = 0;
-    // Traverse each part to determine its mean Z
+    // Traverse each part to determine its mean Z value
     for (vector<pcl::PointIndices>::const_iterator it = seed_clusters_indices_.begin(); 
          it != seed_clusters_indices_.end(); ++it) {
       PointCloudMono::Ptr cloud_fit_part(new PointCloudMono);
@@ -260,7 +262,7 @@ void PlaneSegment::getMeanZofEachCluster(PointCloudMono::Ptr cloud_norm_fit_mono
   }
 }
 
-void PlaneSegment::clusterWithZGrowing(PointCloudMono::Ptr cloud_norm_fit_mono)
+void PlaneSegment::zClustering(PointCloudMono::Ptr cloud_norm_fit_mono)
 {
   ZGrowing zg;
   pcl::search::Search<pcl::PointXYZ>::Ptr tree = boost::shared_ptr<pcl::search::Search<pcl::PointXYZ> > 
@@ -284,7 +286,6 @@ void PlaneSegment::extractPlaneForEachZ(PointCloudMono::Ptr cloud_norm_fit)
     getPlane(id, *cit, cloud_norm_fit);
     id++;
   }
-  setID();
 }
 
 void PlaneSegment::getPlane(size_t id, float z_in, PointCloudMono::Ptr &cloud_norm_fit_mono)
@@ -299,14 +300,16 @@ void PlaneSegment::getPlane(size_t id, float z_in, PointCloudMono::Ptr &cloud_no
   pcl::PointIndices::Ptr idx_seed (new pcl::PointIndices);
   idx_seed->indices = seed_clusters_indices_[id].indices;
   
-  // Extract one plane from clusters
+  // Extract the plane points indexed by idx_seed
   PointCloudMono::Ptr cluster_near_z(new PointCloudMono);
   utl_->getCloudByInliers(cloud_norm_fit_mono, cluster_near_z, idx_seed, false, false);
   
+  // If the points do not pass the error test, return
   PointCloud::Ptr cluster_2d_rgb(new PointCloud);
   if (!errorAnalyse(z_in, cluster_near_z, cluster_2d_rgb, true)) return;
   
-  // If the cluster pass the error check, push it into results vector
+  // If the cluster of points pass the error check,
+  // push it and corresponding projected points into result vectors
   plane_results_.push_back(cluster_2d_rgb);
   plane_points_.push_back(cluster_near_z);
   
@@ -323,12 +326,15 @@ void PlaneSegment::getPlane(size_t id, float z_in, PointCloudMono::Ptr &cloud_no
   plane_hull_.push_back(cluster_hull);
   plane_mesh_.push_back(cluster_mesh);
   
+  // Prepare the coefficient vector for each plane to identify its id
   float hull_area = hull.getTotalArea();
   vector<float> coeff;
-  coeff.push_back(z_in);
-  coeff.push_back(hull_area);
+  coeff.push_back(z_in); // z value
+  coeff.push_back(hull_area); // area of hull
+  coeff.push_back(cluster_near_z->points.size()); // point number
   plane_coeff_.push_back(coeff);
   
+  // Update the data of the max plane detected
   if (cluster_2d_rgb->points.size() > global_size_temp_) {
     plane_max_result_ = cluster_2d_rgb;
     plane_max_points_ = cluster_near_z;
@@ -385,39 +391,47 @@ bool PlaneSegment::errorAnalyse(float z, PointCloudMono::Ptr cloud_in,
 void PlaneSegment::setID()
 {
   if (global_id_temp_.empty()) {
+    // Initialize the global id temp with the first detection
     for (size_t i = 0; i < plane_coeff_.size(); ++i) {
       global_id_temp_.push_back(i);
-      global_result_temp_.push_back(plane_coeff_[i]);
+      global_coeff_temp_.push_back(plane_coeff_[i]);
     }
   }
   else {
     vector<int> local_id_temp(plane_coeff_.size(), -1);
+
+    utl_->matchID(global_coeff_temp_, plane_coeff_, local_id_temp);
+
+//    // Total plane number for current detection
+//    int local_total = plane_coeff_.size();
+
+//    // Assign each current plane with the global id, or
+//    // new id if it has not been seen
+//    while (local_total > 0) {
+//      pair<int, int> p;
+//      float distemp = FLT_MAX;
+//      for (size_t i = 0; i < plane_coeff_.size(); ++i) {
+//        vector<float> coeff = plane_coeff_[i];
+//        for (size_t j = 0; j < global_coeff_temp_.size(); ++j) {
+//          vector<float> coeff_prev = global_coeff_temp_[j];
+//          float dis = utl_->getDistance(coeff, coeff_prev);
+//          if (dis < distemp) {
+//            distemp = dis;
+//            p.first = i;
+//            p.second = j;
+//          }
+//        }
+//      }
+//      local_total--;
+//      local_id_temp[p.first] = p.second;
+//    }
     
-    int total = plane_coeff_.size();
-    while (total > 0) {
-      pair<int, int> p;
-      float distemp = FLT_MAX;
-      for (size_t i = 0; i < plane_coeff_.size(); ++i) {
-        vector<float> coeff = plane_coeff_[i];
-        for (size_t j = 0; j < global_result_temp_.size(); ++j) {
-          vector<float> coeff_prev = global_result_temp_[j];
-          float dis = utl_->getDistance(coeff, coeff_prev);
-          if (dis < distemp) {
-            distemp = dis;
-            p.first = i;
-            p.second = j;
-          }
-        }
-      }
-      total--;
-      local_id_temp[p.first] = p.second;
-    }
-    
-    global_result_temp_.clear();
+    // Update global result temp
+    global_coeff_temp_.clear();
     global_id_temp_.clear();
     for (size_t i = 0; i < plane_coeff_.size(); ++i) {
       global_id_temp_.push_back(local_id_temp[i]);
-      global_result_temp_.push_back(plane_coeff_[i]);
+      global_coeff_temp_.push_back(plane_coeff_[i]);
     }
   }
 }
@@ -426,8 +440,8 @@ int PlaneSegment::checkSimiliar(vector<float> coeff)
 {
   int id = -1;
   float distemp = FLT_MAX;
-  for (size_t i = 0; i < global_result_temp_.size(); ++i) {
-    vector<float> coeff_prev = global_result_temp_[i];
+  for (size_t i = 0; i < global_coeff_temp_.size(); ++i) {
+    vector<float> coeff_prev = global_coeff_temp_[i];
     float dis = utl_->getDistance(coeff_prev, coeff);
     if (dis < distemp) {
       distemp = dis;

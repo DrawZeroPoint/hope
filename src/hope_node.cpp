@@ -46,10 +46,12 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
-// Custom message
+// Customized message
 #include "lib/get_cloud.h"
 #include "lib/plane_segment.h"
 #include "lib/utilities.h"
+
+//#define DEBUG
 
 using namespace std;
 using namespace cv;
@@ -58,41 +60,38 @@ enum dataset{DEFAULT, TUM_SINGLE, TUM_LIST};
 
 // Publishers
 
-// Status
-bool use_real_data_ = false; // If using real-time image and imu data 
+/// Status
+bool use_real_data_ = false; // Using real-time image or imu data
 
-// Marker type
-uint32_t shape = visualization_msgs::Marker::ARROW;
-
-// Transform frame, only used with real time data
-// You may change the name based on your robot configuration
+/// Transform frame, only used with real time data
+/// You may change the name based on your robot configuration
 string base_frame_ = "base_link"; // world frame
 string camera_optical_frame_ = "vision_depth_optical_frame";
 
-// Camera orientation params, only used in testing with benchmark data
+/// Camera orientation params, only used for benchmarking
 float roll_angle_;
 float pitch_angle_;
 
 float tx_, ty_, tz_, qx_, qy_, qz_, qw_;
 
 void fraseInput(string input, vector<string> &vrgb, vector<string> &vdepth, 
-                vector<vector<float> > &vq)
+                vector<vector<float> > &vec_xyzw)
 {  
   ifstream list(input.c_str());
   
-  if(!list){  
-    cout << "Unable to open list" << endl;  
+  if(!list){
+    cout << "Unable to open the list" << endl;
     return;
   }
   char rgb[27];
   char depth[27];
-  float qx, qy, qz, qw;
-  
-  float s, tx, ty, tz;
+  float s, tx, ty, tz, qx, qy, qz, qw;
   string line;
+
   while (getline(list, line)) {
+    // http://www.cplusplus.com/reference/cstdio/scanf/
     sscanf(line.c_str(), "%f %s %s %f %f %f %f %f %f %f",
-           &s, &rgb, &depth, &tx, &ty, &tz, &qx, &qy, &qz, &qw);
+           &s, rgb, depth, &tx, &ty, &tz, &qx, &qy, &qz, &qw);
     ostringstream rgb_ost;
     rgb_ost << rgb;
     ostringstream dep_ost;
@@ -104,7 +103,7 @@ void fraseInput(string input, vector<string> &vrgb, vector<string> &vdepth,
     q.push_back(qy);
     q.push_back(qz);
     q.push_back(qw);
-    vq.push_back(q);
+    vec_xyzw.push_back(q);
   }
 }
 
@@ -124,23 +123,25 @@ int main(int argc, char **argv)
   }
   else if (argc == 5) {
     int arg_index = 1;
-    path_rgb = argv[arg_index++];
-    path_depth = argv[arg_index++];
+    path_rgb = argv[arg_index++]; // path to the folder of rgb images
+    path_depth = argv[arg_index++]; // path to the folder of depth images
     
-    roll_angle_  = atof(argv[arg_index++]);
-    pitch_angle_  = atof(argv[arg_index++]);
+    roll_angle_  = atof(argv[arg_index++]); // predefined roll angle (X-axis pointing forward)
+    pitch_angle_  = atof(argv[arg_index++]); // predefined pitch angle (Y-axis pointing left)
     ROS_INFO("Using default dataset.");
     type = DEFAULT;
   }
   else if (argc == 2) {
+    // Test on a series of images, recommended
     int arg_index = 1;
-    path_prefix = argv[arg_index++];
+    path_prefix = argv[arg_index++]; // path prefix of all.txt, see README for generating that
     path_list_all = path_prefix + "all.txt";
     
     ROS_INFO("Using image list of TUM RGB-D SLAM dataset.");
     type = TUM_LIST;
   }
   else if (argc == 10) {
+    // Test on a single image pair
     int arg_index = 1;
     path_prefix = "/home/aicrobo/TUM/rgbd_dataset_freiburg1_desk/";
     path_rgb = path_prefix + argv[arg_index++];
@@ -166,9 +167,10 @@ int main(int argc, char **argv)
   float xy_resolution = 0.03; // In meter
   float z_resolution = 0.008; // In meter
   PlaneSegment hope(use_real_data_, base_frame_, xy_resolution, z_resolution);
-  PointCloud::Ptr src_cloud(new PointCloud);
-  
+  PointCloud::Ptr src_cloud(new PointCloud); // Cloud input for all pipelines
+
   if (use_real_data_) {
+
     while (ros::ok()) {
       // The src_cloud is actually not used here
       hope.getHorizontalPlanes(src_cloud);
@@ -183,14 +185,16 @@ int main(int argc, char **argv)
       Mat rgb = imread(path_rgb);
       Mat depth = imread(path_depth, -1); // Using flag<0 to read the image without changing its type
       
-      //imshow("rgb", rgb);
-      //imshow("depth", depth);
-      //waitKey();
+#ifdef DEBUG
+      imshow("rgb", rgb);
+      imshow("depth", depth);
+      waitKey();
+#endif
       
       // The rgb images from TUM dataset are in CV_8UC3 type while the depth images are in CV_16UC1
       // The rgb image should be phrased with Vec3b while the depth with ushort
       cout << "Image type: rgb: " << rgb.type() << " depth: " << depth.type() << endl;
- 
+
       GetCloud m_gc;
       // Filter the cloud with range 0.3-8.0m cause most RGB-D sensors are unreliable outside this range
       // But if Lidar data is used, try expand the range
@@ -198,26 +202,28 @@ int main(int argc, char **argv)
       hope.getHorizontalPlanes(src_cloud);
     }
     else if (type == TUM_LIST) {
-      vector<string> vrgb;
-      vector<string> vdepth;
-      vector<vector<float> > vq;
-      fraseInput(path_list_all, vrgb, vdepth, vq);
-      for (size_t i = 0; i < vrgb.size(); ++i) {
+      vector<string> fnames_rgb;
+      vector<string> fnames_depth;
+      vector<vector<float> > vec_xyzw;
+      fraseInput(path_list_all, fnames_rgb, fnames_depth, vec_xyzw);
+      for (size_t i = 0; i < fnames_rgb.size(); ++i) {
         
         hope.setParams(type, roll_angle_, pitch_angle_, tx_, ty_, tz_,
-                       vq[i][0], vq[i][1], vq[i][2], vq[i][3]);
+                       vec_xyzw[i][0], vec_xyzw[i][1], vec_xyzw[i][2], vec_xyzw[i][3]);
         
-        // Pre-captured images are used for testing on benchmarks
-        Mat rgb = imread(path_prefix + "/" + vrgb[i]);
-        Mat depth = imread(path_prefix + "/" + vdepth[i], -1);
+        Mat rgb = imread(path_prefix + "/" + fnames_rgb[i]);
+        Mat depth = imread(path_prefix + "/" + fnames_depth[i], -1);
         
-        //imshow("rgb", rgb);
-        //imshow("depth", depth);
-        //waitKey();
+#ifdef DEBUG
+        imshow("rgb", rgb);
+        imshow("depth", depth);
+        waitKey();
+#endif
 
         GetCloud m_gc;
         // Filter the cloud with range 0.3-8.0m cause most RGB-D sensors are unreliable outside this range
-        // But if Lidar data is used, try expand the range
+        // But if Lidar data are used, try expanding the range
+        // TODO add Nan filter in this function
         m_gc.getColorCloud(rgb, depth, src_cloud, 8.0, 0.3);
         hope.getHorizontalPlanes(src_cloud);
       }

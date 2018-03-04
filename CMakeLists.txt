@@ -56,6 +56,9 @@ add_library(${PROJECT_NAME}
   src/lib/utilities.h
 )
 
+# Notice that the customized lib needs to link to ROS too
+target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
+
 # Declare a C++ executable
 # With catkin_make all packages are built within a single CMake context
 # The recommended prefix ensures that target names across packages don't collide

@@ -156,9 +156,9 @@ private:
   // Frame for point cloud to transfer
   string base_frame_;
   
-  /// Support surface point number threshold
+  /// Supporting surface point number threshold
   int global_size_temp_;
-  vector<vector<float> > global_result_temp_;
+  vector<vector<float> > global_coeff_temp_;
   vector<int> global_id_temp_;
   
   /// ROS stuff
@@ -207,11 +207,19 @@ private:
   void reset();
   void getMeanZofEachCluster(PointCloudMono::Ptr cloud_norm_fit_mono);
   void extractPlaneForEachZ(PointCloudMono::Ptr cloud_norm_fit);
-  void clusterWithZGrowing(PointCloudMono::Ptr cloud_norm_fit_mono);
+  void zClustering(PointCloudMono::Ptr cloud_norm_fit_mono);
   void getPlane(size_t id, float z_in, PointCloudMono::Ptr &cloud_norm_fit_mono);
   bool errorAnalyse(float z, PointCloudMono::Ptr cloud_in, PointCloud::Ptr &cloud_out, bool fix_z);
   int checkSimiliar(vector<float> coeff);
   void setID();
+
+  /**
+   * @brief visualizeResult
+   * @param display_source display the source cloud
+   * @param display_raw display extracted points from planes
+   * @param display_err render the extracted points with their error towards the estimated model
+   * @param display_hull compose hulls with the extracted points
+   */
   void visualizeResult(bool display_source, bool display_raw, bool display_err, bool display_hull);
   
   // Reconstruct mesh from point cloud
