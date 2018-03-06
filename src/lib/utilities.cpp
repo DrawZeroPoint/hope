@@ -764,6 +764,18 @@ float Utilities::getDistance(vector<float> v1, vector<float> v2)
   return rst;
 }
 
+void Utilities::getHullCenter(PointCloud::Ptr hull, float &x, float &y)
+{
+  float sumx = 0;
+  float sumy = 0;
+  for (size_t i = 0; i < hull->points.size(); ++i) {
+    sumx += hull->points[i].x;
+    sumy += hull->points[i].y;
+  }
+  x = sumx / hull->points.size();
+  y = sumy / hull->points.size();
+}
+
 pcl::PolygonMesh Utilities::getMesh(const PointCloudMono::Ptr point_cloud, 
                                     NormalCloud::Ptr normals)
 {
@@ -951,7 +963,7 @@ bool Utilities::tryExpandROI(int &minx, int &miny, int &maxx, int &maxy,
 float Utilities::determinant(float v1, float v2, float v3, float v4)
 {  
   return (v1 * v3 - v2 * v4);
-}  
+}
 
 bool Utilities::isIntersect(pcl::PointXY p1, pcl::PointXY p2, 
                             pcl::PointXY p3, pcl::PointXY p4)
@@ -981,31 +993,62 @@ void Utilities::matFill(vector<vector<float> > features, Mat &out)
   }
 }
 
-void Utilities::matNormalize(Mat in, Mat &out)
+void Utilities::matNormalize(Mat query_in, Mat train_in,
+                             Mat &query_out, Mat &train_out)
 {
-  out = Mat(in.rows, in.cols, in.type());
-  for (size_t c = 0; c < in.cols; ++c) {
+  query_out = Mat(query_in.rows, query_in.cols, query_in.type());
+  train_out = Mat(train_in.rows, train_in.cols, train_in.type());
+
+  for (size_t c = 0; c < query_in.cols; ++c) {
 
     float acc = 0;
-    for (size_t r = 0; r < in.rows; ++r) {
-      float val = in.at<float>(r, c);
+    for (size_t r = 0; r < query_in.rows; ++r) {
+      float val = query_in.at<float>(r, c);
       acc += val;
     }
-    float r_mean = acc / in.rows;
+    for (size_t r = 0; r < train_in.rows; ++r) {
+      float val = train_in.at<float>(r, c);
+      acc += val;
+    }
+    float r_mean = acc / (query_in.rows + train_in.rows);
 
     acc = 0;
-    for (size_t r = 0; r < in.rows; ++r) {
-      float val = in.at<float>(r, c);
+    for (size_t r = 0; r < query_in.rows; ++r) {
+      float val = query_in.at<float>(r, c);
+      acc += pow(val - r_mean, 2);
+    }
+    for (size_t r = 0; r < train_in.rows; ++r) {
+      float val = train_in.at<float>(r, c);
       acc += pow(val - r_mean, 2);
     }
 
-    float sd = sqrt(acc / in.rows);
+    float sd = sqrt(acc / (query_in.rows + train_in.rows));
 
-    for (size_t r = 0; r < in.rows; ++r) {
-      float val = in.at<float>(r, c);
+    for (size_t r = 0; r < query_in.rows; ++r) {
+      float val = query_in.at<float>(r, c);
       val = (val - r_mean) / sd;
-      out.at<float>(r, c) = val;
+      query_out.at<float>(r, c) = val;
     }
+    for (size_t r = 0; r < train_in.rows; ++r) {
+      float val = train_in.at<float>(r, c);
+      val = (val - r_mean) / sd;
+      train_out.at<float>(r, c) = val;
+    }
+  }
+}
+
+void Utilities::searchAvailableID(vector<int> id_used, vector<int> &id_ava, int limit=64)
+{
+  for (size_t i = 0; i < limit; ++i) {
+    bool i_used = false;
+    for (size_t n = 0; n < id_used.size(); ++n) {
+      if (i == id_used[n]) {
+        i_used = true;
+        break;
+      }
+    }
+    if (!i_used)
+      id_ava.push_back(i);
   }
 }
 
@@ -1033,21 +1076,30 @@ void Utilities::getClosestPoint(pcl::PointXY p1, pcl::PointXY p2,
   pc.x = A/B*(pc.y - p1.y) + p1.x;
 }
 
-bool Utilities::isInVector(int id, vector<int> vec)
+bool Utilities::isInVector(int id, vector<int> vec, int &pos)
 {
   for (size_t i = 0; i < vec.size(); ++i) {
-    if (id == vec[i])
+    if (id == vec[i]) {
+      pos = i;
       return true;
+    }
   }
   return false;
 }
 
 void Utilities::matchID(vector<vector<float> > global, vector<vector<float> > local,
-                        vector<int> &out)
+                        vector<int> in, vector<int> &out, int feature_dim)
 {
+  // Get new id that can be used
+  vector<int> id_ava;
+  searchAvailableID(in, id_ava);
+
+  // Allocate space for output
+  out.resize(local.size());
+
   // Rearrange the data into Mat
-  Mat m1(Size(3, local.size()), CV_32FC1); // Size w*h
-  Mat m2(Size(3, global.size()), CV_32FC1);
+  Mat m1(Size(feature_dim, local.size()), CV_32FC1); // Size w*h
+  Mat m2(Size(feature_dim, global.size()), CV_32FC1);
 
   matFill(local, m1);
   matFill(global, m2);
@@ -1056,24 +1108,71 @@ void Utilities::matchID(vector<vector<float> > global, vector<vector<float> > lo
   vector<DMatch> matches;
 
   Mat query, train;
-  matNormalize(m1, query);
-  matNormalize(m2, train);
+  matNormalize(m1, m2, query, train);
 
   matcher.match(query, train, matches);
 
-  double max_dist = 0;
-  double min_dist = 100;
-  //-- Quick calculation of max and min distances between keypoints
-  for( int i = 0; i < m1.rows; i++ ) {
-    double dist = matches[i].distance;
-    cout << "match for " << i << ": " << matches[i].trainIdx
-         << " distance: " << dist << endl;
+//  pair<int, int> best;
+//  float mind = 100;
+//  for (size_t j = 0; j < local.size(); ++j) {
+//    if (matches[j].distance < mind) {
+//      best.first = j;
+//      best.second = matches[j].trainIdx;
+//      mind = matches[j].distance;
+//    }
+//  }
+//  for (size_t j = 0; j < local.size(); ++j) {
+//    if (j == best.first) {
+//      out[j] = in[best.second];
+//    }
+//    else {
+//      out[j] = -1;
+//    }
+//  }
 
-    // TODO set right thresh for filter out the pair with large distance
-    out.push_back(matches[i].trainIdx);
-    if( dist < min_dist ) min_dist = dist;
-    if( dist > max_dist ) max_dist = dist;
+  // One query feature can only have one corresponding train feature and vise versa
+  vector<float> g_dist_temp(global.size(), 10);
+  vector<int> match_for_g(global.size(), -1);
+  for (size_t i = 0; i < global.size(); ++i) {
+    for (size_t j = 0; j < matches.size(); ++j) {
+      if (i == matches[j].trainIdx) {
+        if (matches[j].distance < g_dist_temp[i]) {
+          g_dist_temp[i] = matches[j].distance;
+          match_for_g[i] = matches[j].queryIdx;
+        }
+      }
+    }
   }
+
+  for (size_t j = 0; j < local.size(); ++j) {
+    int pos = -1;
+    if (isInVector(j, match_for_g, pos)) {
+      out[j] = in[pos];
+      //cout << "current: " << j << " matches: " << pos << " score " << matches[j].distance << endl;
+    }
+    else {
+      out[j] = id_ava[0];
+      id_ava.erase(id_ava.begin());
+      //cout << "assign: " << j << " to: " << id_ava[0] << " score " << matches[j].distance << endl;
+    }
+  }
+
+//  for (size_t j = 0; j < global.size(); ++j) {
+//    cout << "global: " << j << endl;
+//    for (size_t i = 0; i < global[j].size(); ++i) {
+//      cout << global[j][i] << endl;
+//      cout << "-----" << endl;
+//      cout << train.at<float>(j, i) << endl;
+//    }
+//  }
+//  for (size_t k = 0; k < local.size(); ++k) {
+//    cout << "local: " << k << endl;
+//    for (size_t i = 0; i < local[k].size(); ++i) {
+//      cout << local[k][i] << endl;
+//      cout << "-----" << endl;
+//      cout << query.at<float>(k, i) << endl;
+//    }
+//  }
 }
 
 float Utilities::shortRainbowColorMap(const double value, 

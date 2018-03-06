@@ -130,8 +130,8 @@ void HighResTimer::toTimeLog(std::string name, std::string time_str)
   if (!boost::filesystem::is_directory(log_out_folder))
     boost::filesystem::create_directories(log_out_folder);
 
-  std::ofstream logfile;
-  logfile.open(log_out_folder + "/" +name + ".txt", std::ofstream::out | std::ofstream::app);
-  logfile << time_str << "\n";
-  logfile.close();
+//  std::ofstream logfile;
+//  logfile.open(log_out_folder + "/" +name + ".txt", std::ofstream::out | std::ofstream::app);
+//  logfile << time_str << "\n";
+//  logfile.close();
 }

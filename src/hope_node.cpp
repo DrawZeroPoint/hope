@@ -109,6 +109,7 @@ void fraseInput(string input, vector<string> &vrgb, vector<string> &vdepth,
 
 int main(int argc, char **argv)
 {
+  // You need to run roscore to launch this program
   ros::init(argc, argv, "hope_node");
   
   string path_prefix;
@@ -135,7 +136,7 @@ int main(int argc, char **argv)
     // Test on a series of images, recommended
     int arg_index = 1;
     path_prefix = argv[arg_index++]; // path prefix of all.txt, see README for generating that
-    path_list_all = path_prefix + "all.txt";
+    path_list_all = path_prefix + "/all.txt";
     
     ROS_INFO("Using image list of TUM RGB-D SLAM dataset.");
     type = TUM_LIST;
@@ -164,8 +165,8 @@ int main(int argc, char **argv)
   ros::NodeHandle nh;
   ros::NodeHandle pnh("~");
   
-  float xy_resolution = 0.03; // In meter
-  float z_resolution = 0.008; // In meter
+  float xy_resolution = 0.08; // In meter
+  float z_resolution = 0.02; // In meter
   PlaneSegment hope(use_real_data_, base_frame_, xy_resolution, z_resolution);
   PointCloud::Ptr src_cloud(new PointCloud); // Cloud input for all pipelines
 

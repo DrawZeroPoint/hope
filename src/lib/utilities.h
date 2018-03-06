@@ -157,6 +157,8 @@ public:
   Vec3f getColorWithID(int id);
   
   float getDistance(vector<float> v1, vector<float> v2);
+
+  void getHullCenter(PointCloud::Ptr hull, float &x, float &y);
   
   pcl::PolygonMesh getMesh(const PointCloudMono::Ptr point_cloud, NormalCloud::Ptr normals);
   
@@ -178,10 +180,10 @@ public:
   bool isInHull(PointCloudMono::Ptr hull, pcl::PointXY p_in, 
                 pcl::PointXY &offset, pcl::PointXY &p_closest);
   
-  bool isInVector(int id, vector<int> vec);
+  bool isInVector(int id, vector<int> vec, int &pos);
 
-  void matchID(vector<vector<float> > global, vector<vector<float> > local,
-               vector<int> &out);
+  void matchID(vector<vector<float> > global, vector<vector<float> > local, vector<int> in,
+               vector<int> &out, int feature_dim);
   
   void msgToCloud(const PointCloud::ConstPtr msg, 
                   PointCloudMono::Ptr cloud);
@@ -244,8 +246,9 @@ public:
   bool isIntersect(pcl::PointXY p1, pcl::PointXY p2, pcl::PointXY p3, pcl::PointXY p4);
 
   void matFill(vector<vector<float> > features, Mat &out);
-  void matNormalize(Mat in, Mat &out);
+  void matNormalize(Mat query_in, Mat train_in, Mat &query_out, Mat &train_out);
 
+  void searchAvailableID(vector<int> id_used, vector<int> &id_ava, int limit);
 };
 
 #endif // UTILITIES_H

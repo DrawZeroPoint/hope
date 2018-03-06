@@ -118,7 +118,7 @@ void PlaneSegment::getHorizontalPlanes(PointCloud::Ptr cloud)
   hst_.stop();
   hst_.print();
   
-  visualizeResult(false, false, true, true);
+  visualizeResult(true, false, false, true);
 }
 
 bool PlaneSegment::getSourceCloud()
@@ -332,6 +332,10 @@ void PlaneSegment::getPlane(size_t id, float z_in, PointCloudMono::Ptr &cloud_no
   coeff.push_back(z_in); // z value
   coeff.push_back(hull_area); // area of hull
   coeff.push_back(cluster_near_z->points.size()); // point number
+  float x, y;
+  utl_->getHullCenter(cluster_hull, x, y);
+  coeff.push_back(x); // hull center x
+  coeff.push_back(y); // hull center y
   plane_coeff_.push_back(coeff);
   
   // Update the data of the max plane detected
@@ -398,9 +402,9 @@ void PlaneSegment::setID()
     }
   }
   else {
-    vector<int> local_id_temp(plane_coeff_.size(), -1);
+    vector<int> local_id_temp;
 
-    utl_->matchID(global_coeff_temp_, plane_coeff_, local_id_temp);
+    utl_->matchID(global_coeff_temp_, plane_coeff_, global_id_temp_, local_id_temp, 5);
 
 //    // Total plane number for current detection
 //    int local_total = plane_coeff_.size();
@@ -451,7 +455,8 @@ int PlaneSegment::checkSimiliar(vector<float> coeff)
   return id;
 }
 
-void PlaneSegment::visualizeResult(bool display_source, bool display_raw, bool display_err, bool display_hull)
+void PlaneSegment::visualizeResult(bool display_source, bool display_raw,
+                                   bool display_err, bool display_hull)
 {
   // For visualizing in RViz
   publishCloud(src_rgb_cloud_, pub_cloud_);
@@ -494,10 +499,10 @@ void PlaneSegment::visualizeResult(bool display_source, bool display_raw, bool d
     }
     if (display_hull) {
       // Add hull points
-      name = utl_->getName(i, "hull_", -1);
-      viewer->addPointCloud<pcl::PointXYZRGB>(plane_hull_[i], name);
-      viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 10.0, name);
-      viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, c[0], c[1], c[2], name);
+      //name = utl_->getName(i, "hull_", -1);
+      //viewer->addPointCloud<pcl::PointXYZRGB>(plane_hull_[i], name);
+      //viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 10.0, name);
+      //viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, c[0], c[1], c[2], name);
       // Add hull mesh
       name = utl_->getName(i, "mesh_", -1);
       viewer->addPolygonMesh(plane_mesh_[i], name);
