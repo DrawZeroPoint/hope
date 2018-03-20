@@ -402,6 +402,17 @@ void Utilities::downSampling(PointCloudMono::Ptr cloud_in,
   vg.filter(*cloud_out);
 }
 
+void Utilities::downSampling(PointCloud::Ptr cloud_in,
+                             PointCloud::Ptr &cloud_out,
+                             float gird_sz, float z_sz)
+{
+  // Create the filtering object
+  pcl::VoxelGrid<pcl::PointXYZRGB> vg;
+  vg.setInputCloud(cloud_in);
+  vg.setLeafSize(gird_sz, gird_sz, z_sz);
+  vg.filter(*cloud_out);
+}
+
 void Utilities::planeTo2D(float z, PointCloudMono::Ptr cloud_in, 
                           PointCloudMono::Ptr &cloud_out)
 {

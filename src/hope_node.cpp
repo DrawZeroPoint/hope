@@ -134,6 +134,7 @@ int main(int argc, char **argv)
   }
   else if (argc == 2) {
     // Test on a series of images, recommended
+    // /home/omnisky/TUM/rgbd_dataset_freiburg1_desk
     int arg_index = 1;
     path_prefix = argv[arg_index++]; // path prefix of all.txt, see README for generating that
     path_list_all = path_prefix + "/all.txt";
@@ -141,10 +142,11 @@ int main(int argc, char **argv)
     ROS_INFO("Using image list of TUM RGB-D SLAM dataset.");
     type = TUM_LIST;
   }
-  else if (argc == 10) {
+  else if (argc == 11) {
     // Test on a single image pair
+    // /home/omnisky/TUM/rgbd_dataset_freiburg1_desk/ rgb/1305031467.027843.png depth/1305031467.020424.png 1.4268 -0.2879 1.4371 0.8091 0.3318 -0.2030 -0.4405
     int arg_index = 1;
-    path_prefix = "/home/aicrobo/TUM/rgbd_dataset_freiburg1_desk/";
+    path_prefix = argv[arg_index++];
     path_rgb = path_prefix + argv[arg_index++];
     path_depth = path_prefix + argv[arg_index++];
     
@@ -165,40 +167,43 @@ int main(int argc, char **argv)
   ros::NodeHandle nh;
   ros::NodeHandle pnh("~");
   
-  float xy_resolution = 0.08; // In meter
-  float z_resolution = 0.02; // In meter
+  float xy_resolution = 0.03; // In meter
+  float z_resolution = 0.008; // In meter
   PlaneSegment hope(use_real_data_, base_frame_, xy_resolution, z_resolution);
   PointCloud::Ptr src_cloud(new PointCloud); // Cloud input for all pipelines
 
   if (use_real_data_) {
-
     while (ros::ok()) {
       // The src_cloud is actually not used here
       hope.getHorizontalPlanes(src_cloud);
     }
   }
   else {
+    Mat rgb;
+    Mat depth;
+
+    GetCloud m_gc;
+
     if (type == DEFAULT || type == TUM_SINGLE) {
       // Set camera pose for point cloud transferation
       hope.setParams(type, roll_angle_, pitch_angle_, tx_, ty_, tz_, qx_, qy_, qz_, qw_);
       
-      // Pre-captured images are used for testing on benchmarks
-      Mat rgb = imread(path_rgb);
-      Mat depth = imread(path_depth, -1); // Using flag<0 to read the image without changing its type
-      
-#ifdef DEBUG
-      imshow("rgb", rgb);
-      imshow("depth", depth);
-      waitKey();
-#endif
-      
-      // The rgb images from TUM dataset are in CV_8UC3 type while the depth images are in CV_16UC1
-      // The rgb image should be phrased with Vec3b while the depth with ushort
-      cout << "Image type: rgb: " << rgb.type() << " depth: " << depth.type() << endl;
+      // Precaptured images are used for testing on benchmarks
+      rgb = imread(path_rgb);
+      depth = imread(path_depth, -1); // Using flag<0 to read the image without changing its type
 
-      GetCloud m_gc;
+#ifdef DEBUG
+    // The rgb images from TUM dataset are in CV_8UC3 type while the depth images are in CV_16UC1
+    // The rgb image should be phrased with Vec3b while the depth with ushort
+    cout << "Image type: rgb: " << rgb.type() << " depth: " << depth.type() << endl;
+    imshow("rgb", rgb);
+    imshow("depth", depth);
+    waitKey();
+#endif
+
       // Filter the cloud with range 0.3-8.0m cause most RGB-D sensors are unreliable outside this range
-      // But if Lidar data is used, try expand the range
+      // But if Lidar data are used, try expanding the range
+      // TODO add Nan filter in this function
       m_gc.getColorCloud(rgb, depth, src_cloud, 8.0, 0.3);
       hope.getHorizontalPlanes(src_cloud);
     }
@@ -212,16 +217,10 @@ int main(int argc, char **argv)
         hope.setParams(type, roll_angle_, pitch_angle_, tx_, ty_, tz_,
                        vec_xyzw[i][0], vec_xyzw[i][1], vec_xyzw[i][2], vec_xyzw[i][3]);
         
-        Mat rgb = imread(path_prefix + "/" + fnames_rgb[i]);
-        Mat depth = imread(path_prefix + "/" + fnames_depth[i], -1);
-        
-#ifdef DEBUG
-        imshow("rgb", rgb);
-        imshow("depth", depth);
-        waitKey();
-#endif
+        cout << "Processing: " << fnames_rgb[i] << endl;
+        rgb = imread(path_prefix + "/" + fnames_rgb[i]);
+        depth = imread(path_prefix + "/" + fnames_depth[i], -1);
 
-        GetCloud m_gc;
         // Filter the cloud with range 0.3-8.0m cause most RGB-D sensors are unreliable outside this range
         // But if Lidar data are used, try expanding the range
         // TODO add Nan filter in this function

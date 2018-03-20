@@ -79,8 +79,8 @@ class Utilities
 public:
   Utilities();
   
-  void calRegionGrowing(PointCloudRGBN::Ptr cloud_in, int minsz, int maxsz, int nb, int smooth, 
-                        pcl::PointCloud<pcl::Normal>::Ptr normals, vector<pcl::PointIndices> &inliers);  
+  void calRegionGrowing(PointCloudRGBN::Ptr cloud_in, int minsz, int maxsz, int nb, int smooth,
+                        pcl::PointCloud<pcl::Normal>::Ptr normals, vector<pcl::PointIndices> &inliers);
   
   /**
    * @brief checkWithIn Check if ref_inliers contains elements in tgt_inliers
@@ -90,7 +90,7 @@ public:
    */
   bool checkWithIn(pcl::PointIndices::Ptr ref_inliers, pcl::PointIndices::Ptr tgt_inliers);
   
-  void clusterExtract(PointCloudMono::Ptr cloud_in, 
+  void clusterExtract(PointCloudMono::Ptr cloud_in,
                       vector<pcl::PointIndices> &cluster_indices,
                       float th_cluster, int minsize, int maxsize);
   
@@ -102,15 +102,18 @@ public:
                 PointCloudMono::Ptr cloud_in, vector<int> &inliers_cut,
                 PointCloudMono::Ptr &cloud_out);
   
-  void downSampling(PointCloudMono::Ptr cloud_in, 
+  void downSampling(PointCloudMono::Ptr cloud_in,
                     PointCloudMono::Ptr &cloud_out, float gird_sz, float z_sz );
+
+  void downSampling(PointCloud::Ptr cloud_in, PointCloud::Ptr &cloud_out,
+                    float gird_sz, float z_sz);
   
-  void estimateNorm(PointCloudMono::Ptr cloud_in, 
-                    PointCloudRGBN::Ptr &cloud_out, 
+  void estimateNorm(PointCloudMono::Ptr cloud_in,
+                    PointCloudRGBN::Ptr &cloud_out,
                     NormalCloud::Ptr &normals_out,
                     float norm_r);
   
-  void estimateNorm(PointCloudMono::Ptr cloud_in, 
+  void estimateNorm(PointCloudMono::Ptr cloud_in,
                     NormalCloud::Ptr &normals_out,
                     float norm_r);
   
@@ -126,28 +129,28 @@ public:
    * @param p_c
    * @param acc
    */
-  void getClosestPoint(pcl::PointXY p1, pcl::PointXY p2, 
+  void getClosestPoint(pcl::PointXY p1, pcl::PointXY p2,
                        pcl::PointXY p, pcl::PointXY &pc);
   
-  void getCloudByInliers(PointCloudMono::Ptr cloud_in, PointCloudMono::Ptr &cloud_out, 
+  void getCloudByInliers(PointCloudMono::Ptr cloud_in, PointCloudMono::Ptr &cloud_out,
                          pcl::PointIndices::Ptr inliers, bool negative, bool organized);
   
-  void getCloudByInliers(NormalCloud::Ptr cloud_in, NormalCloud::Ptr &cloud_out, 
+  void getCloudByInliers(NormalCloud::Ptr cloud_in, NormalCloud::Ptr &cloud_out,
                          pcl::PointIndices::Ptr inliers, bool negative, bool organized);
   
-  void getCloudByInliers(PointCloudRGBN::Ptr cloud_in, 
+  void getCloudByInliers(PointCloudRGBN::Ptr cloud_in,
                          PointCloudRGBN::Ptr &cloud_out,
                          pcl::PointIndices::Ptr inliers, bool negative, bool organized);
   
-  void getCloudByNorm(PointCloudRGBN::Ptr cloud_in, pcl::PointIndices::Ptr &inliers, 
+  void getCloudByNorm(PointCloudRGBN::Ptr cloud_in, pcl::PointIndices::Ptr &inliers,
                       float th_norm);
   
   void getCloudByNorm(NormalCloud::Ptr cloud_in, pcl::PointIndices::Ptr &inliers, float th_norm);
   
-  void getCloudByZ(PointCloudMono::Ptr cloud_in, pcl::PointIndices::Ptr &inliers, 
+  void getCloudByZ(PointCloudMono::Ptr cloud_in, pcl::PointIndices::Ptr &inliers,
                    PointCloudMono::Ptr &cloud_out, float z_min, float z_max);
   
-  void getCloudByZ(PointCloud::Ptr cloud_in, pcl::PointIndices::Ptr &inliers, 
+  void getCloudByZ(PointCloud::Ptr cloud_in, pcl::PointIndices::Ptr &inliers,
                    PointCloud::Ptr &cloud_out, float z_min, float z_max);
   
   float getCloudMeanZ(PointCloudMono::Ptr cloud_in);
@@ -175,9 +178,9 @@ public:
    * @param hull Hull cloud in XY plane
    * @param p_in Point to be judged in XY plane
    * @param offset Distance between p_in and its nearest point on hull
-   * @return 
+   * @return
    */
-  bool isInHull(PointCloudMono::Ptr hull, pcl::PointXY p_in, 
+  bool isInHull(PointCloudMono::Ptr hull, pcl::PointXY p_in,
                 pcl::PointXY &offset, pcl::PointXY &p_closest);
   
   bool isInVector(int id, vector<int> vec, int &pos);
@@ -185,34 +188,34 @@ public:
   void matchID(vector<vector<float> > global, vector<vector<float> > local, vector<int> in,
                vector<int> &out, int feature_dim);
   
-  void msgToCloud(const PointCloud::ConstPtr msg, 
+  void msgToCloud(const PointCloud::ConstPtr msg,
                   PointCloudMono::Ptr cloud);
   
   bool pcaAnalyse(const PointCloud::ConstPtr cloud_2d_in, float &max_dis);
   
   float pointToSegDist(float x, float y, float x1, float y1, float x2, float y2);
   
-  void pointTypeTransfer(PointCloudRGBN::Ptr cloud_in, 
+  void pointTypeTransfer(PointCloudRGBN::Ptr cloud_in,
                          PointCloudMono::Ptr &cloud_out);
   
-  void pointTypeTransfer(PointCloud::Ptr cloud_in, 
+  void pointTypeTransfer(PointCloud::Ptr cloud_in,
                          PointCloudMono::Ptr &cloud_out);
   
-  void pointTypeTransfer(PointCloudMono::Ptr cloud_in, 
+  void pointTypeTransfer(PointCloudMono::Ptr cloud_in,
                          PointCloud::Ptr &cloud_out, int r, int g, int b);
   
-  void planeTo2D(float z, PointCloudMono::Ptr cloud_in, 
+  void planeTo2D(float z, PointCloudMono::Ptr cloud_in,
                  PointCloudMono::Ptr &cloud_out);
   
-  void projectCloud(pcl::ModelCoefficients::Ptr coeff_in, 
-                    PointCloudMono::Ptr cloud_in, 
+  void projectCloud(pcl::ModelCoefficients::Ptr coeff_in,
+                    PointCloudMono::Ptr cloud_in,
                     PointCloudMono::Ptr &cloud_out);
   
-  void rotateCloudXY(PointCloudRGBN::Ptr cloud_in, 
+  void rotateCloudXY(PointCloudRGBN::Ptr cloud_in,
                      PointCloudRGBN::Ptr &cloud_out,
                      float rx, float ry, Eigen::Matrix4f &transform_inv);
   
-  void rotateBack(PointCloudMono::Ptr cloud_in, 
+  void rotateBack(PointCloudMono::Ptr cloud_in,
                   PointCloudMono::Ptr &cloud_out,
                   Eigen::Matrix4f transform_inv);
   
@@ -237,10 +240,10 @@ public:
    * @param pad Expand value in px, can be negtive
    * @return false if the given ROI is abnormal, else return true
    */
-  bool tryExpandROI(int &minx, int &miny, int &maxx, int &maxy, int pad, 
+  bool tryExpandROI(int &minx, int &miny, int &maxx, int &maxy, int pad,
                     int width = 640, int height = 480);
   
-  private:
+private:
   float determinant(float v1, float v2, float v3, float v4);
   
   bool isIntersect(pcl::PointXY p1, pcl::PointXY p2, pcl::PointXY p3, pcl::PointXY p4);

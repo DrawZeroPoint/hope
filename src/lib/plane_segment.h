@@ -180,8 +180,11 @@ private:
   // Source point cloud
   PointCloud::Ptr src_rgb_cloud_;
   PointCloudMono::Ptr src_mono_cloud_;
+
   // Source cloud after down sampling
   PointCloudMono::Ptr src_sp_cloud_;
+  PointCloud::Ptr src_sp_rgb_;
+
   // Normals of down sampling cloud
   NormalCloud::Ptr src_normals_;
   // Normal filtered cloud index and corresponding cloud
@@ -227,6 +230,7 @@ private:
                               pcl::PolygonMesh &mesh);
   pcl::PolygonMesh mesh(const PointCloudMono::Ptr point_cloud, NormalCloud::Ptr normals);
   
+  void visualizeProcess(PointCloud::Ptr cloud);
 };
 
 #endif // PLANE_SEGMENT_H
