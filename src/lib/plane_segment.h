@@ -119,12 +119,12 @@ public:
 class PlaneSegment
 {
 public:
-  PlaneSegment(bool use_real_data, string base_frame, float th_xy, float th_z);
+  PlaneSegment(string base_frame, float th_xy, float th_z);
   
-  void setParams(int dataset_type, float roll, float pitch, 
+  void setParams(float roll, float pitch,
                  float tx, float ty, float tz, float qx, float qy, float qz, float qw);
   
-  void getHorizontalPlanes(PointCloud::Ptr cloud);
+  void getHorizontalPlanes(int data_type, PointCloud::Ptr cloud);
   
   /// Container for storing final results
   vector<PointCloud::Ptr> plane_results_;
@@ -141,9 +141,6 @@ public:
   vector<float> plane_max_coeff_;  
   
 private:
-  bool use_real_data_;
-  int dataset_type_;
-  
   /// Predefined camera orientations if not using real data
   // In Eular angle
   float roll_;
@@ -223,7 +220,7 @@ private:
    * @param display_err render the extracted points with their error towards the estimated model
    * @param display_hull compose hulls with the extracted points
    */
-  void visualizeResult(bool display_source, bool display_raw, bool display_err, bool display_hull);
+  void visualizeResult(int data_type, bool display_source, bool display_raw, bool display_err, bool display_hull);
   
   // Reconstruct mesh from point cloud
   void poisson_reconstruction(NormalPointCloud::Ptr point_cloud, 

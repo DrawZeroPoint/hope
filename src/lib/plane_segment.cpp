@@ -17,8 +17,7 @@ float th_max_depth_ = 8.0;
 
 bool vis_cluster_ = false;
 
-PlaneSegment::PlaneSegment(bool use_real_data, string base_frame, float th_xy, float th_z) :
-  use_real_data_(use_real_data),
+PlaneSegment::PlaneSegment(string base_frame, float th_xy, float th_z) :
   fi_(new FetchRGBD),
   pub_it_(nh_),
   src_mono_cloud_(new PointCloudMono),
@@ -79,56 +78,55 @@ void PlaneSegment::visualizeProcess(PointCloud::Ptr cloud)
   }
 }
 
-void PlaneSegment::setParams(int dataset_type, float roll, float pitch, 
-                             float tx, float ty, float tz, float qx, float qy, float qz, float qw)
+void PlaneSegment::setParams(float roll, float pitch, float tx, float ty, float tz,
+                             float qx, float qy, float qz, float qw)
 {
-  if (dataset_type == 0) {
-    roll_ = roll;
-    pitch = pitch;
-  }
-  else if (dataset_type == 1 || dataset_type == 2) {
-    tx_ = tx;
-    ty_ = ty;
-    tz_ = tz;
-    qx_ = qx;
-    qy_ = qy;
-    qz_ = qz;
-    qw_ = qw;
-  }
-  dataset_type_ = dataset_type;
+  roll_ = roll;
+  pitch = pitch;
+  tx_ = tx;
+  ty_ = ty;
+  tz_ = tz;
+  qx_ = qx;
+  qy_ = qy;
+  qz_ = qz;
+  qw_ = qw;
 }
 
-void PlaneSegment::getHorizontalPlanes(PointCloud::Ptr cloud)
+// Notice that the point cloud may not transformed before this function
+void PlaneSegment::getHorizontalPlanes(int data_type, PointCloud::Ptr cloud)
 {
-  // Notice that the point cloud is not transformed before this function
-  if (use_real_data_) {
+  PointCloud::Ptr temp(new PointCloud);
+  if (data_type == 0) {
     // If using real data, the transform from camera frame to base frame
     // need to be provided
     getSourceCloud();
   }
-  else {
-    PointCloud::Ptr temp(new PointCloud);
-    
+  else if (data_type == 1) {
+    src_rgb_cloud_ = cloud;
+  }
+  else if (data_type >= 2) {
     // To remove Nan and unreliable points with z value
     utl_->getCloudByZ(cloud, src_z_inliers_, temp, 0.3, th_max_depth_);
+    //visualizeProcess(temp);
 
-    if (dataset_type_ >= 1) {
+    if (data_type <= 3) {
       //tf_->doTransform(temp, src_rgb_cloud_, tx_, ty_, tz_, qx_, qy_, qz_, qw_);
       tf_->doTransform(temp, src_rgb_cloud_, 0, 0, 0, qx_, qy_, qz_, qw_);
     }
     else {
       tf_->doTransform(temp, src_rgb_cloud_, roll_, pitch_);
     }
-
-    utl_->pointTypeTransfer(src_rgb_cloud_, src_mono_cloud_);
-
-    visualizeProcess(src_rgb_cloud_);
-    //pcl::io::savePCDFile("/home/aicrobo/tum.pcd", *src_mono_cloud_);
   }
+
+  utl_->pointTypeTransfer(src_rgb_cloud_, src_mono_cloud_);
+
+  //visualizeProcess(src_rgb_cloud_);
+  //pcl::io::savePCDFile("/home/aicrobo/tum.pcd", *src_mono_cloud_);
   
   // Down sampling
   utl_->downSampling(src_mono_cloud_, src_sp_cloud_, th_grid_rsl_, th_z_rsl_);
   utl_->downSampling(src_rgb_cloud_, src_sp_rgb_, th_grid_rsl_, th_z_rsl_);
+  //visualizeProcess(src_sp_rgb_);
   
   // Start timer
   hst_.start();
@@ -140,7 +138,7 @@ void PlaneSegment::getHorizontalPlanes(PointCloud::Ptr cloud)
   hst_.stop();
   hst_.print();
   
-  visualizeResult(true, true, false, false);
+  visualizeResult(data_type, true, true, false, false);
 }
 
 bool PlaneSegment::getSourceCloud()
@@ -271,7 +269,7 @@ void PlaneSegment::getMeanZofEachCluster(PointCloudMono::Ptr cloud_norm_fit_mono
 
         viewer->addPointCloud<pcl::PointXYZ>(cloud_fit_part, name);
         viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 10.0, name);
-        viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, c[0], c[1], c[2], name);
+        viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0, 0.7, 0, name);
       }
       
       float part_mean_z = utl_->getCloudMeanZ(cloud_fit_part);
@@ -454,7 +452,7 @@ int PlaneSegment::checkSimiliar(vector<float> coeff)
   return id;
 }
 
-void PlaneSegment::visualizeResult(bool display_source, bool display_raw,
+void PlaneSegment::visualizeResult(int data_type, bool display_source, bool display_raw,
                                    bool display_err, bool display_hull)
 {
   // For visualizing in RViz
@@ -462,8 +460,8 @@ void PlaneSegment::visualizeResult(bool display_source, bool display_raw,
   publishCloud(plane_max_points_, pub_max_plane_);
   
   // Clear temps
-  //viewer->removeAllPointClouds();
-  //viewer->removeAllShapes();
+  viewer->removeAllPointClouds();
+  viewer->removeAllShapes();
   string name;
   
   /// Point size must be set AFTER adding point cloud
@@ -517,7 +515,7 @@ void PlaneSegment::visualizeResult(bool display_source, bool display_raw,
   
   while (!viewer->wasStopped()) {
     viewer->spinOnce(1); // ms
-    if (dataset_type_ == 2)
+    if (data_type == 3)
       break;
   }
 }

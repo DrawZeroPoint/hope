@@ -40,6 +40,7 @@
 #include <pcl/filters/extract_indices.h>
 #include <pcl/point_types.h>
 #include <pcl/io/pcd_io.h>
+#include <pcl/io/ply_io.h>
 
 //OpenCV
 #include <opencv2/imgproc/imgproc.hpp>
@@ -56,12 +57,9 @@
 using namespace std;
 using namespace cv;
 
-enum dataset{DEFAULT, TUM_SINGLE, TUM_LIST};
+enum data_type{REAL, POINT_CLOUD, TUM_SINGLE, TUM_LIST};
 
 // Publishers
-
-/// Status
-bool use_real_data_ = false; // Using real-time image or imu data
 
 /// Transform frame, only used with real time data
 /// You may change the name based on your robot configuration
@@ -69,8 +67,8 @@ string base_frame_ = "base_link"; // world frame
 string camera_optical_frame_ = "vision_depth_optical_frame";
 
 /// Camera orientation params, only used for benchmarking
-float roll_angle_;
-float pitch_angle_;
+float roll_angle_ = 0.0;
+float pitch_angle_ = 0.0;
 
 float tx_, ty_, tz_, qx_, qy_, qz_, qw_;
 
@@ -115,22 +113,16 @@ int main(int argc, char **argv)
   string path_prefix;
   string path_rgb;
   string path_depth;
+
+  string path_cloud;
+  string cloud_type;
+
   string path_list_all;
-  dataset type;
+  data_type type;
   
   if (argc == 1) {
-    use_real_data_ = true;
+    type = REAL;
     ROS_INFO("Using real data.");
-  }
-  else if (argc == 5) {
-    int arg_index = 1;
-    path_rgb = argv[arg_index++]; // path to the folder of rgb images
-    path_depth = argv[arg_index++]; // path to the folder of depth images
-    
-    roll_angle_  = atof(argv[arg_index++]); // predefined roll angle (X-axis pointing forward)
-    pitch_angle_  = atof(argv[arg_index++]); // predefined pitch angle (Y-axis pointing left)
-    ROS_INFO("Using default dataset.");
-    type = DEFAULT;
   }
   else if (argc == 2) {
     // Test on a series of images, recommended
@@ -138,9 +130,18 @@ int main(int argc, char **argv)
     int arg_index = 1;
     path_prefix = argv[arg_index++]; // path prefix of all.txt, see README for generating that
     path_list_all = path_prefix + "/all.txt";
-    
+
     ROS_INFO("Using image list of TUM RGB-D SLAM dataset.");
     type = TUM_LIST;
+  }
+  else if (argc == 3) {
+    // Test on a PCD or PLY point cloud
+    // /home/omnisky/loft.ply ply
+    int arg_index = 1;
+    path_cloud = argv[arg_index++]; // path prefix of all.txt, see README for generating that
+    cloud_type = argv[arg_index++];
+    ROS_INFO("Using point cloud file.");
+    type = POINT_CLOUD;
   }
   else if (argc == 11) {
     // Test on a single image pair
@@ -161,6 +162,7 @@ int main(int argc, char **argv)
     type = TUM_SINGLE;
   }
   else {
+    cerr << "Argument number should be 1, 2, 3, or 11" << endl;
     return -1;
   }
   
@@ -169,24 +171,42 @@ int main(int argc, char **argv)
   
   float xy_resolution = 0.03; // In meter
   float z_resolution = 0.008; // In meter
-  PlaneSegment hope(use_real_data_, base_frame_, xy_resolution, z_resolution);
+  PlaneSegment hope(base_frame_, xy_resolution, z_resolution);
   PointCloud::Ptr src_cloud(new PointCloud); // Cloud input for all pipelines
 
-  if (use_real_data_) {
+  if (type == REAL) {
     while (ros::ok()) {
       // The src_cloud is actually not used here
-      hope.getHorizontalPlanes(src_cloud);
+      hope.getHorizontalPlanes(type, src_cloud);
     }
   }
   else {
+    if (type == POINT_CLOUD) {
+      if (cloud_type == "pcd") {
+        if (pcl::io::loadPCDFile<pcl::PointXYZRGB> (path_cloud, *src_cloud) == -1) {
+          cerr << "Couldn't read pcd file." << endl;
+          return -1;
+        }
+      }
+      else if (cloud_type == "ply") {
+        pcl::PLYReader Reader;
+        Reader.read(path_cloud, *src_cloud);
+      }
+      else {
+        cerr << "Unrecognized file format." << endl;
+        return -1;
+      }
+      hope.setParams(0, 0, 0, 0, 0, 0, 0, 0, 1);
+      hope.getHorizontalPlanes(type, src_cloud);
+    }
+
     Mat rgb;
     Mat depth;
-
     GetCloud m_gc;
 
-    if (type == DEFAULT || type == TUM_SINGLE) {
+    if (type == TUM_SINGLE) {
       // Set camera pose for point cloud transferation
-      hope.setParams(type, roll_angle_, pitch_angle_, tx_, ty_, tz_, qx_, qy_, qz_, qw_);
+      hope.setParams(roll_angle_, pitch_angle_, tx_, ty_, tz_, qx_, qy_, qz_, qw_);
       
       // Precaptured images are used for testing on benchmarks
       rgb = imread(path_rgb);
@@ -205,7 +225,7 @@ int main(int argc, char **argv)
       // But if Lidar data are used, try expanding the range
       // TODO add Nan filter in this function
       m_gc.getColorCloud(rgb, depth, src_cloud, 8.0, 0.3);
-      hope.getHorizontalPlanes(src_cloud);
+      hope.getHorizontalPlanes(type, src_cloud);
     }
     else if (type == TUM_LIST) {
       vector<string> fnames_rgb;
@@ -214,7 +234,7 @@ int main(int argc, char **argv)
       fraseInput(path_list_all, fnames_rgb, fnames_depth, vec_xyzw);
       for (size_t i = 0; i < fnames_rgb.size(); ++i) {
         
-        hope.setParams(type, roll_angle_, pitch_angle_, tx_, ty_, tz_,
+        hope.setParams(roll_angle_, pitch_angle_, tx_, ty_, tz_,
                        vec_xyzw[i][0], vec_xyzw[i][1], vec_xyzw[i][2], vec_xyzw[i][3]);
         
         cout << "Processing: " << fnames_rgb[i] << endl;
@@ -225,7 +245,7 @@ int main(int argc, char **argv)
         // But if Lidar data are used, try expanding the range
         // TODO add Nan filter in this function
         m_gc.getColorCloud(rgb, depth, src_cloud, 8.0, 0.3);
-        hope.getHorizontalPlanes(src_cloud);
+        hope.getHorizontalPlanes(type, src_cloud);
       }
     }
   }
