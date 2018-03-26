@@ -31,11 +31,13 @@ public:
   Transform();
 
   bool getTransform(string base_frame, string header_frame);
+
+  void doTransform(PointCloud::Ptr cloud_in, PointCloud::Ptr &cloud_out);
   
   void doTransform(PointCloudMono::Ptr cloud_in, PointCloudMono::Ptr &cloud_out);
   
   void doTransform(PointCloud::Ptr cloud_in, PointCloud::Ptr &cloud_out,
-                   float roll, float pitch);
+                   float roll, float pitch, float yaw);
   
   
   void doTransform(pcl::PointXYZ p_in, pcl::PointXYZ &p_out);

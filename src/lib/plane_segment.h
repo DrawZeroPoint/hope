@@ -83,15 +83,7 @@
 using namespace std;
 using namespace cv;
 
-struct sensor_orientation {
-  float roll;
-  float pitch;
-  float yaw;
-  float qx;
-  float qy;
-  float qz;
-  float qw;
-};
+enum data_type{REAL, SYN, POINT_CLOUD, TUM_SINGLE, TUM_LIST};
 
 class HopeResult
 {
@@ -120,11 +112,10 @@ class PlaneSegment
 {
 public:
   PlaneSegment(string base_frame, float th_xy, float th_z);
-  
-  void setParams(float roll, float pitch,
-                 float tx, float ty, float tz, float qx, float qy, float qz, float qw);
-  
-  void getHorizontalPlanes(int data_type, PointCloud::Ptr cloud);
+
+  inline void setMode(data_type type) {type_ = type;}
+
+  void getHorizontalPlanes(PointCloud::Ptr cloud);
   
   /// Container for storing final results
   vector<PointCloud::Ptr> plane_results_;
@@ -139,6 +130,14 @@ public:
   PointCloud::Ptr plane_max_hull_;
   pcl::PolygonMesh plane_max_mesh_;
   vector<float> plane_max_coeff_;  
+
+  void setRPY(float roll, float pitch, float yaw);
+  void setQ(float qx, float qy, float qz, float qw);
+  void setT(float tx, float ty, float tz);
+
+protected:
+  data_type type_;
+
   
 private:
   /// Predefined camera orientations if not using real data
@@ -220,7 +219,7 @@ private:
    * @param display_err render the extracted points with their error towards the estimated model
    * @param display_hull compose hulls with the extracted points
    */
-  void visualizeResult(int data_type, bool display_source, bool display_raw, bool display_err, bool display_hull);
+  void visualizeResult(bool display_source, bool display_raw, bool display_err, bool display_hull);
   
   // Reconstruct mesh from point cloud
   void poisson_reconstruction(NormalPointCloud::Ptr point_cloud, 

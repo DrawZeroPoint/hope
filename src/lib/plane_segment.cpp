@@ -19,6 +19,7 @@ bool vis_cluster_ = false;
 
 PlaneSegment::PlaneSegment(string base_frame, float th_xy, float th_z) :
   fi_(new FetchRGBD),
+  type_(REAL),
   pub_it_(nh_),
   src_mono_cloud_(new PointCloudMono),
   src_rgb_cloud_(new PointCloud),
@@ -44,7 +45,7 @@ PlaneSegment::PlaneSegment(string base_frame, float th_xy, float th_z) :
   global_size_temp_ = 0;
   
   // Regist the callback if using real point cloud data
-  sub_pointcloud_ = nh_.subscribe<sensor_msgs::PointCloud2>("/camera/depth_registered/points", 1,
+  sub_pointcloud_ = nh_.subscribe<sensor_msgs::PointCloud2>("/camera/depth/points", 1,
                                                             &PlaneSegment::cloudCallback, this);
   
   // Detect table obstacle
@@ -78,43 +79,52 @@ void PlaneSegment::visualizeProcess(PointCloud::Ptr cloud)
   }
 }
 
-void PlaneSegment::setParams(float roll, float pitch, float tx, float ty, float tz,
-                             float qx, float qy, float qz, float qw)
+void PlaneSegment::setRPY(float roll = 0.0, float pitch = 0.0, float yaw = 0.0)
 {
   roll_ = roll;
-  pitch = pitch;
-  tx_ = tx;
-  ty_ = ty;
-  tz_ = tz;
+  pitch_ = pitch;
+  yaw_ = yaw;
+}
+
+void PlaneSegment::setQ(float qx = 0.0, float qy = 0.0,
+                        float qz = 0.0, float qw = 1.0)
+{
   qx_ = qx;
   qy_ = qy;
   qz_ = qz;
   qw_ = qw;
 }
 
+void PlaneSegment::setT(float tx = 0.0, float ty = 0.0, float tz = 0.0)
+{
+  tx_ = tx;
+  ty_ = ty;
+  tz_ = tz;
+}
+
 // Notice that the point cloud may not transformed before this function
-void PlaneSegment::getHorizontalPlanes(int data_type, PointCloud::Ptr cloud)
+void PlaneSegment::getHorizontalPlanes(PointCloud::Ptr cloud)
 {
   PointCloud::Ptr temp(new PointCloud);
-  if (data_type == 0) {
+  if (type_ == REAL || type_ == SYN) {
     // If using real data, the transform from camera frame to base frame
     // need to be provided
     getSourceCloud();
   }
-  else if (data_type == 1) {
+  else if (type_ == POINT_CLOUD) {
     src_rgb_cloud_ = cloud;
   }
-  else if (data_type >= 2) {
+  else if (type_ >= TUM_SINGLE) {
     // To remove Nan and unreliable points with z value
-    utl_->getCloudByZ(cloud, src_z_inliers_, temp, 0.3, th_max_depth_);
+    utl_->getCloudByZ(cloud, src_z_inliers_, temp, th_min_depth_, th_max_depth_);
     //visualizeProcess(temp);
 
-    if (data_type <= 3) {
+    if (type_ <= TUM_LIST) {
       //tf_->doTransform(temp, src_rgb_cloud_, tx_, ty_, tz_, qx_, qy_, qz_, qw_);
       tf_->doTransform(temp, src_rgb_cloud_, 0, 0, 0, qx_, qy_, qz_, qw_);
     }
     else {
-      tf_->doTransform(temp, src_rgb_cloud_, roll_, pitch_);
+      tf_->doTransform(temp, src_rgb_cloud_, roll_, pitch_, yaw_);
     }
   }
 
@@ -138,13 +148,13 @@ void PlaneSegment::getHorizontalPlanes(int data_type, PointCloud::Ptr cloud)
   hst_.stop();
   hst_.print();
   
-  visualizeResult(data_type, true, true, false, false);
+  visualizeResult(true, true, false, false);
 }
 
 bool PlaneSegment::getSourceCloud()
 {
   while (ros::ok()) {
-    if (!src_mono_cloud_->points.empty())
+    if (!src_rgb_cloud_->points.empty())
       return true;
     
     // Handle callbacks and sleep for a small amount of time
@@ -160,19 +170,25 @@ void PlaneSegment::cloudCallback(const sensor_msgs::PointCloud2ConstPtr &msg)
     ROS_WARN_THROTTLE(31, "PlaneSegment: PointCloud is empty.");
     return;
   }
+  PointCloud::Ptr src_temp(new PointCloud);
+  PointCloud::Ptr temp(new PointCloud);
+
   pcl::PCLPointCloud2 pcl_pc2;
   pcl_conversions::toPCL(*msg, pcl_pc2);
-  pcl::fromPCLPointCloud2(pcl_pc2, *src_rgb_cloud_);
-  
-  PointCloudMono::Ptr temp_mono(new PointCloudMono);
-  utl_->pointTypeTransfer(src_rgb_cloud_, temp_mono);
-  
-  PointCloudMono::Ptr temp_filtered(new PointCloudMono);
-  // Get cloud within range represented by z value
-  utl_->getCloudByZ(temp_mono, src_z_inliers_, temp_filtered, th_min_depth_, th_max_depth_);
-  
-  tf_->getTransform(base_frame_, msg->header.frame_id);
-  tf_->doTransform(temp_filtered, src_mono_cloud_);
+  pcl::fromPCLPointCloud2(pcl_pc2, *src_temp);
+
+  utl_->getCloudByZ(src_temp, src_z_inliers_, temp,
+                    th_min_depth_, th_max_depth_);
+
+  if (type_ == REAL) {
+    tf_->getTransform(base_frame_, msg->header.frame_id);
+    tf_->doTransform(temp, src_rgb_cloud_);
+  }
+  else {
+    tf_->doTransform(temp, src_rgb_cloud_, roll_, pitch_, yaw_);
+  }
+
+  utl_->pointTypeTransfer(src_rgb_cloud_, src_mono_cloud_);
 }
 
 void PlaneSegment::findPlaneWithPCL() 
@@ -452,7 +468,7 @@ int PlaneSegment::checkSimiliar(vector<float> coeff)
   return id;
 }
 
-void PlaneSegment::visualizeResult(int data_type, bool display_source, bool display_raw,
+void PlaneSegment::visualizeResult(bool display_source, bool display_raw,
                                    bool display_err, bool display_hull)
 {
   // For visualizing in RViz
@@ -515,7 +531,7 @@ void PlaneSegment::visualizeResult(int data_type, bool display_source, bool disp
   
   while (!viewer->wasStopped()) {
     viewer->spinOnce(1); // ms
-    if (data_type == 3)
+    if (type_ == TUM_LIST || type_ == REAL || type_ == SYN)
       break;
   }
 }

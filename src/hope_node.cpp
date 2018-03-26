@@ -57,8 +57,6 @@
 using namespace std;
 using namespace cv;
 
-enum data_type{REAL, POINT_CLOUD, TUM_SINGLE, TUM_LIST};
-
 // Publishers
 
 /// Transform frame, only used with real time data
@@ -69,6 +67,7 @@ string camera_optical_frame_ = "vision_depth_optical_frame";
 /// Camera orientation params, only used for benchmarking
 float roll_angle_ = 0.0;
 float pitch_angle_ = 0.0;
+float yaw_angle_ = 0.0;
 
 float tx_, ty_, tz_, qx_, qy_, qz_, qw_;
 
@@ -119,10 +118,20 @@ int main(int argc, char **argv)
 
   string path_list_all;
   data_type type;
-  
+
+  int arg_index = 1;
+
   if (argc == 1) {
     type = REAL;
     ROS_INFO("Using real data.");
+  }
+  else if (argc == 4) {
+    type = SYN;
+
+    roll_angle_ = atof(argv[arg_index++]);
+    pitch_angle_ = atof(argv[arg_index++]);
+    yaw_angle_ = atof(argv[arg_index++]);
+    ROS_INFO("Using synthesized data.");
   }
   else if (argc == 2) {
     // Test on a series of images, recommended
@@ -162,22 +171,29 @@ int main(int argc, char **argv)
     type = TUM_SINGLE;
   }
   else {
-    cerr << "Argument number should be 1, 2, 3, or 11" << endl;
+    cerr << "Argument number should be 1, 2, 3, 4, or 11" << endl;
     return -1;
   }
   
   ros::NodeHandle nh;
   ros::NodeHandle pnh("~");
   
-  float xy_resolution = 0.03; // In meter
-  float z_resolution = 0.008; // In meter
+  float xy_resolution = 0.02; // In meter
+  float z_resolution = 0.01; // In meter
   PlaneSegment hope(base_frame_, xy_resolution, z_resolution);
   PointCloud::Ptr src_cloud(new PointCloud); // Cloud input for all pipelines
 
+  hope.setMode(type);
   if (type == REAL) {
     while (ros::ok()) {
       // The src_cloud is actually not used here
-      hope.getHorizontalPlanes(type, src_cloud);
+      hope.getHorizontalPlanes(src_cloud);
+    }
+  }
+  else if (type == SYN) {
+    hope.setRPY(roll_angle_, pitch_angle_, yaw_angle_);
+    while (ros::ok()) {
+      hope.getHorizontalPlanes(src_cloud);
     }
   }
   else {
@@ -196,8 +212,8 @@ int main(int argc, char **argv)
         cerr << "Unrecognized file format." << endl;
         return -1;
       }
-      hope.setParams(0, 0, 0, 0, 0, 0, 0, 0, 1);
-      hope.getHorizontalPlanes(type, src_cloud);
+      hope.setQ(qx_, qy_, qz_, qw_);
+      hope.getHorizontalPlanes(src_cloud);
     }
 
     Mat rgb;
@@ -206,7 +222,8 @@ int main(int argc, char **argv)
 
     if (type == TUM_SINGLE) {
       // Set camera pose for point cloud transferation
-      hope.setParams(roll_angle_, pitch_angle_, tx_, ty_, tz_, qx_, qy_, qz_, qw_);
+      hope.setQ(qx_, qy_, qz_, qw_);
+      hope.setT(tx_, ty_, tz_);
       
       // Precaptured images are used for testing on benchmarks
       rgb = imread(path_rgb);
@@ -225,7 +242,7 @@ int main(int argc, char **argv)
       // But if Lidar data are used, try expanding the range
       // TODO add Nan filter in this function
       m_gc.getColorCloud(rgb, depth, src_cloud, 8.0, 0.3);
-      hope.getHorizontalPlanes(type, src_cloud);
+      hope.getHorizontalPlanes(src_cloud);
     }
     else if (type == TUM_LIST) {
       vector<string> fnames_rgb;
@@ -234,8 +251,8 @@ int main(int argc, char **argv)
       fraseInput(path_list_all, fnames_rgb, fnames_depth, vec_xyzw);
       for (size_t i = 0; i < fnames_rgb.size(); ++i) {
         
-        hope.setParams(roll_angle_, pitch_angle_, tx_, ty_, tz_,
-                       vec_xyzw[i][0], vec_xyzw[i][1], vec_xyzw[i][2], vec_xyzw[i][3]);
+        hope.setQ(vec_xyzw[i][0], vec_xyzw[i][1], vec_xyzw[i][2], vec_xyzw[i][3]);
+        hope.setT(tx_, ty_, tz_);
         
         cout << "Processing: " << fnames_rgb[i] << endl;
         rgb = imread(path_prefix + "/" + fnames_rgb[i]);
@@ -243,9 +260,8 @@ int main(int argc, char **argv)
 
         // Filter the cloud with range 0.3-8.0m cause most RGB-D sensors are unreliable outside this range
         // But if Lidar data are used, try expanding the range
-        // TODO add Nan filter in this function
         m_gc.getColorCloud(rgb, depth, src_cloud, 8.0, 0.3);
-        hope.getHorizontalPlanes(type, src_cloud);
+        hope.getHorizontalPlanes(src_cloud);
       }
     }
   }

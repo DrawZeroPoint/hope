@@ -43,6 +43,37 @@ bool Transform::getTransform(string base_frame, string header_frame)
   }
 }
 
+void Transform::doTransform(PointCloud::Ptr cloud_in,
+                            PointCloud::Ptr &cloud_out)
+{
+  geometry_msgs::Vector3 trans = tf_handle_.transform.translation;
+  geometry_msgs::Quaternion rotate = tf_handle_.transform.rotation;
+
+  Eigen::Transform<float,3,Eigen::Affine> t = Eigen::Translation3f(trans.x,
+                                                                   trans.y,
+                                                                   trans.z)
+      * Eigen::Quaternion<float>(rotate.w, rotate.x, rotate.y, rotate.z);
+
+  cloud_out->height = cloud_in->height;
+  cloud_out->width  = cloud_in->width;
+  cloud_out->is_dense = false;
+  cloud_out->resize(cloud_out->height * cloud_out->width);
+
+  Eigen::Vector3f point;
+  size_t i = 0;
+  for (PointCloud::const_iterator pit = cloud_in->begin();
+       pit != cloud_in->end(); ++pit) {
+    point = t * Eigen::Vector3f(pit->x, pit->y, pit->z);
+    cloud_out->points[i].x = point.x();
+    cloud_out->points[i].y = point.y();
+    cloud_out->points[i].z = point.z();
+    cloud_out->points[i].r = cloud_in->points[i].r;
+    cloud_out->points[i].g = cloud_in->points[i].g;
+    cloud_out->points[i].b = cloud_in->points[i].b;
+    ++i;
+  }
+}
+
 void Transform::doTransform(PointCloudMono::Ptr cloud_in, 
                             PointCloudMono::Ptr &cloud_out)
 {
@@ -71,8 +102,16 @@ void Transform::doTransform(PointCloudMono::Ptr cloud_in,
   }
 }
 
+/**
+ * @brief Transform::doTransform
+ * @param cloud_in
+ * @param cloud_out
+ * @param roll The Eular Angle is in raidus
+ * @param pitch When pointing through the axis with thumb of right hand,
+ * @param yaw the other 4 finger direct to the positive direction of the angle
+ */
 void Transform::doTransform(PointCloud::Ptr cloud_in, PointCloud::Ptr &cloud_out, 
-                            float roll, float pitch)
+                            float roll, float pitch, float yaw)
 {
   geometry_msgs::TransformStamped transformStamped;
   transformStamped.transform.translation.x = dx_camera_to_base;
@@ -80,7 +119,7 @@ void Transform::doTransform(PointCloud::Ptr cloud_in, PointCloud::Ptr &cloud_out
   transformStamped.transform.translation.z = dz_camera_to_base;
   tf2::Quaternion q2;
   // Notice the range of roll and pitch value
-  q2.setRPY(roll, pitch, 0);
+  q2.setRPY(roll, pitch, yaw);
   q2.setY(- q2.y());
   transformStamped.transform.rotation.x = q2.x();
   transformStamped.transform.rotation.y = q2.y();
