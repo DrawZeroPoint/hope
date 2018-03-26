@@ -753,9 +753,8 @@ float Utilities::getCloudMeanZ(PointCloudRGBN::Ptr cloud_in)
 Vec3f Utilities::getColorWithID(int id)
 {
   // id should start from 0
+  id = id % 64;
   Vec3f cf(0.0, 0.0, 0.0);
-  if (id > 62 || id < 0)
-    return cf;
   Vec3b c = pascal_map[id + 1];
   cf[0] = float(c[0])/256;
   cf[1] = float(c[1])/256;
@@ -1048,7 +1047,8 @@ void Utilities::matNormalize(Mat query_in, Mat train_in,
   }
 }
 
-void Utilities::searchAvailableID(vector<int> id_used, vector<int> &id_ava, int limit=64)
+void Utilities::searchAvailableID(vector<int> id_used, vector<int> &id_ava,
+                                  int limit=64)
 {
   for (size_t i = 0; i < limit; ++i) {
     bool i_used = false;

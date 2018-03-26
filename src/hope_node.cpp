@@ -178,7 +178,7 @@ int main(int argc, char **argv)
   ros::NodeHandle nh;
   ros::NodeHandle pnh("~");
   
-  float xy_resolution = 0.02; // In meter
+  float xy_resolution = 0.03; // In meter
   float z_resolution = 0.01; // In meter
   PlaneSegment hope(base_frame_, xy_resolution, z_resolution);
   PointCloud::Ptr src_cloud(new PointCloud); // Cloud input for all pipelines
@@ -191,6 +191,7 @@ int main(int argc, char **argv)
     }
   }
   else if (type == SYN) {
+    // -2.0944 0 0
     hope.setRPY(roll_angle_, pitch_angle_, yaw_angle_);
     while (ros::ok()) {
       hope.getHorizontalPlanes(src_cloud);

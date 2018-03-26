@@ -131,11 +131,17 @@ void PlaneSegment::getHorizontalPlanes(PointCloud::Ptr cloud)
   utl_->pointTypeTransfer(src_rgb_cloud_, src_mono_cloud_);
 
   //visualizeProcess(src_rgb_cloud_);
-  //pcl::io::savePCDFile("/home/aicrobo/tum.pcd", *src_mono_cloud_);
+  pcl::io::savePCDFile("/home/omnisky/src.pcd", *src_rgb_cloud_);
   
   // Down sampling
+  if (th_grid_rsl_ > 0 && th_z_rsl_ > 0) {
   utl_->downSampling(src_mono_cloud_, src_sp_cloud_, th_grid_rsl_, th_z_rsl_);
   utl_->downSampling(src_rgb_cloud_, src_sp_rgb_, th_grid_rsl_, th_z_rsl_);
+  }
+  else {
+    src_sp_cloud_ = src_mono_cloud_;
+    src_sp_rgb_ = src_rgb_cloud_;
+  }
   //visualizeProcess(src_sp_rgb_);
   
   // Start timer
@@ -486,7 +492,7 @@ void PlaneSegment::visualizeResult(bool display_source, bool display_raw,
     name = utl_->getName(0, "source_", -1);
 
     viewer->addPointCloud<pcl::PointXYZRGB>(src_sp_rgb_, name);
-    viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2.0, name);
+    viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1.0, name);
     viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0, 0, 0, name);
 
     //pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> src_rgb(src_sp_rgb_);
