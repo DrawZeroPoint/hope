@@ -57,8 +57,21 @@ add_library(${PROJECT_NAME}
   src/lib/utilities.h
 )
 
+add_library(fmc
+  src/lib/fmc/findClique.cpp
+  src/lib/fmc/findCliqueHeu.cpp
+  src/lib/fmc/graphIO.cpp
+  src/lib/fmc/utils.cpp
+
+  src/lib/fmc/findClique.h
+  src/lib/fmc/graphIO.h
+)
+
+add_executable(test_fmc src/lib/fmc/main_fmc.cpp)
+target_link_libraries(test_fmc fmc)
+
 # Notice that the customized lib needs to link to ROS too
-target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} fmc ${catkin_LIBRARIES})
 
 # Declare a C++ executable
 # With catkin_make all packages are built within a single CMake context
