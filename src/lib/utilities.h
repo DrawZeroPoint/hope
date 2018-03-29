@@ -187,6 +187,9 @@ public:
 
   void matchID(vector<vector<float> > global, vector<vector<float> > local, vector<int> in,
                vector<int> &out, int feature_dim);
+
+  bool mergeOrReplace(size_t g_id, vector<int> l_ids, size_t q_id,
+                      vector<vector<float> > global, vector<vector<float> > local);
   
   void msgToCloud(const PointCloud::ConstPtr msg,
                   PointCloudMono::Ptr cloud);
@@ -251,7 +254,8 @@ private:
   void matFill(vector<vector<float> > features, Mat &out);
   void matNormalize(Mat query_in, Mat train_in, Mat &query_out, Mat &train_out);
 
-  void searchAvailableID(vector<int> id_used, vector<int> &id_ava, int limit);
+  void searchAvailableID(vector<int> id_used, vector<int> &id_ava, size_t limit);
+  bool isInVector(int id, vector<vector<int> > vec, int &pos);
 };
 
 #endif // UTILITIES_H

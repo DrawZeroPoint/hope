@@ -15,6 +15,7 @@ float th_area_;
 float th_min_depth_ = 0.3;
 float th_max_depth_ = 8.0;
 
+bool cal_hull_ = false;
 bool vis_cluster_ = false;
 
 PlaneSegment::PlaneSegment(string base_frame, float th_xy, float th_z) :
@@ -55,6 +56,7 @@ PlaneSegment::PlaneSegment(string base_frame, float th_xy, float th_z) :
   
   viewer->setBackgroundColor(0.8, 0.83, 0.86);
   viewer->initCameraParameters();
+  viewer->setCameraPosition(1,0,2,0,0,1);
   viewer->addCoordinateSystem(0.1);
 }
 
@@ -131,7 +133,7 @@ void PlaneSegment::getHorizontalPlanes(PointCloud::Ptr cloud)
   utl_->pointTypeTransfer(src_rgb_cloud_, src_mono_cloud_);
 
   //visualizeProcess(src_rgb_cloud_);
-  pcl::io::savePCDFile("/home/omnisky/src.pcd", *src_rgb_cloud_);
+  //pcl::io::savePCDFile("/home/omnisky/src.pcd", *src_rgb_cloud_);
   
   // Down sampling
   if (th_grid_rsl_ > 0 && th_z_rsl_ > 0) {
@@ -143,6 +145,7 @@ void PlaneSegment::getHorizontalPlanes(PointCloud::Ptr cloud)
     src_sp_rgb_ = src_rgb_cloud_;
   }
   //visualizeProcess(src_sp_rgb_);
+  cout << "Point number after down sampling: #" << src_sp_rgb_->points.size() << endl;
   
   // Start timer
   hst_.start();
@@ -153,7 +156,7 @@ void PlaneSegment::getHorizontalPlanes(PointCloud::Ptr cloud)
   // Stop timer and get total processing time
   hst_.stop();
   hst_.print();
-  
+
   visualizeResult(true, true, false, false);
 }
 
@@ -358,37 +361,38 @@ void PlaneSegment::getPlane(size_t id, float z_in, PointCloudMono::Ptr &cloud_no
   plane_points_.push_back(cluster_near_z);
   
   // Use convex hull to represent the plane patch
-  PointCloud::Ptr cluster_hull(new PointCloud);
-  pcl::ConvexHull<pcl::PointXYZRGB> hull;
-  pcl::PolygonMesh cluster_mesh;
-  
-  hull.setInputCloud(cluster_2d_rgb);
-  hull.setComputeAreaVolume(true);
-  hull.reconstruct(*cluster_hull);
-  hull.reconstruct(cluster_mesh);
-  
-  plane_hull_.push_back(cluster_hull);
-  plane_mesh_.push_back(cluster_mesh);
-  
-  // Prepare the coefficient vector for each plane to identify its id
-  float hull_area = hull.getTotalArea();
-  vector<float> coeff;
-  coeff.push_back(z_in); // z value
-  coeff.push_back(hull_area); // area of hull
-  coeff.push_back(cluster_near_z->points.size()); // point number
-  float x, y;
-  utl_->getHullCenter(cluster_hull, x, y);
-  coeff.push_back(x); // hull center x
-  coeff.push_back(y); // hull center y
-  plane_coeff_.push_back(coeff);
+  if (cal_hull_) {
+    PointCloud::Ptr cluster_hull(new PointCloud);
+    pcl::ConvexHull<pcl::PointXYZRGB> hull;
+    pcl::PolygonMesh cluster_mesh;
+
+    hull.setInputCloud(cluster_2d_rgb);
+    hull.setComputeAreaVolume(true);
+    hull.reconstruct(*cluster_hull);
+    hull.reconstruct(cluster_mesh);
+
+    plane_hull_.push_back(cluster_hull);
+    plane_mesh_.push_back(cluster_mesh);
+    plane_max_hull_ = cluster_hull;
+    plane_max_mesh_ = cluster_mesh;
+  }
+
+  // Prepare the feature vector for each plane to identify its id
+  vector<float> feature;
+  feature.push_back(z_in); // z value
+  pcl::PointXYZ minPt, maxPt;
+  pcl::getMinMax3D(*cluster_near_z, minPt, maxPt);
+  feature.push_back(minPt.x); // cluster min x
+  feature.push_back(minPt.y); // cluster min y
+  feature.push_back(maxPt.x); // cluster max x
+  feature.push_back(maxPt.y); // cluster max y
+  plane_coeff_.push_back(feature);
   
   // Update the data of the max plane detected
   if (cluster_2d_rgb->points.size() > global_size_temp_) {
     plane_max_result_ = cluster_2d_rgb;
     plane_max_points_ = cluster_near_z;
-    plane_max_hull_ = cluster_hull;
-    plane_max_mesh_ = cluster_mesh;
-    plane_max_coeff_ = coeff;
+    plane_max_coeff_ = feature;
     global_size_temp_ = cluster_2d_rgb->points.size();
   }
 }
@@ -428,7 +432,7 @@ bool PlaneSegment::errorAnalyse(float z, PointCloudMono::Ptr cloud_in,
     if (zmax > dz)
       return true;
     else {
-      cout << "Error exceeded the threshold for current point cloud" << endl;
+      //cout << "Error exceeded the threshold for current point cloud" << endl;
       return false;
     }
   }
@@ -521,7 +525,7 @@ void PlaneSegment::visualizeResult(bool display_source, bool display_raw,
         viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 10.0, name);
       }
     }
-    if (display_hull) {
+    if (cal_hull_ && display_hull) {
       // Add hull points
       //name = utl_->getName(i, "hull_", -1);
       //viewer->addPointCloud<pcl::PointXYZRGB>(plane_hull_[i], name);

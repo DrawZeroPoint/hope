@@ -71,6 +71,11 @@ Utilities::Utilities()
 {
 }
 
+float Utilities::determinant(float v1, float v2, float v3, float v4)
+{
+  return (v1 * v3 - v2 * v4);
+}
+
 std::string Utilities::getName(int count, string pref, int surf)
 {
   std::string name;
@@ -752,13 +757,13 @@ float Utilities::getCloudMeanZ(PointCloudRGBN::Ptr cloud_in)
 
 Vec3f Utilities::getColorWithID(int id)
 {
-  // id should start from 0
+  // ids range from 0 to 63
   id = id % 64;
   Vec3f cf(0.0, 0.0, 0.0);
   Vec3b c = pascal_map[id + 1];
-  cf[0] = float(c[0])/256;
-  cf[1] = float(c[1])/256;
-  cf[2] = float(c[2])/256;
+  cf[0] = float(c[0]) * 0.0039; // =/256
+  cf[1] = float(c[1]) * 0.0039;
+  cf[2] = float(c[2]) * 0.0039;
   return cf;
 }
 
@@ -970,11 +975,6 @@ bool Utilities::tryExpandROI(int &minx, int &miny, int &maxx, int &maxy,
   if (maxy > height) maxy = height - 1;
 }
 
-float Utilities::determinant(float v1, float v2, float v3, float v4)
-{  
-  return (v1 * v3 - v2 * v4);
-}
-
 bool Utilities::isIntersect(pcl::PointXY p1, pcl::PointXY p2, 
                             pcl::PointXY p3, pcl::PointXY p4)
 {  
@@ -1047,9 +1047,21 @@ void Utilities::matNormalize(Mat query_in, Mat train_in,
   }
 }
 
-void Utilities::searchAvailableID(vector<int> id_used, vector<int> &id_ava,
-                                  int limit=64)
+void Utilities::searchAvailableID(vector<int> id_used,
+                                  vector<int> &id_ava,
+                                  size_t limit=64)
 {
+//  sort(id_used.begin(),id_used.end());
+//  int min_id = id_used[0];
+//  int max_id = id_used[id_used.size()-1];
+//  for (size_t i = max_id + 1; i < max_id + limit; ++i) {
+//    int p = i;
+//    if (p >= limit) {
+//      p -= limit;
+//    }
+//    if (p > max_id || p < min_id)
+//      id_ava.push_back(p);
+//  }
   for (size_t i = 0; i < limit; ++i) {
     bool i_used = false;
     for (size_t n = 0; n < id_used.size(); ++n) {
@@ -1098,6 +1110,19 @@ bool Utilities::isInVector(int id, vector<int> vec, int &pos)
   return false;
 }
 
+bool Utilities::isInVector(int id, vector<vector<int> > vec, int &pos)
+{
+  for (size_t e = 0; e < vec.size(); ++e) {
+    for (size_t i = 0; i < vec[i].size(); ++i) {
+      if (id == vec[e][i]) {
+        pos = e;
+        return true;
+      }
+    }
+    return false;
+  }
+}
+
 void Utilities::matchID(vector<vector<float> > global, vector<vector<float> > local,
                         vector<int> in, vector<int> &out, int feature_dim)
 {
@@ -1142,7 +1167,7 @@ void Utilities::matchID(vector<vector<float> > global, vector<vector<float> > lo
 //  }
 
   // One query feature can only have one corresponding train feature and vise versa
-  vector<float> g_dist_temp(global.size(), 10);
+  vector<float> g_dist_temp(global.size(), 10000);
   vector<int> match_for_g(global.size(), -1);
   for (size_t i = 0; i < global.size(); ++i) {
     for (size_t j = 0; j < matches.size(); ++j) {
@@ -1154,6 +1179,33 @@ void Utilities::matchID(vector<vector<float> > global, vector<vector<float> > lo
       }
     }
   }
+
+  // One global feature can have multiple query matchers if they together yield smaller distance
+//  vector<float> g_dist_temp(global.size(), 10000);
+//  vector<vector<int> > match_for_g(global.size()); // store query features' ids for each train feature
+//  for (size_t g_idx = 0; g_idx < global.size(); ++g_idx) {
+//    // local size is equal to matches size
+//    for (size_t l_idx = 0; l_idx < matches.size(); ++l_idx) {
+//      if (g_idx == matches[l_idx].trainIdx) {
+//        if (matches[l_idx].distance < g_dist_temp[g_idx]) {
+//          if (match_for_g[g_idx].size() == 0) {
+//            match_for_g[g_idx].push_back(matches[l_idx].queryIdx);
+//          }
+//          else {
+//            //if (mergeOrReplace(g_idx, match_for_g[g_idx], matches[l_idx].queryIdx, global, local)) {
+//              // merge
+//              match_for_g[g_idx].push_back(matches[l_idx].queryIdx);
+//            //}
+//            //else {
+//            //  // replace
+//            //  match_for_g[g_idx].erase(match_for_g[g_idx].begin());
+//            //  match_for_g[g_idx].push_back(matches[l_idx].queryIdx);
+//            //}
+//          }
+//        }
+//      }
+//    }
+//  }
 
   for (size_t j = 0; j < local.size(); ++j) {
     int pos = -1;
@@ -1167,23 +1219,66 @@ void Utilities::matchID(vector<vector<float> > global, vector<vector<float> > lo
       //cout << "assign: " << j << " to: " << id_ava[0] << " score " << matches[j].distance << endl;
     }
   }
+}
 
-//  for (size_t j = 0; j < global.size(); ++j) {
-//    cout << "global: " << j << endl;
-//    for (size_t i = 0; i < global[j].size(); ++i) {
-//      cout << global[j][i] << endl;
-//      cout << "-----" << endl;
-//      cout << train.at<float>(j, i) << endl;
+bool Utilities::mergeOrReplace(size_t g_id, vector<int> l_ids, size_t q_id,
+                               vector<vector<float> > global, vector<vector<float> > local)
+{
+//  vector<float> g_feat = global(g_id);
+
+//  // Prepare feature vector for previous optimal
+//  vector<float> p_feat(5, 9999);
+//  for (size_t i = 0; i < l_ids.size(); ++i) {
+//    vector<float> temp = local[l_ids[i]];
+//    for (size_t j = 0; j < temp.size(); ++j) {
+//      if (j == 0)
+//        p_feat[j] += temp[j];
+//      // xmin ymin xmax ymax
+//      else if (j == 1 || j == 2) {
+//        if (p_feat[j] == 9999) {
+//          p_feat[j] = temp[j];
+//        }
+//        if (temp[j] < p_feat[j] ) {
+//          p_feat[j] = temp[j];
+//        }
+//      }
+//      else {
+//        if (p_feat[j] == 9999) {
+//          p_feat[j] = temp[j];
+//        }
+//        if (temp[j] > p_feat[j] ) {
+//          p_feat[j] = temp[j];
+//        }
+//      }
 //    }
 //  }
-//  for (size_t k = 0; k < local.size(); ++k) {
-//    cout << "local: " << k << endl;
-//    for (size_t i = 0; i < local[k].size(); ++i) {
-//      cout << local[k][i] << endl;
-//      cout << "-----" << endl;
-//      cout << query.at<float>(k, i) << endl;
+//  p_feat[0] /= l_ids.size();
+
+//  // Current feature vector
+//  vector<float> q_feat = local[q_id];
+
+//  // Compare the distance
+//  float disPrev = computeFeatureDis(g_feat, p_feat);
+//  float disCurr = computeFeatureDis(g_feat, q_feat);
+//  float disComb = computeFeatureDis(g_feat, q_combine);
+
+//  if (disPrev < disCurr) {
+//    if (disPrev < disComb) {
+//      return -1; // ignore
+//    }
+//    else {
+//      if (disComb < disCurr) {
+//        return 1; // merge
+//      }
+
 //    }
 //  }
+//  else {
+//    if (disCurr < disComb)
+//  }
+
+//  return true; // merge
+  return false; // replace
 }
 
 float Utilities::shortRainbowColorMap(const double value, 
