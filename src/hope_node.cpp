@@ -109,15 +109,17 @@ int main(int argc, char **argv)
   // You need to run roscore to launch this program
   ros::init(argc, argv, "hope_node");
   
+  // TUM
   string path_prefix;
   string path_rgb;
   string path_depth;
-
-  string path_cloud;
-  string cloud_type;
-
   string path_list_all;
   data_type type;
+
+
+  // Indoor RGB-D && synthesized
+  string path_cloud;
+  string cloud_type;
 
   int arg_index = 1;
 
@@ -178,7 +180,7 @@ int main(int argc, char **argv)
   ros::NodeHandle nh;
   ros::NodeHandle pnh("~");
   
-  float xy_resolution = 0.05; // In meter
+  float xy_resolution = 0.01; // In meter
   float z_resolution = 0.01; // In meter
   cout << "Using threshold: xy@" << xy_resolution << " " << "z@" << z_resolution << endl;
 

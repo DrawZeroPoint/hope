@@ -178,7 +178,7 @@ private:
   PointCloudMono::Ptr src_mono_cloud_;
 
   // Source cloud after down sampling
-  PointCloudMono::Ptr src_sp_cloud_;
+  PointCloudMono::Ptr src_sp_mono_;
   PointCloud::Ptr src_sp_rgb_;
 
   // Normals of down sampling cloud
@@ -197,9 +197,12 @@ private:
   Utilities *utl_;
   HighResTimer hst_;
   boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer;
+
+  void computeNormalAndFilter();
   
   /// Core process for finding planes
   void findAllPlanes();
+  void findAllPlanesRANSAC(bool isOptimize, int maxIter, float disThresh, float omit);
   void findPlaneWithPCL();
   
   /// Tool functions
@@ -227,6 +230,7 @@ private:
   pcl::PolygonMesh mesh(const PointCloudMono::Ptr point_cloud, NormalCloud::Ptr normals);
   
   void visualizeProcess(PointCloud::Ptr cloud);
+  void setFeatures(float z_in, PointCloudMono::Ptr cluster);
 };
 
 #endif // PLANE_SEGMENT_H

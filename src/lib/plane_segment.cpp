@@ -25,7 +25,7 @@ PlaneSegment::PlaneSegment(string base_frame, float th_xy, float th_z) :
   src_mono_cloud_(new PointCloudMono),
   src_rgb_cloud_(new PointCloud),
   cloud_norm_fit_mono_(new PointCloudMono),
-  src_sp_cloud_(new PointCloudMono),
+  src_sp_mono_(new PointCloudMono),
   src_sp_rgb_(new PointCloud),
   src_normals_(new NormalCloud),
   idx_norm_fit_(new pcl::PointIndices),
@@ -137,26 +137,39 @@ void PlaneSegment::getHorizontalPlanes(PointCloud::Ptr cloud)
   
   // Down sampling
   if (th_grid_rsl_ > 0 && th_z_rsl_ > 0) {
-  utl_->downSampling(src_mono_cloud_, src_sp_cloud_, th_grid_rsl_, th_z_rsl_);
-  utl_->downSampling(src_rgb_cloud_, src_sp_rgb_, th_grid_rsl_, th_z_rsl_);
+    utl_->downSampling(src_mono_cloud_, src_sp_mono_, th_grid_rsl_, th_z_rsl_);
+    utl_->downSampling(src_rgb_cloud_, src_sp_rgb_, th_grid_rsl_, th_z_rsl_);
   }
   else {
-    src_sp_cloud_ = src_mono_cloud_;
+    src_sp_mono_ = src_mono_cloud_;
     src_sp_rgb_ = src_rgb_cloud_;
   }
   //visualizeProcess(src_sp_rgb_);
   cout << "Point number after down sampling: #" << src_sp_rgb_->points.size() << endl;
+
+  if (src_sp_mono_->points.empty()) {
+    ROS_WARN("PlaneSegment: Source cloud is empty.");
+    return;
+  }
+
+  // Clear temp and get the candidates of horizontal plane points using normal
+  reset();
+  computeNormalAndFilter();
+
+  //pcl::io::savePCDFile("/home/omnisky/normal_filter.pcd", *cloud_norm_fit_mono_);
   
   // Start timer
   hst_.start();
   
-  findAllPlanes();
+  //findAllPlanes();
+  findAllPlanesRANSAC(false, 500, 0.03, 0.01);
   //findPlaneWithPCL();
   
   // Stop timer and get total processing time
   hst_.stop();
   hst_.print();
 
+  setID();
   visualizeResult(true, true, false, false);
 }
 
@@ -205,7 +218,7 @@ void PlaneSegment::findPlaneWithPCL()
   PointCloudMono::Ptr temp(new PointCloudMono);
   // To remove Nan and unreliable points with z value
   pcl::PointIndices::Ptr in(new pcl::PointIndices);
-  utl_->getCloudByZ(src_sp_cloud_, in, temp, 0.82, 3);
+  utl_->getCloudByZ(src_sp_mono_, in, temp, 0.82, 3);
   // Pose heuristics
   pcl::SACSegmentation<pcl::PointXYZ> planeSegmenter;
   pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
@@ -250,26 +263,67 @@ void PlaneSegment::reset()
   hst_.reset();
 }
 
+void PlaneSegment::computeNormalAndFilter()
+{
+  utl_->estimateNorm(src_sp_mono_, src_normals_, 1.01 * th_grid_rsl_);
+  utl_->getCloudByNorm(src_normals_, idx_norm_fit_, th_norm_);
+
+  if (idx_norm_fit_->indices.empty()) return;
+
+  utl_->getCloudByInliers(src_sp_mono_, cloud_norm_fit_mono_, idx_norm_fit_, false, false);
+}
+
 void PlaneSegment::findAllPlanes()
 {
-  if (src_mono_cloud_->points.empty()) {
-    ROS_WARN("PlaneSegment: Source cloud is empty.");
-    return;
-  }
-  
-  reset();
-  
-  utl_->estimateNorm(src_sp_cloud_, src_normals_, 1.01 * th_grid_rsl_);
-  utl_->getCloudByNorm(src_normals_, idx_norm_fit_, th_norm_);
-  
-  if (idx_norm_fit_->indices.empty()) return;
-  
-  utl_->getCloudByInliers(src_sp_cloud_, cloud_norm_fit_mono_, idx_norm_fit_, false, false);
-  
   zClustering(cloud_norm_fit_mono_); // -> seed_clusters_indices_
   getMeanZofEachCluster(cloud_norm_fit_mono_); // -> plane_z_values_
   extractPlaneForEachZ(cloud_norm_fit_mono_);
-  setID();
+}
+
+void PlaneSegment::findAllPlanesRANSAC(bool isOptimize, int maxIter,
+                                       float disThresh, float omit)
+{
+  pcl::ModelCoefficients::Ptr coefficients(new pcl::ModelCoefficients());
+  pcl::PointIndices::Ptr inliers(new pcl::PointIndices());
+  // Create the segmentation object
+  pcl::SACSegmentation<pcl::PointXYZ> seg;
+  // Optional
+  seg.setOptimizeCoefficients(isOptimize);
+  // Mandatory
+  seg.setModelType(pcl::SACMODEL_PLANE);
+  seg.setMethodType(pcl::SAC_RANSAC);
+  seg.setMaxIterations(maxIter);
+  seg.setDistanceThreshold(disThresh);
+
+  int i = 0;
+  int n_points = (int)cloud_norm_fit_mono_->points.size();
+
+  while (cloud_norm_fit_mono_->points.size() > omit * n_points) {
+    // Segment the largest planar component from the remaining cloud
+    PointCloudMono::Ptr  cloud_p(new PointCloudMono);
+    PointCloudMono::Ptr  cloud_f(new PointCloudMono);
+    seg.setInputCloud(cloud_norm_fit_mono_);
+    seg.segment(*inliers, *coefficients);
+    if (inliers->indices.size() == 0) {
+      cerr << "Could not estimate a planar model for the given dataset." << endl;
+      break;
+    }
+    // Extract the inliers
+    utl_->getCloudByInliers(cloud_norm_fit_mono_, cloud_p, inliers, false, false);
+    cout << "PointCloud representing the planar component: " << cloud_p->points.size() << " data points." << endl;
+    plane_points_.push_back(cloud_p);
+
+    setFeatures(coefficients->values[3], cloud_p);
+
+    //std::stringstream ss;
+    //ss << "plane_" << i << ".pcd";
+    //writer.write<pcl::PointXYZ>(ss.str(), *cloud_p, false);
+
+    // Create the filtering object
+    utl_->getCloudByInliers(cloud_norm_fit_mono_, cloud_f, inliers, true, false);
+    cloud_norm_fit_mono_.swap(cloud_f);
+    i++;
+  }
 }
 
 void PlaneSegment::getMeanZofEachCluster(PointCloudMono::Ptr cloud_norm_fit_mono)
@@ -377,24 +431,29 @@ void PlaneSegment::getPlane(size_t id, float z_in, PointCloudMono::Ptr &cloud_no
     plane_max_mesh_ = cluster_mesh;
   }
 
+  setFeatures(z_in, cluster_near_z);
+  
+  // Update the data of the max plane detected
+//  if (cluster_2d_rgb->points.size() > global_size_temp_) {
+//    plane_max_result_ = cluster_2d_rgb;
+//    plane_max_points_ = cluster_near_z;
+//    plane_max_coeff_ = feature;
+//    global_size_temp_ = cluster_2d_rgb->points.size();
+//  }
+}
+
+void PlaneSegment::setFeatures(float z_in, PointCloudMono::Ptr cluster)
+{
   // Prepare the feature vector for each plane to identify its id
   vector<float> feature;
   feature.push_back(z_in); // z value
   pcl::PointXYZ minPt, maxPt;
-  pcl::getMinMax3D(*cluster_near_z, minPt, maxPt);
+  pcl::getMinMax3D(*cluster, minPt, maxPt);
   feature.push_back(minPt.x); // cluster min x
   feature.push_back(minPt.y); // cluster min y
   feature.push_back(maxPt.x); // cluster max x
   feature.push_back(maxPt.y); // cluster max y
   plane_coeff_.push_back(feature);
-  
-  // Update the data of the max plane detected
-  if (cluster_2d_rgb->points.size() > global_size_temp_) {
-    plane_max_result_ = cluster_2d_rgb;
-    plane_max_points_ = cluster_near_z;
-    plane_max_coeff_ = feature;
-    global_size_temp_ = cluster_2d_rgb->points.size();
-  }
 }
 
 bool PlaneSegment::errorAnalyse(float z, PointCloudMono::Ptr cloud_in, 
@@ -482,8 +541,8 @@ void PlaneSegment::visualizeResult(bool display_source, bool display_raw,
                                    bool display_err, bool display_hull)
 {
   // For visualizing in RViz
-  publishCloud(src_rgb_cloud_, pub_cloud_);
-  publishCloud(plane_max_points_, pub_max_plane_);
+  //publishCloud(src_rgb_cloud_, pub_cloud_);
+  //publishCloud(plane_max_points_, pub_max_plane_);
   
   // Clear temps
   viewer->removeAllPointClouds();
@@ -506,7 +565,7 @@ void PlaneSegment::visualizeResult(bool display_source, bool display_raw,
     //}
   }
   
-  for (size_t i = 0; i < plane_results_.size(); i++) {
+  for (size_t i = 0; i < plane_points_.size(); i++) {
     int id = global_id_temp_[i];
     Vec3f c = utl_->getColorWithID(id);
     if (display_raw) {
