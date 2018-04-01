@@ -152,15 +152,10 @@ void Utilities::msgToCloud(const PointCloud::ConstPtr msg,
 }
 
 bool Utilities::pcaAnalyse(pcl::PointXYZ pointMaxZ, pcl::PointXYZ pointMinZ,
-                           float &proj_long, float &proj_short,
-                           const PointCloud::ConstPtr cloud_2d_in, float &max_dis)
+                           const PointCloud::ConstPtr cloud_2d_in, float &proj)
 {
   size_t sz = cloud_2d_in->points.size();
-  if (sz <= 1) return false;
-  else if (sz == 2) {
-    max_dis = pcl::euclideanDistance(cloud_2d_in->points[0], cloud_2d_in->points[1]);
-    return true;
-  }
+  if (sz <= 2) return false;
 
   Eigen::Vector2f maxDeltaZVector;
   maxDeltaZVector(0) = pointMaxZ.x - pointMinZ.x;
@@ -214,119 +209,15 @@ bool Utilities::pcaAnalyse(pcl::PointXYZ pointMaxZ, pcl::PointXYZ pointMinZ,
   axis1(0) = val_x_2.real();
   axis1(1) = val_y_2.real();
 
-  proj_long = fabs(axis0.transpose() * maxDeltaZVector);
+  float proj_long = fabs(axis0.transpose() * maxDeltaZVector);
   // Note that both axis0 and axis1 are unit vector
   //proj_long /= axis0.norm();
-  proj_short = fabs(axis1.transpose() * maxDeltaZVector);
+  float proj_short = fabs(axis1.transpose() * maxDeltaZVector);
   //proj_short /= axis1.norm();
-  
-  Eigen::Vector2f data_point;
-  float vmin = FLT_MAX;
-  float vmax = -FLT_MAX;
-  int idmax = -1;
-  int idmin = -1;
-  for (size_t i = 0; i < sz; ++i) {
-    data_point(0) = tmp(0, i);
-    data_point(1) = tmp(1, i);
-    
-    float v = axis0.transpose() * data_point; // Dot product
-    if (v > vmax) {
-      vmax = v;
-      idmax = i;
-    }
-    if (v < vmin) {
-      vmin = v;
-      idmin = i;
-    }
-  }
-  if (idmin >= 0 && idmax >= 0) {
-    max_dis = pcl::euclideanDistance(cloud_2d_in->points[idmin], cloud_2d_in->points[idmax]);
-    return true;
-  }
-  else
-    return false;
-  
-  // For debug
-  /*
-  sz = 10;
-  vector<vector<float>> vec{ { 2.5f, 0.5f, 2.2f, 1.9f, 3.1f, 2.3, 2, 1, 1.5, 1.1},
-  { 2.4f, 0.7f, 2.9f, 2.2f, 3.0, 2.7, 1.6, 1.1, 1.6, 0.9 }};
-  const int rows{ 2 }, cols{ 10 };
-  
-  std::vector<float> vec_;
-  for (int i = 0; i < 2; ++i) {
-    vec_.insert(vec_.begin() + i * cols, vec[i].begin(), vec[i].end());
-  }
-  Eigen::Map<Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> data(vec_.data(), rows, cols);
 
-  //fprintf(stderr, "source matrix:\n");
-  //std::cout << data << std::endl;
-  
-  Eigen::Vector2f mean = data.rowwise().mean();
-  //std::cout << "print mean: " << std::endl << mean << std::endl;
-  
-  Eigen::MatrixXf tmp(2, sz);
-  for (int r = 0; r < 2; ++r) {
-    for (int c = 0; c < sz; ++c) {
-      tmp(r, c) = data(r, c) - mean(r);
-    }
-  }
-  
-  Eigen::MatrixXf C = (tmp * tmp.transpose()) / (sz - 1);
-  std::cout << "print covariance matrix: " << std::endl << tmp << std::endl;
-  
-  Eigen::EigenSolver<Eigen::MatrixXf> es(C);
-  
-  // The result is complex number
-  complex<float> lambda0 = es.eigenvalues()[0];
-  complex<float> lambda1 = es.eigenvalues()[1];
-  //cout << "... and A * v = " << endl << A.cast<complex<double> >() * v << endl << endl;
-  Eigen::MatrixXcf V = es.eigenvectors();
-  
-  // The max axis
-  complex<float> val_x;
-  complex<float> val_y;
-  if (lambda0.real() > lambda1.real()) {
-    val_x = V.col(0)[0];
-    val_y = V.col(0)[1];
-  }
-  else {
-    val_x = V.col(1)[0];
-    val_y = V.col(1)[1];
-  }
-  
-  Eigen::Vector2f axis0;
-  axis0(0) = val_x.real();
-  axis0(1) = val_y.real();
-  std::cout << "Main axis: " << std::endl << axis0(0) << axis0(1) << std::endl;
-  
-  Eigen::Vector2f data_point;
-  float vmin = FLT_MAX;
-  float vmax = -FLT_MAX;
-  int idmax = -1;
-  int idmin = -1;
-  for (size_t i = 0; i < sz; ++i) {
-    data_point(0) = tmp(0, i);
-    data_point(1) = tmp(1, i);
-    
-    float v = axis0.transpose()*data_point;
-    std::cout << "v: " << std::endl << v << std::endl;
-    if (v > vmax) {
-      vmax = v;
-      idmax = i;
-    }
-    if (v < vmin) {
-      vmin = v;
-      idmin = i;
-    }
-  }
-  std::cout << "Farest point id: " << std::endl << idmin << idmax << std::endl;
-  if (idmin >= 0 && idmax >= 0) {
-    return true;
-  }
-  else
-    return false;
-  */
+  proj = (proj_long < proj_short) ? proj_long : proj_short;
+
+  return true;
 }
 
 void Utilities::calRegionGrowing(PointCloudRGBN::Ptr cloud_in, int minsz, int maxsz, int nb, int smooth,

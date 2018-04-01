@@ -161,9 +161,9 @@ void PlaneSegment::getHorizontalPlanes(PointCloud::Ptr cloud)
   // Start timer
   hst_.start();
   
-  findAllPlanes();
-  //findAllPlanesRANSAC(false, 500, 1.01*th_grid_rsl_, 0.001);
-  //findAllPlanesRG(8, 5, 1000000, 8, 3.0, 1.0);
+  //findAllPlanes();
+  //findAllPlanesRANSAC(true, 500, 1.01*th_grid_rsl_, 0.001);
+  findAllPlanesRG(8, 8, 3.0, 1.0);
   
   // Stop timer and get total processing time
   hst_.stop();
@@ -194,7 +194,7 @@ void PlaneSegment::findAllPlanesRG(int norm_k, int num_n, float s_th, float c_th
   reg.setMinClusterSize(3);
   reg.setMaxClusterSize(INT_MAX);
   reg.setSearchMethod(tree);
-  reg.setNumberOfNeighbours (num_n);
+  reg.setNumberOfNeighbours(num_n);
   reg.setInputCloud(cloud_norm_fit_mono_);
   reg.setInputNormals(normals);
   reg.setSmoothnessThreshold(s_th / 180.0 * M_PI);
@@ -315,7 +315,7 @@ void PlaneSegment::getMeanZofEachCluster(PointCloudMono::Ptr cloud_norm_fit_mono
       k++;
     }
     
-    ROS_DEBUG("Hypothetic plane number: %d", plane_z_values_.size());
+    ROS_DEBUG("Hypothetic plane number: %d", int(plane_z_values_.size()));
     // Z is ordered from small to large, i.e., low to high
     //sort(planeZVector_.begin(), planeZVector_.end());
   }
@@ -456,24 +456,13 @@ bool PlaneSegment::errorAnalyse(float z, PointCloudMono::Ptr cloud_in,
     k++;
   }
   
-  float proj_long = 0;
-  float proj_short = 0;
-  float dxy_max = 0;
-  if (utl_->pcaAnalyse(pointMaxZ, pointMinZ, proj_long, proj_short, cloud_flat, dxy_max)) {
-    float zmax_long = proj_long * th_theta_;
-    float zmax_short = proj_short * th_theta_;
-    if (zmax_long > dz && zmax_short > dz)
+  float proj = 0;
+  if (utl_->pcaAnalyse(pointMaxZ, pointMinZ, cloud_flat, proj)) {
+    float zmax = proj * th_theta_;
+    if (zmax > dz)
       return true;
     else
       return false;
-
-//    float zmax = dxy_max * th_theta_;
-//    if (zmax > dz)
-//      return true;
-//    else {
-//      //cout << "Error exceeded the threshold for current point cloud" << endl;
-//      return false;
-//    }
   }
   else
     return false;
