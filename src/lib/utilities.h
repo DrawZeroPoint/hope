@@ -171,6 +171,8 @@ public:
   
   void getOccupancyMap(PointCloudMono::Ptr cloud_src, PointCloudMono::Ptr cloud_upper, std::vector<int> occupy,
                        PointCloud::Ptr &cloud_out);
+
+  void getPointByZ(float z, PointCloudMono::Ptr cloud_in, pcl::PointXYZ &pt);
   
   /**
    * @brief isInHull
@@ -194,7 +196,8 @@ public:
   void msgToCloud(const PointCloud::ConstPtr msg,
                   PointCloudMono::Ptr cloud);
   
-  bool pcaAnalyse(const PointCloud::ConstPtr cloud_2d_in, float &max_dis);
+  bool pcaAnalyse(pcl::PointXYZ pointMaxZ, pcl::PointXYZ pointMinZ, float &proj_long, float &proj_short,
+                  const PointCloud::ConstPtr cloud_2d_in, float &max_dis);
   
   float pointToSegDist(float x, float y, float x1, float y1, float x2, float y2);
   

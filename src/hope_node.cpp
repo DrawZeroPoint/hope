@@ -181,7 +181,7 @@ int main(int argc, char **argv)
   ros::NodeHandle pnh("~");
   
   float xy_resolution = 0.01; // In meter
-  float z_resolution = 0.01; // In meter
+  float z_resolution = 0.001; // In meter
   cout << "Using threshold: xy@" << xy_resolution << " " << "z@" << z_resolution << endl;
 
   PlaneSegment hope(base_frame_, xy_resolution, z_resolution);

@@ -120,6 +120,19 @@ void Utilities::getOccupancyMap(PointCloudMono::Ptr cloud_src, PointCloudMono::P
   }
 }
 
+void Utilities::getPointByZ(float z, PointCloudMono::Ptr cloud_in, pcl::PointXYZ &pt)
+{
+  for (PointCloudMono::const_iterator pit = cloud_in->begin();
+       pit != cloud_in->end(); ++pit) {
+    if (pit->z == z) {
+      pt.x = pit->x;
+      pt.y = pit->y;
+      pt.z = pit->z;
+      break;
+    }
+  }
+}
+
 void Utilities::msgToCloud(const PointCloud::ConstPtr msg,
                            PointCloudMono::Ptr cloud)
 {
@@ -138,7 +151,9 @@ void Utilities::msgToCloud(const PointCloud::ConstPtr msg,
   }
 }
 
-bool Utilities::pcaAnalyse(const PointCloud::ConstPtr cloud_2d_in, float &max_dis)
+bool Utilities::pcaAnalyse(pcl::PointXYZ pointMaxZ, pcl::PointXYZ pointMinZ,
+                           float &proj_long, float &proj_short,
+                           const PointCloud::ConstPtr cloud_2d_in, float &max_dis)
 {
   size_t sz = cloud_2d_in->points.size();
   if (sz <= 1) return false;
@@ -146,6 +161,10 @@ bool Utilities::pcaAnalyse(const PointCloud::ConstPtr cloud_2d_in, float &max_di
     max_dis = pcl::euclideanDistance(cloud_2d_in->points[0], cloud_2d_in->points[1]);
     return true;
   }
+
+  Eigen::Vector2f maxDeltaZVector;
+  maxDeltaZVector(0) = pointMaxZ.x - pointMinZ.x;
+  maxDeltaZVector(1) = pointMaxZ.y - pointMinZ.y;
   
   Eigen::Matrix2Xf data(2, sz);
   for (size_t i = 0; i < sz; ++i) {
@@ -171,20 +190,35 @@ bool Utilities::pcaAnalyse(const PointCloud::ConstPtr cloud_2d_in, float &max_di
   Eigen::MatrixXcf V = es.eigenvectors();
   
   // The max axis
-  complex<float> val_x;
-  complex<float> val_y;
+  complex<float> val_x_1;
+  complex<float> val_y_1;
+  complex<float> val_x_2;
+  complex<float> val_y_2;
   if (lambda0.real() > lambda1.real()) {
-    val_x = V.col(0)[0];
-    val_y = V.col(0)[1];
+    val_x_1 = V.col(0)[0];
+    val_y_1 = V.col(0)[1];
+    val_x_2 = V.col(1)[0];
+    val_y_2 = V.col(1)[1];
   }
   else {
-    val_x = V.col(1)[0];
-    val_y = V.col(1)[1];
+    val_x_1 = V.col(1)[0];
+    val_y_1 = V.col(1)[1];
+    val_x_2 = V.col(0)[0];
+    val_y_2 = V.col(0)[1];
   }
   
   Eigen::Vector2f axis0;
-  axis0(0) = val_x.real();
-  axis0(1) = val_y.real();
+  axis0(0) = val_x_1.real();
+  axis0(1) = val_y_1.real();
+  Eigen::Vector2f axis1;
+  axis1(0) = val_x_2.real();
+  axis1(1) = val_y_2.real();
+
+  proj_long = fabs(axis0.transpose() * maxDeltaZVector);
+  // Note that both axis0 and axis1 are unit vector
+  //proj_long /= axis0.norm();
+  proj_short = fabs(axis1.transpose() * maxDeltaZVector);
+  //proj_short /= axis1.norm();
   
   Eigen::Vector2f data_point;
   float vmin = FLT_MAX;

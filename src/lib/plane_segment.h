@@ -120,6 +120,7 @@ public:
   /// Container for storing final results
   vector<PointCloud::Ptr> plane_results_;
   vector<PointCloudMono::Ptr> plane_points_;
+  // Optional
   vector<PointCloud::Ptr> plane_hull_;
   vector<pcl::PolygonMesh> plane_mesh_;
   vector<vector<float> > plane_coeff_;
@@ -203,7 +204,7 @@ private:
   /// Core process for finding planes
   void findAllPlanes();
   void findAllPlanesRANSAC(bool isOptimize, int maxIter, float disThresh, float omit);
-  void findPlaneWithPCL();
+  void findAllPlanesRG(int norm_k, int num_n, float s_th, float c_th);
   
   /// Tool functions
   void reset();
@@ -231,6 +232,7 @@ private:
   
   void visualizeProcess(PointCloud::Ptr cloud);
   void setFeatures(float z_in, PointCloudMono::Ptr cluster);
+  void computeHull(PointCloud::Ptr cluster_2d_rgb);
 };
 
 #endif // PLANE_SEGMENT_H
