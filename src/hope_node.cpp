@@ -95,6 +95,9 @@ void fraseInput(string input, vector<string> &vrgb, vector<string> &vdepth,
     dep_ost << depth;
     vrgb.push_back(rgb_ost.str());
     vdepth.push_back(dep_ost.str());
+    tx_ = tx;
+    ty_ = ty;
+    tz_ = tz;
     vector<float> q;
     q.push_back(qx);
     q.push_back(qy);
@@ -156,7 +159,10 @@ int main(int argc, char **argv)
   }
   else if (argc == 11) {
     // Test on a single image pair
+    // /home/omnisky/TUM/rgbd_dataset_freiburg1_desk/ rgb/1305031459.259760.png depth/1305031459.274941.png -0.2171 -0.0799 1.3959 -0.8445 -0.0451 0.0954 0.5251
+    // /home/omnisky/TUM/rgbd_dataset_freiburg1_desk/ rgb/1305031460.727675.png depth/1305031460.711684.png -0.6860 0.2286 1.4211 0.7862 -0.4513 0.1312 -0.4012
     // /home/omnisky/TUM/rgbd_dataset_freiburg1_desk/ rgb/1305031467.027843.png depth/1305031467.020424.png 1.4268 -0.2879 1.4371 0.8091 0.3318 -0.2030 -0.4405
+    // /home/omnisky/TUM/rgbd_dataset_freiburg1_desk/ rgb/1305031473.196069.png depth/1305031473.190828.png 0.9453 -0.0038 1.2888 0.8978 0.2746 -0.0950 -0.3310
     int arg_index = 1;
     path_prefix = argv[arg_index++];
     path_rgb = path_prefix + argv[arg_index++];
@@ -181,7 +187,7 @@ int main(int argc, char **argv)
   ros::NodeHandle pnh("~");
   
   float xy_resolution = 0.01; // In meter
-  float z_resolution = 0.001; // In meter
+  float z_resolution = 0.0012; // In meter
   cout << "Using threshold: xy@" << xy_resolution << " " << "z@" << z_resolution << endl;
 
   PlaneSegment hope(base_frame_, xy_resolution, z_resolution);

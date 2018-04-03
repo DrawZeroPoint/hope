@@ -18,6 +18,9 @@ float th_max_depth_ = 8.0;
 bool cal_hull_ = false;
 bool vis_cluster_ = false;
 
+HighResTimer hst_1_("pca");
+HighResTimer hst_2_("ransac");
+
 PlaneSegment::PlaneSegment(string base_frame, float th_xy, float th_z) :
   fi_(new FetchRGBD),
   type_(REAL),
@@ -122,8 +125,8 @@ void PlaneSegment::getHorizontalPlanes(PointCloud::Ptr cloud)
     //visualizeProcess(temp);
 
     if (type_ <= TUM_LIST) {
-      //tf_->doTransform(temp, src_rgb_cloud_, tx_, ty_, tz_, qx_, qy_, qz_, qw_);
-      tf_->doTransform(temp, src_rgb_cloud_, 0, 0, 0, qx_, qy_, qz_, qw_);
+      tf_->doTransform(temp, src_rgb_cloud_, tx_, ty_, tz_, qx_, qy_, qz_, qw_);
+      //tf_->doTransform(temp, src_rgb_cloud_, 0, 0, 0, qx_, qy_, qz_, qw_);
     }
     else {
       tf_->doTransform(temp, src_rgb_cloud_, roll_, pitch_, yaw_);
@@ -161,9 +164,9 @@ void PlaneSegment::getHorizontalPlanes(PointCloud::Ptr cloud)
   // Start timer
   hst_.start();
   
-  //findAllPlanes();
+  findAllPlanes();
   //findAllPlanesRANSAC(true, 500, 1.01*th_grid_rsl_, 0.001);
-  findAllPlanesRG(8, 8, 3.0, 1.0);
+  //findAllPlanesRG(20, 20, 8.0, 1.0);
   
   // Stop timer and get total processing time
   hst_.stop();
@@ -182,7 +185,7 @@ void PlaneSegment::findAllPlanesRG(int norm_k, int num_n, float s_th, float c_th
   cout << "curvature threshold: " << c_th << endl;
 
   pcl::search::Search<pcl::PointXYZ>::Ptr tree = boost::shared_ptr<pcl::search::Search<pcl::PointXYZ> >
-                                                        (new pcl::search::KdTree<pcl::PointXYZ>);
+      (new pcl::search::KdTree<pcl::PointXYZ>);
   pcl::PointCloud <pcl::Normal>::Ptr normals (new pcl::PointCloud <pcl::Normal>);
   pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> normal_estimator;
   normal_estimator.setSearchMethod(tree);
@@ -457,15 +460,42 @@ bool PlaneSegment::errorAnalyse(float z, PointCloudMono::Ptr cloud_in,
   }
   
   float proj = 0;
-  if (utl_->pcaAnalyse(pointMaxZ, pointMinZ, cloud_flat, proj)) {
-    float zmax = proj * th_theta_;
-    if (zmax > dz)
-      return true;
-    else
-      return false;
-  }
+  float grad = 0;
+  float grad_ransac = 0;
+
+  //hst_2_.reset();
+  //hst_2_.start();
+  utl_->calRANSAC(cloud_in, 1.01*th_grid_rsl_, grad_ransac);
+  if (grad_ransac < atan(th_theta_))
+    return true;
   else
     return false;
+  //hst_2_.stop();
+  //hst_2_.print();
+
+  //  hst_1_.reset();
+  //  hst_1_.start();
+  //  utl_->pcaAnalysis(pointMaxZ, pointMinZ, cloud_in, proj, grad);
+  //  hst_1_.stop();
+  //  hst_1_.print();
+
+  //  cout << cloud_in->points.size() << endl;
+
+  //  return true;
+
+//  if (utl_->pcaAnalysis(pointMaxZ, pointMinZ, cloud_in, proj, grad)) {
+//    if (grad < atan(th_theta_)) {
+//      if (2 * proj * th_theta_ < dz) {
+//        cout << "ambiguous" << "proj*th: " << 2*proj*th_theta_ << " dz: " << dz << endl;
+//        //return false;
+//      }
+//      return true;
+//    }
+//    else
+//      return false;
+//  }
+//  else
+//    return false;
 }
 
 void PlaneSegment::setID()
@@ -523,15 +553,15 @@ void PlaneSegment::visualizeResult(bool display_source, bool display_raw,
     // Add source colored cloud for reference
     name = utl_->getName(0, "source_", -1);
 
-    viewer->addPointCloud<pcl::PointXYZRGB>(src_sp_rgb_, name);
-    viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2.0, name);
-    viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0, 0, 0, name);
+    //    viewer->addPointCloud<pcl::PointXYZRGB>(src_sp_rgb_, name);
+    //    viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2.0, name);
+    //    viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0, 0, 0, name);
 
-    //pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> src_rgb(src_sp_rgb_);
-    //if (!viewer->updatePointCloud(src_sp_rgb_, src_rgb, name)){
-    //  viewer->addPointCloud<pcl::PointXYZRGB>(src_sp_rgb_, src_rgb, name);
-    //  viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3.0, name);
-    //}
+    pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> src_rgb(src_rgb_cloud_);
+    if (!viewer->updatePointCloud(src_rgb_cloud_, src_rgb, name)){
+      viewer->addPointCloud<pcl::PointXYZRGB>(src_rgb_cloud_, src_rgb, name);
+      viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2.0, name);
+    }
   }
   
   for (size_t i = 0; i < plane_points_.size(); i++) {

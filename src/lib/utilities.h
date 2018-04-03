@@ -196,8 +196,8 @@ public:
   void msgToCloud(const PointCloud::ConstPtr msg,
                   PointCloudMono::Ptr cloud);
   
-  bool pcaAnalyse(pcl::PointXYZ pointMaxZ, pcl::PointXYZ pointMinZ,
-                  const PointCloud::ConstPtr cloud_2d_in, float &proj);
+  bool pcaAnalysis(pcl::PointXYZ pointMaxZ, pcl::PointXYZ pointMinZ,
+                  const PointCloudMono::ConstPtr cloud_3d_in, float &proj, float &grad);
   
   float pointToSegDist(float x, float y, float x1, float y1, float x2, float y2);
   
@@ -249,6 +249,7 @@ public:
   bool tryExpandROI(int &minx, int &miny, int &maxx, int &maxy, int pad,
                     int width = 640, int height = 480);
   
+  bool calRANSAC(const PointCloudMono::ConstPtr cloud_3d_in, float dt, float &grad);
 private:
   float determinant(float v1, float v2, float v3, float v4);
   
@@ -259,6 +260,8 @@ private:
 
   void searchAvailableID(vector<int> id_used, vector<int> &id_ava, size_t limit);
   bool isInVector(int id, vector<vector<int> > vec, int &pos);
+  void getFurthestPointsAlongAxis(Eigen::Vector2f axis, Eigen::MatrixXf data,
+                                  vector<int> &inlist, int &id_max, int &id_min);
 };
 
 #endif // UTILITIES_H

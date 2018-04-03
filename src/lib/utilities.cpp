@@ -151,10 +151,10 @@ void Utilities::msgToCloud(const PointCloud::ConstPtr msg,
   }
 }
 
-bool Utilities::pcaAnalyse(pcl::PointXYZ pointMaxZ, pcl::PointXYZ pointMinZ,
-                           const PointCloud::ConstPtr cloud_2d_in, float &proj)
+bool Utilities::pcaAnalysis(pcl::PointXYZ pointMaxZ, pcl::PointXYZ pointMinZ,
+                            const PointCloudMono::ConstPtr cloud_3d_in, float &proj, float &grad)
 {
-  size_t sz = cloud_2d_in->points.size();
+  size_t sz = cloud_3d_in->points.size();
   if (sz <= 2) return false;
 
   Eigen::Vector2f maxDeltaZVector;
@@ -163,8 +163,8 @@ bool Utilities::pcaAnalyse(pcl::PointXYZ pointMaxZ, pcl::PointXYZ pointMinZ,
   
   Eigen::Matrix2Xf data(2, sz);
   for (size_t i = 0; i < sz; ++i) {
-    data(0, i) = cloud_2d_in->points[i].x;
-    data(1, i) = cloud_2d_in->points[i].y;
+    data(0, i) = cloud_3d_in->points[i].x;
+    data(1, i) = cloud_3d_in->points[i].y;
   }
   
   Eigen::Vector2f mean = data.rowwise().mean();
@@ -184,7 +184,7 @@ bool Utilities::pcaAnalyse(pcl::PointXYZ pointMaxZ, pcl::PointXYZ pointMinZ,
   complex<float> lambda1 = es.eigenvalues()[1];
   Eigen::MatrixXcf V = es.eigenvectors();
   
-  // The max axis
+  // The first and second principal axes
   complex<float> val_x_1;
   complex<float> val_y_1;
   complex<float> val_x_2;
@@ -209,15 +209,118 @@ bool Utilities::pcaAnalyse(pcl::PointXYZ pointMaxZ, pcl::PointXYZ pointMinZ,
   axis1(0) = val_x_2.real();
   axis1(1) = val_y_2.real();
 
-  float proj_long = fabs(axis0.transpose() * maxDeltaZVector);
-  // Note that both axis0 and axis1 are unit vector
-  //proj_long /= axis0.norm();
-  float proj_short = fabs(axis1.transpose() * maxDeltaZVector);
-  //proj_short /= axis1.norm();
+  // Roughly calculate the normal of the plane
+  int idmax0 = -1;
+  int idmin0 = -1;
+  int idmax1 = -1;
+  int idmin1 = -1;
+  vector<int> inlist;
+  getFurthestPointsAlongAxis(axis0, tmp, inlist, idmax0, idmin0);
+  getFurthestPointsAlongAxis(axis1, tmp, inlist, idmax1, idmin1);
+  // Find corresponding points in 3D cloud
+  Eigen::Vector3f normal;
+  Eigen::Vector3f p_max0, p_min0, p_max1, p_min1;
+  p_max0(0) = cloud_3d_in->points[idmax0].x;
+  p_max0(1) = cloud_3d_in->points[idmax0].y;
+  p_max0(2) = cloud_3d_in->points[idmax0].z;
+  p_min0(0) = cloud_3d_in->points[idmin0].x;
+  p_min0(1) = cloud_3d_in->points[idmin0].y;
+  p_min0(2) = cloud_3d_in->points[idmin0].z;
+  if (idmax1 == idmin1) {
+    p_max1(0) = cloud_3d_in->points[idmax1].x;
+    p_max1(1) = cloud_3d_in->points[idmax1].y;
+    p_max1(2) = cloud_3d_in->points[idmax1].z;
+    normal = (p_max0 - p_min0).cross(p_max0 - p_max1);
+  }
+  else {
+    p_max1(0) = cloud_3d_in->points[idmax1].x;
+    p_max1(1) = cloud_3d_in->points[idmax1].y;
+    p_max1(2) = cloud_3d_in->points[idmax1].z;
+    p_min1(0) = cloud_3d_in->points[idmin1].x;
+    p_min1(1) = cloud_3d_in->points[idmin1].y;
+    p_min1(2) = cloud_3d_in->points[idmin1].z;
+    normal = (p_max0 - p_min0).cross(p_max1 - p_min1);
+  }
+  // Find out the normal projection on A0 and A1
+  Eigen::Vector2f norm_proj;
+  norm_proj(0) = normal(0);
+  norm_proj(1) = normal(1);
 
-  proj = (proj_long < proj_short) ? proj_long : proj_short;
+  grad = asin(norm_proj.norm() / normal.norm());
+
+  float proj_long = fabs(axis0.transpose() * norm_proj);
+  float proj_short = fabs(axis1.transpose() * norm_proj);
+  if (proj_long > proj_short) {
+    proj = fabs(axis0.transpose() * maxDeltaZVector);
+  }
+  else {
+    proj = fabs(axis1.transpose() * maxDeltaZVector);
+  }
 
   return true;
+}
+
+bool Utilities::calRANSAC(const PointCloudMono::ConstPtr cloud_3d_in, float dt, float &grad)
+{
+  size_t sz = cloud_3d_in->points.size();
+  if (sz <= 3) return false;
+  // Pose heuristics
+  pcl::SACSegmentation<pcl::PointXYZ> planeSegmenter;
+  pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
+  pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
+  // set the segmentaion parameters
+  planeSegmenter.setOptimizeCoefficients(true);
+  planeSegmenter.setModelType(pcl::SACMODEL_PLANE);
+  planeSegmenter.setMethodType(pcl::SAC_RANSAC);
+  planeSegmenter.setMaxIterations(100);
+  planeSegmenter.setDistanceThreshold(dt);
+
+  // Extract the global (environment) dominant plane
+  planeSegmenter.setInputCloud(cloud_3d_in);
+  planeSegmenter.segment(*inliers, *coefficients);
+
+  Eigen::Vector3f normal;
+  Eigen::Vector2f norm_proj;
+  normal(0) = coefficients->values[0];
+  normal(1) = coefficients->values[1];
+  normal(2) = coefficients->values[2];
+  norm_proj(0) = normal(0);
+  norm_proj(1) = normal(1);
+
+  grad = asin(norm_proj.norm() / normal.norm());
+  return true;
+}
+
+void Utilities::getFurthestPointsAlongAxis(Eigen::Vector2f axis, Eigen::MatrixXf data,
+                                           vector<int> &inlist, int &id_max, int &id_min)
+{
+  int sz = data.cols();
+  float vmin = FLT_MAX;
+  float vmax = -FLT_MAX;
+  id_max = -1;
+  id_min = -1;
+
+  Eigen::Vector2f data_point;
+  int pos;
+  for (size_t i = 0; i < sz; ++i) {
+    data_point(0) = data(0, i);
+    data_point(1) = data(1, i);
+    float v = axis.transpose() * data_point; // Dot product
+    if (v > vmax) {
+      if (!isInVector(i, inlist, pos)) {
+        vmax = v;
+        id_max = i;
+      }
+    }
+    if (v < vmin) {
+      if (!isInVector(i, inlist, pos)) {
+        vmin = v;
+        id_min = i;
+      }
+    }
+  }
+  inlist.push_back(id_max);
+  inlist.push_back(id_min);
 }
 
 void Utilities::calRegionGrowing(PointCloudRGBN::Ptr cloud_in, int minsz, int maxsz, int nb, int smooth,
@@ -972,21 +1075,22 @@ void Utilities::matNormalize(Mat query_in, Mat train_in,
   }
 }
 
+// Note that the limit restircted the total number of planes being found
 void Utilities::searchAvailableID(vector<int> id_used,
                                   vector<int> &id_ava,
-                                  size_t limit=64)
+                                  size_t limit=1024)
 {
-//  sort(id_used.begin(),id_used.end());
-//  int min_id = id_used[0];
-//  int max_id = id_used[id_used.size()-1];
-//  for (size_t i = max_id + 1; i < max_id + limit; ++i) {
-//    int p = i;
-//    if (p >= limit) {
-//      p -= limit;
-//    }
-//    if (p > max_id || p < min_id)
-//      id_ava.push_back(p);
-//  }
+  //  sort(id_used.begin(),id_used.end());
+  //  int min_id = id_used[0];
+  //  int max_id = id_used[id_used.size()-1];
+  //  for (size_t i = max_id + 1; i < max_id + limit; ++i) {
+  //    int p = i;
+  //    if (p >= limit) {
+  //      p -= limit;
+  //    }
+  //    if (p > max_id || p < min_id)
+  //      id_ava.push_back(p);
+  //  }
   for (size_t i = 0; i < limit; ++i) {
     bool i_used = false;
     for (size_t n = 0; n < id_used.size(); ++n) {
@@ -1073,23 +1177,23 @@ void Utilities::matchID(vector<vector<float> > global, vector<vector<float> > lo
 
   matcher.match(query, train, matches);
 
-//  pair<int, int> best;
-//  float mind = 100;
-//  for (size_t j = 0; j < local.size(); ++j) {
-//    if (matches[j].distance < mind) {
-//      best.first = j;
-//      best.second = matches[j].trainIdx;
-//      mind = matches[j].distance;
-//    }
-//  }
-//  for (size_t j = 0; j < local.size(); ++j) {
-//    if (j == best.first) {
-//      out[j] = in[best.second];
-//    }
-//    else {
-//      out[j] = -1;
-//    }
-//  }
+  //  pair<int, int> best;
+  //  float mind = 100;
+  //  for (size_t j = 0; j < local.size(); ++j) {
+  //    if (matches[j].distance < mind) {
+  //      best.first = j;
+  //      best.second = matches[j].trainIdx;
+  //      mind = matches[j].distance;
+  //    }
+  //  }
+  //  for (size_t j = 0; j < local.size(); ++j) {
+  //    if (j == best.first) {
+  //      out[j] = in[best.second];
+  //    }
+  //    else {
+  //      out[j] = -1;
+  //    }
+  //  }
 
   // One query feature can only have one corresponding train feature and vise versa
   vector<float> g_dist_temp(global.size(), 10000);
@@ -1106,31 +1210,31 @@ void Utilities::matchID(vector<vector<float> > global, vector<vector<float> > lo
   }
 
   // One global feature can have multiple query matchers if they together yield smaller distance
-//  vector<float> g_dist_temp(global.size(), 10000);
-//  vector<vector<int> > match_for_g(global.size()); // store query features' ids for each train feature
-//  for (size_t g_idx = 0; g_idx < global.size(); ++g_idx) {
-//    // local size is equal to matches size
-//    for (size_t l_idx = 0; l_idx < matches.size(); ++l_idx) {
-//      if (g_idx == matches[l_idx].trainIdx) {
-//        if (matches[l_idx].distance < g_dist_temp[g_idx]) {
-//          if (match_for_g[g_idx].size() == 0) {
-//            match_for_g[g_idx].push_back(matches[l_idx].queryIdx);
-//          }
-//          else {
-//            //if (mergeOrReplace(g_idx, match_for_g[g_idx], matches[l_idx].queryIdx, global, local)) {
-//              // merge
-//              match_for_g[g_idx].push_back(matches[l_idx].queryIdx);
-//            //}
-//            //else {
-//            //  // replace
-//            //  match_for_g[g_idx].erase(match_for_g[g_idx].begin());
-//            //  match_for_g[g_idx].push_back(matches[l_idx].queryIdx);
-//            //}
-//          }
-//        }
-//      }
-//    }
-//  }
+  //  vector<float> g_dist_temp(global.size(), 10000);
+  //  vector<vector<int> > match_for_g(global.size()); // store query features' ids for each train feature
+  //  for (size_t g_idx = 0; g_idx < global.size(); ++g_idx) {
+  //    // local size is equal to matches size
+  //    for (size_t l_idx = 0; l_idx < matches.size(); ++l_idx) {
+  //      if (g_idx == matches[l_idx].trainIdx) {
+  //        if (matches[l_idx].distance < g_dist_temp[g_idx]) {
+  //          if (match_for_g[g_idx].size() == 0) {
+  //            match_for_g[g_idx].push_back(matches[l_idx].queryIdx);
+  //          }
+  //          else {
+  //            //if (mergeOrReplace(g_idx, match_for_g[g_idx], matches[l_idx].queryIdx, global, local)) {
+  //              // merge
+  //              match_for_g[g_idx].push_back(matches[l_idx].queryIdx);
+  //            //}
+  //            //else {
+  //            //  // replace
+  //            //  match_for_g[g_idx].erase(match_for_g[g_idx].begin());
+  //            //  match_for_g[g_idx].push_back(matches[l_idx].queryIdx);
+  //            //}
+  //          }
+  //        }
+  //      }
+  //    }
+  //  }
 
   for (size_t j = 0; j < local.size(); ++j) {
     int pos = -1;
@@ -1149,60 +1253,60 @@ void Utilities::matchID(vector<vector<float> > global, vector<vector<float> > lo
 bool Utilities::mergeOrReplace(size_t g_id, vector<int> l_ids, size_t q_id,
                                vector<vector<float> > global, vector<vector<float> > local)
 {
-//  vector<float> g_feat = global(g_id);
+  //  vector<float> g_feat = global(g_id);
 
-//  // Prepare feature vector for previous optimal
-//  vector<float> p_feat(5, 9999);
-//  for (size_t i = 0; i < l_ids.size(); ++i) {
-//    vector<float> temp = local[l_ids[i]];
-//    for (size_t j = 0; j < temp.size(); ++j) {
-//      if (j == 0)
-//        p_feat[j] += temp[j];
-//      // xmin ymin xmax ymax
-//      else if (j == 1 || j == 2) {
-//        if (p_feat[j] == 9999) {
-//          p_feat[j] = temp[j];
-//        }
-//        if (temp[j] < p_feat[j] ) {
-//          p_feat[j] = temp[j];
-//        }
-//      }
-//      else {
-//        if (p_feat[j] == 9999) {
-//          p_feat[j] = temp[j];
-//        }
-//        if (temp[j] > p_feat[j] ) {
-//          p_feat[j] = temp[j];
-//        }
-//      }
-//    }
-//  }
-//  p_feat[0] /= l_ids.size();
+  //  // Prepare feature vector for previous optimal
+  //  vector<float> p_feat(5, 9999);
+  //  for (size_t i = 0; i < l_ids.size(); ++i) {
+  //    vector<float> temp = local[l_ids[i]];
+  //    for (size_t j = 0; j < temp.size(); ++j) {
+  //      if (j == 0)
+  //        p_feat[j] += temp[j];
+  //      // xmin ymin xmax ymax
+  //      else if (j == 1 || j == 2) {
+  //        if (p_feat[j] == 9999) {
+  //          p_feat[j] = temp[j];
+  //        }
+  //        if (temp[j] < p_feat[j] ) {
+  //          p_feat[j] = temp[j];
+  //        }
+  //      }
+  //      else {
+  //        if (p_feat[j] == 9999) {
+  //          p_feat[j] = temp[j];
+  //        }
+  //        if (temp[j] > p_feat[j] ) {
+  //          p_feat[j] = temp[j];
+  //        }
+  //      }
+  //    }
+  //  }
+  //  p_feat[0] /= l_ids.size();
 
-//  // Current feature vector
-//  vector<float> q_feat = local[q_id];
+  //  // Current feature vector
+  //  vector<float> q_feat = local[q_id];
 
-//  // Compare the distance
-//  float disPrev = computeFeatureDis(g_feat, p_feat);
-//  float disCurr = computeFeatureDis(g_feat, q_feat);
-//  float disComb = computeFeatureDis(g_feat, q_combine);
+  //  // Compare the distance
+  //  float disPrev = computeFeatureDis(g_feat, p_feat);
+  //  float disCurr = computeFeatureDis(g_feat, q_feat);
+  //  float disComb = computeFeatureDis(g_feat, q_combine);
 
-//  if (disPrev < disCurr) {
-//    if (disPrev < disComb) {
-//      return -1; // ignore
-//    }
-//    else {
-//      if (disComb < disCurr) {
-//        return 1; // merge
-//      }
+  //  if (disPrev < disCurr) {
+  //    if (disPrev < disComb) {
+  //      return -1; // ignore
+  //    }
+  //    else {
+  //      if (disComb < disCurr) {
+  //        return 1; // merge
+  //      }
 
-//    }
-//  }
-//  else {
-//    if (disCurr < disComb)
-//  }
+  //    }
+  //  }
+  //  else {
+  //    if (disCurr < disComb)
+  //  }
 
-//  return true; // merge
+  //  return true; // merge
   return false; // replace
 }
 
