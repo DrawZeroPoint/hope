@@ -9,7 +9,6 @@ float th_z_rsl_ = 0.002; // Resolution in Z direction
 /// Calculated parameters
 float th_theta_;
 float th_norm_;
-float th_area_;
 
 // Depth threshold for filtering source cloud, only used for real data
 float th_min_depth_ = 0.3;
@@ -28,6 +27,7 @@ PlaneSegment::PlaneSegment(string base_frame, float th_xy, float th_z) :
   src_mono_cloud_(new PointCloudMono),
   src_rgb_cloud_(new PointCloud),
   cloud_norm_fit_mono_(new PointCloudMono),
+  cloud_norm_fit_(new NormalCloud),
   src_sp_mono_(new PointCloudMono),
   src_sp_rgb_(new PointCloud),
   src_normals_(new NormalCloud),
@@ -42,8 +42,7 @@ PlaneSegment::PlaneSegment(string base_frame, float th_xy, float th_z) :
   th_grid_rsl_ = th_xy;
   th_z_rsl_ = th_z;
   th_theta_ = th_z_rsl_ / th_grid_rsl_;
-  th_area_ = pow(th_grid_rsl_, 2);
-  th_norm_ = sqrt(1 / (1 + th_theta_ / 1.414));
+  th_norm_ = sqrt(1 / (1 + 2 * pow(th_theta_, 2)));
   
   // For store max hull id and area
   global_size_temp_ = 0;
@@ -368,7 +367,8 @@ void PlaneSegment::getPlane(size_t id, float z_in, PointCloudMono::Ptr &cloud_no
   
   // If the points do not pass the error test, return
   PointCloud::Ptr cluster_2d_rgb(new PointCloud);
-  if (!errorAnalyse(z_in, cluster_near_z, cluster_2d_rgb, true)) return;
+  //if (!errorAnalysis(z_in, cluster_near_z, cluster_2d_rgb, true)) return;
+  if (!gaussianImageAnalysis(id)) return;
   
   // If the cluster of points pass the error check,
   // push it and corresponding projected points into result vectors
@@ -422,8 +422,94 @@ void PlaneSegment::setFeatures(float z_in, PointCloudMono::Ptr cluster)
   plane_coeff_.push_back(feature);
 }
 
-bool PlaneSegment::errorAnalyse(float z, PointCloudMono::Ptr cloud_in, 
-                                PointCloud::Ptr &cloud_flat, bool fix_z)
+bool PlaneSegment::gaussianImageAnalysis(size_t id)
+{
+  /// Get normal cloud for current cluster
+  pcl::PointIndices::Ptr idx_seed (new pcl::PointIndices);
+  idx_seed->indices = seed_clusters_indices_[id].indices;
+
+  // Extract the plane points indexed by idx_seed
+  NormalCloud::Ptr cluster_normal(new NormalCloud);
+  utl_->getCloudByInliers(cloud_norm_fit_, cluster_normal, idx_seed, false, false);
+
+  if (utl_->normalAnalysis(cluster_normal, th_theta_)) return true;
+  else return false;
+
+  // Construct a Pointcloud to store normal points
+  //  PointCloudMono::Ptr cloud(new PointCloudMono);
+  //  cloud->width = cluster_normal->width;
+  //  cloud->height = cluster_normal->height;
+  //  cloud->resize(cluster_normal->width * cluster_normal->height);
+
+  //  size_t k = 0;
+  //  for (PointCloudMono::const_iterator pit = cloud->begin();
+  //       pit != cloud->end(); ++pit) {
+  //    cloud->points[k].x = cluster_normal->normal_x;
+  //    cloud->points[k].y = cluster_normal->normal_y;
+  //    cloud->points[k].z = cluster_normal->normal_z;
+  //    k++;
+  //  }
+
+  // Visualizing
+  //  float max = 0.0;
+  //  for (size_t i = 0; i < 4 * bandwidth * bandwidth; i++)
+  //  {
+  //    if (egi[i] > max)
+  //    {
+  //      max = egi[i];
+  //    }
+  //  }
+  //  float *gray = new float[4 * bandwidth * bandwidth];
+  //  for (size_t i = 0; i < 4 * bandwidth * bandwidth; i++)
+  //  {
+  //    gray[i] = egi[i] / max;
+  //  }
+  //  pcl::PointCloud<pcl::PointXYZRGB>::Ptr sphere (new pcl::PointCloud<pcl::PointXYZRGB>);
+  //  sphere->resize (4 * bandwidth * bandwidth);
+  //  uint8_t r = 0, g = 0, b = 0;
+  //  uint32_t rgb = 0;
+  //  float tmp_theta = 0.0;
+  //  float tmp_phi = 0.0;
+  //  for (size_t i = 0; i < 2 * bandwidth; i++)
+  //  {
+  //    tmp_theta = (2 * i + 1) * M_PI / 4 / bandwidth;
+  //    for (size_t j = 0; j < 2 * bandwidth; j++)
+  //    {
+  //      tmp_phi = M_PI * j / bandwidth;
+  //      sphere->points[i * 2 * bandwidth + j].x = cos (tmp_phi) * sin (tmp_theta);
+  //      sphere->points[i * 2 * bandwidth + j].y = sin (tmp_phi) * sin (tmp_theta);
+  //      sphere->points[i * 2 * bandwidth + j].z = cos (tmp_theta);
+  //      heatmapRGB (gray[i * 2 * bandwidth + j], r, g, b);
+  //      rgb = ((uint32_t)r << 16 | (uint32_t)g << 8 | (uint32_t)b);
+  //      sphere->points[i * 2 * bandwidth + j].rgb = *reinterpret_cast<float*> (&rgb);
+  //    }
+  //  }
+  //  pcl::PointCloud<pcl::PointXYZ>::Ptr normals (new pcl::PointCloud<pcl::PointXYZ>);
+  //  normals->resize (cloud_normals->size ());
+  //  for (size_t i = 0; i < cloud_normals->size (); i++)
+  //  {
+  //    normals->points[i].x = -cloud_normals->points[i].normal_x;
+  //    normals->points[i].y = -cloud_normals->points[i].normal_y;
+  //    normals->points[i].z = -cloud_normals->points[i].normal_z;
+  //  }
+
+  //  delete [] gray;
+
+  //  int viewports[2] = {1, 2};
+  //  pcl::visualization::PCLVisualizer viewer ("EGI and normals distribution");
+  //  viewer.createViewPort (0.0, 0.0, 0.5, 1.0, viewports[0]);
+  //  viewer.createViewPort (0.5, 0.0, 1.0, 1.0, viewports[1]);
+  //  viewer.setBackgroundColor (0.0, 0.0, 0.0);
+  //  viewer.addPointCloud (normals, "normals", viewports[0]);
+  //  viewer.addPointCloud (sphere, "EGI", viewports[1]);
+  //  viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "normals");
+  //  viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "EGI");
+  //  viewer.spin ();
+  //}
+}
+
+bool PlaneSegment::errorAnalysis(float z, PointCloudMono::Ptr cloud_in,
+                                 PointCloud::Ptr &cloud_flat, bool fix_z)
 {
   if (cloud_in->points.size() < 3)
     return false;
@@ -483,19 +569,19 @@ bool PlaneSegment::errorAnalyse(float z, PointCloudMono::Ptr cloud_in,
 
   //  return true;
 
-//  if (utl_->pcaAnalysis(pointMaxZ, pointMinZ, cloud_in, proj, grad)) {
-//    if (grad < atan(th_theta_)) {
-//      if (2 * proj * th_theta_ < dz) {
-//        cout << "ambiguous" << "proj*th: " << 2*proj*th_theta_ << " dz: " << dz << endl;
-//        //return false;
-//      }
-//      return true;
-//    }
-//    else
-//      return false;
-//  }
-//  else
-//    return false;
+  //  if (utl_->pcaAnalysis(pointMaxZ, pointMinZ, cloud_in, proj, grad)) {
+  //    if (grad < atan(th_theta_)) {
+  //      if (2 * proj * th_theta_ < dz) {
+  //        cout << "ambiguous" << "proj*th: " << 2*proj*th_theta_ << " dz: " << dz << endl;
+  //        //return false;
+  //      }
+  //      return true;
+  //    }
+  //    else
+  //      return false;
+  //  }
+  //  else
+  //    return false;
 }
 
 void PlaneSegment::setID()
@@ -718,4 +804,5 @@ void PlaneSegment::computeNormalAndFilter()
   if (idx_norm_fit_->indices.empty()) return;
 
   utl_->getCloudByInliers(src_sp_mono_, cloud_norm_fit_mono_, idx_norm_fit_, false, false);
+  utl_->getCloudByInliers(src_normals_, cloud_norm_fit_, idx_norm_fit_, false, false);
 }

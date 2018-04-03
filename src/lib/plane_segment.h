@@ -187,6 +187,7 @@ private:
   // Normal filtered cloud index and corresponding cloud
   pcl::PointIndices::Ptr idx_norm_fit_;
   PointCloudMono::Ptr cloud_norm_fit_mono_;
+  NormalCloud::Ptr cloud_norm_fit_;
   // Clustered points
   vector<float> plane_z_values_;
   vector<PointCloudRGBN::Ptr> cloud_fit_parts_;
@@ -212,7 +213,7 @@ private:
   void extractPlaneForEachZ(PointCloudMono::Ptr cloud_norm_fit);
   void zClustering(PointCloudMono::Ptr cloud_norm_fit_mono);
   void getPlane(size_t id, float z_in, PointCloudMono::Ptr &cloud_norm_fit_mono);
-  bool errorAnalyse(float z, PointCloudMono::Ptr cloud_in, PointCloud::Ptr &cloud_out, bool fix_z);
+  bool errorAnalysis(float z, PointCloudMono::Ptr cloud_in, PointCloud::Ptr &cloud_out, bool fix_z);
   int checkSimiliar(vector<float> coeff);
   void setID();
 
@@ -233,6 +234,7 @@ private:
   void visualizeProcess(PointCloud::Ptr cloud);
   void setFeatures(float z_in, PointCloudMono::Ptr cluster);
   void computeHull(PointCloud::Ptr cluster_2d_rgb);
+  bool gaussianImageAnalysis(size_t id);
 };
 
 #endif // PLANE_SEGMENT_H

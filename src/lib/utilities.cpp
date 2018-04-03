@@ -151,6 +151,35 @@ void Utilities::msgToCloud(const PointCloud::ConstPtr msg,
   }
 }
 
+bool Utilities::normalAnalysis(NormalCloud::Ptr cloud, float th_mean)
+{
+  size_t sz = cloud->points.size();
+  if (sz <= 2) return false;
+
+  Eigen::Matrix3Xf data(3, sz);
+  for (size_t i = 0; i < sz; ++i) {
+    data(0, i) = cloud->points[i].normal_x;
+    data(1, i) = cloud->points[i].normal_y;
+    data(2, i) = cloud->points[i].normal_z;
+  }
+
+  Eigen::Vector3f mean = data.rowwise().mean();
+  Eigen::Vector3f std(3, 1);
+  std = (data.colwise() - mean).array().pow(2).rowwise().mean().abs().sqrt();
+
+  // Check mean
+  Eigen::Vector2f norm_proj;
+  norm_proj(0) = mean(0);
+  norm_proj(1) = mean(1);
+
+  float grad = asin(norm_proj.norm() / mean.norm());
+  if (grad > atan(sqrt(2) * th_mean)) //std(0) > 0.2 || std(1) > 0.2 ||
+    return false;
+  else {
+    return true;
+  }
+}
+
 bool Utilities::pcaAnalysis(pcl::PointXYZ pointMaxZ, pcl::PointXYZ pointMinZ,
                             const PointCloudMono::ConstPtr cloud_3d_in, float &proj, float &grad)
 {

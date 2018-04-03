@@ -250,6 +250,7 @@ public:
                     int width = 640, int height = 480);
   
   bool calRANSAC(const PointCloudMono::ConstPtr cloud_3d_in, float dt, float &grad);
+  bool normalAnalysis(NormalCloud::Ptr cloud, float th_mean);
 private:
   float determinant(float v1, float v2, float v3, float v4);
   
