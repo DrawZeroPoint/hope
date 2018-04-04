@@ -78,7 +78,8 @@ class Utilities
 {
 public:
   Utilities();
-  
+
+  bool calRANSAC(const PointCloudMono::ConstPtr cloud_3d_in, float dt, float &grad);
   void calRegionGrowing(PointCloudRGBN::Ptr cloud_in, int minsz, int maxsz, int nb, int smooth,
                         pcl::PointCloud<pcl::Normal>::Ptr normals, vector<pcl::PointIndices> &inliers);
   
@@ -173,6 +174,8 @@ public:
                        PointCloud::Ptr &cloud_out);
 
   void getPointByZ(float z, PointCloudMono::Ptr cloud_in, pcl::PointXYZ &pt);
+
+  void heatmapRGB(float gray, uint8_t &r, uint8_t &g, uint8_t &b);
   
   /**
    * @brief isInHull
@@ -195,7 +198,9 @@ public:
   
   void msgToCloud(const PointCloud::ConstPtr msg,
                   PointCloudMono::Ptr cloud);
-  
+
+  bool normalAnalysis(NormalCloud::Ptr cloud, float th_angle);
+
   bool pcaAnalysis(pcl::PointXYZ pointMaxZ, pcl::PointXYZ pointMinZ,
                   const PointCloudMono::ConstPtr cloud_3d_in, float &proj, float &grad);
   
@@ -248,21 +253,25 @@ public:
    */
   bool tryExpandROI(int &minx, int &miny, int &maxx, int &maxy, int pad,
                     int width = 640, int height = 480);
-  
-  bool calRANSAC(const PointCloudMono::ConstPtr cloud_3d_in, float dt, float &grad);
-  bool normalAnalysis(NormalCloud::Ptr cloud, float th_mean);
+
 private:
+  void calNormalMean(Eigen::Matrix3Xf data, vector<int> part,
+                     Eigen::Vector3f &mean_part1, Eigen::Vector3f &mean_part2);
+
   float determinant(float v1, float v2, float v3, float v4);
-  
+
+  void getFurthestPointsAlongAxis(Eigen::Vector2f axis, Eigen::MatrixXf data,
+                                  vector<int> &inlist, int &id_max, int &id_min);
+
   bool isIntersect(pcl::PointXY p1, pcl::PointXY p2, pcl::PointXY p3, pcl::PointXY p4);
 
+  bool isInVector(int id, vector<vector<int> > vec, int &pos);
+
   void matFill(vector<vector<float> > features, Mat &out);
+
   void matNormalize(Mat query_in, Mat train_in, Mat &query_out, Mat &train_out);
 
   void searchAvailableID(vector<int> id_used, vector<int> &id_ava, size_t limit);
-  bool isInVector(int id, vector<vector<int> > vec, int &pos);
-  void getFurthestPointsAlongAxis(Eigen::Vector2f axis, Eigen::MatrixXf data,
-                                  vector<int> &inlist, int &id_max, int &id_min);
 };
 
 #endif // UTILITIES_H

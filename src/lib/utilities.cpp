@@ -151,7 +151,7 @@ void Utilities::msgToCloud(const PointCloud::ConstPtr msg,
   }
 }
 
-bool Utilities::normalAnalysis(NormalCloud::Ptr cloud, float th_mean)
+bool Utilities::normalAnalysis(NormalCloud::Ptr cloud, float th_angle)
 {
   size_t sz = cloud->points.size();
   if (sz <= 2) return false;
@@ -160,12 +160,11 @@ bool Utilities::normalAnalysis(NormalCloud::Ptr cloud, float th_mean)
   for (size_t i = 0; i < sz; ++i) {
     data(0, i) = cloud->points[i].normal_x;
     data(1, i) = cloud->points[i].normal_y;
-    data(2, i) = cloud->points[i].normal_z;
+    // Notice that the normal direction can be both positive and negative
+    data(2, i) = fabs(cloud->points[i].normal_z);
   }
 
   Eigen::Vector3f mean = data.rowwise().mean();
-  Eigen::Vector3f std(3, 1);
-  std = (data.colwise() - mean).array().pow(2).rowwise().mean().abs().sqrt();
 
   // Check mean
   Eigen::Vector2f norm_proj;
@@ -173,120 +172,112 @@ bool Utilities::normalAnalysis(NormalCloud::Ptr cloud, float th_mean)
   norm_proj(1) = mean(1);
 
   float grad = asin(norm_proj.norm() / mean.norm());
-  if (grad > atan(sqrt(2) * th_mean)) //std(0) > 0.2 || std(1) > 0.2 ||
-    return false;
-  else {
-    return true;
-  }
-}
 
-bool Utilities::pcaAnalysis(pcl::PointXYZ pointMaxZ, pcl::PointXYZ pointMinZ,
-                            const PointCloudMono::ConstPtr cloud_3d_in, float &proj, float &grad)
-{
-  size_t sz = cloud_3d_in->points.size();
-  if (sz <= 2) return false;
-
-  Eigen::Vector2f maxDeltaZVector;
-  maxDeltaZVector(0) = pointMaxZ.x - pointMinZ.x;
-  maxDeltaZVector(1) = pointMaxZ.y - pointMinZ.y;
-  
-  Eigen::Matrix2Xf data(2, sz);
+  /// Divide the data points into 2 distinct parts using PCA
+  Eigen::Matrix2Xf data_2d(2, sz);
   for (size_t i = 0; i < sz; ++i) {
-    data(0, i) = cloud_3d_in->points[i].x;
-    data(1, i) = cloud_3d_in->points[i].y;
+    data_2d(0, i) = cloud->points[i].normal_x;
+    data_2d(1, i) = cloud->points[i].normal_y;
   }
-  
-  Eigen::Vector2f mean = data.rowwise().mean();
-  
+
+  Eigen::Vector2f mean_2d = data_2d.rowwise().mean();
+
   Eigen::MatrixXf tmp(2, sz);
-  for (int r = 0; r < 2; ++r) {
-    for (int c = 0; c < sz; ++c) {
-      tmp(r, c) = data(r, c) - mean(r);
-    }
-  }
-  
+  tmp = data_2d.colwise() - mean_2d;
+
   Eigen::MatrixXf C = (tmp * tmp.transpose()) / (sz - 1);
-  
+
   Eigen::EigenSolver<Eigen::MatrixXf> es(C);
   // The result is complex number
   complex<float> lambda0 = es.eigenvalues()[0];
   complex<float> lambda1 = es.eigenvalues()[1];
   Eigen::MatrixXcf V = es.eigenvectors();
-  
+
   // The first and second principal axes
   complex<float> val_x_1;
   complex<float> val_y_1;
-  complex<float> val_x_2;
-  complex<float> val_y_2;
+
   if (lambda0.real() > lambda1.real()) {
     val_x_1 = V.col(0)[0];
     val_y_1 = V.col(0)[1];
-    val_x_2 = V.col(1)[0];
-    val_y_2 = V.col(1)[1];
   }
   else {
     val_x_1 = V.col(1)[0];
     val_y_1 = V.col(1)[1];
-    val_x_2 = V.col(0)[0];
-    val_y_2 = V.col(0)[1];
   }
-  
+
   Eigen::Vector2f axis0;
   axis0(0) = val_x_1.real();
   axis0(1) = val_y_1.real();
-  Eigen::Vector2f axis1;
-  axis1(0) = val_x_2.real();
-  axis1(1) = val_y_2.real();
 
-  // Roughly calculate the normal of the plane
-  int idmax0 = -1;
-  int idmin0 = -1;
-  int idmax1 = -1;
-  int idmin1 = -1;
-  vector<int> inlist;
-  getFurthestPointsAlongAxis(axis0, tmp, inlist, idmax0, idmin0);
-  getFurthestPointsAlongAxis(axis1, tmp, inlist, idmax1, idmin1);
-  // Find corresponding points in 3D cloud
-  Eigen::Vector3f normal;
-  Eigen::Vector3f p_max0, p_min0, p_max1, p_min1;
-  p_max0(0) = cloud_3d_in->points[idmax0].x;
-  p_max0(1) = cloud_3d_in->points[idmax0].y;
-  p_max0(2) = cloud_3d_in->points[idmax0].z;
-  p_min0(0) = cloud_3d_in->points[idmin0].x;
-  p_min0(1) = cloud_3d_in->points[idmin0].y;
-  p_min0(2) = cloud_3d_in->points[idmin0].z;
-  if (idmax1 == idmin1) {
-    p_max1(0) = cloud_3d_in->points[idmax1].x;
-    p_max1(1) = cloud_3d_in->points[idmax1].y;
-    p_max1(2) = cloud_3d_in->points[idmax1].z;
-    normal = (p_max0 - p_min0).cross(p_max0 - p_max1);
+  vector<int> part1;
+  for (size_t i = 0; i < sz; ++i) {
+    Eigen::Vector2f p;
+    p(0) = tmp(0, i);
+    p(1) = tmp(1, i);
+    if (axis0.transpose() * p > 0) {
+      part1.push_back(i);
+    }
   }
+
+  Eigen::Vector3f mean_part1;
+  Eigen::Vector3f mean_part2;
+  calNormalMean(data, part1, mean_part1, mean_part2);
+  float mu = mean_part2.transpose() * mean_part1;
+  float rad_mu = acos(mu / (mean_part1.norm() * mean_part2.norm()));
+
+  /// Using standard deviation value or 68-95-97 rule to judge whether the distribution
+  /// is a gaussian distribution is less accurate and relies on extra threshold
+  //  Eigen::Vector3f std(3, 1);
+  //  std = ((data.colwise() - mean).array().pow(2).rowwise().sum() / (sz-1)).abs().sqrt();
+  //  int pn = 0.7 * sz;
+  //  int num_in_one_theta_x = 0;
+  //  for (size_t i = 0; i < sz; ++i) {
+  //    if (fabs(data(0, i) - mean(0)) <= std(0)) {
+  //      num_in_one_theta_x++;
+  //    }
+  //  }
+
+  //  int num_in_one_theta_y = 0;
+  //  for (size_t i = 0; i < sz; ++i) {
+  //    if (fabs(data(1, i) - mean(1)) <= std(1)) {
+  //      num_in_one_theta_y++;
+  //    }
+  //  }
+  //|| std(0) > 0.15 || std(1) > 0.15 || (num_in_one_theta_x >= pn || num_in_one_theta_y >= pn)
+  /// Only for reference, DO NOT unlock code above
+
+  if (grad <= th_angle && rad_mu <= th_angle)
+    return true;
   else {
-    p_max1(0) = cloud_3d_in->points[idmax1].x;
-    p_max1(1) = cloud_3d_in->points[idmax1].y;
-    p_max1(2) = cloud_3d_in->points[idmax1].z;
-    p_min1(0) = cloud_3d_in->points[idmin1].x;
-    p_min1(1) = cloud_3d_in->points[idmin1].y;
-    p_min1(2) = cloud_3d_in->points[idmin1].z;
-    normal = (p_max0 - p_min0).cross(p_max1 - p_min1);
+    return false;
   }
-  // Find out the normal projection on A0 and A1
-  Eigen::Vector2f norm_proj;
-  norm_proj(0) = normal(0);
-  norm_proj(1) = normal(1);
+}
 
-  grad = asin(norm_proj.norm() / normal.norm());
-
-  float proj_long = fabs(axis0.transpose() * norm_proj);
-  float proj_short = fabs(axis1.transpose() * norm_proj);
-  if (proj_long > proj_short) {
-    proj = fabs(axis0.transpose() * maxDeltaZVector);
+void Utilities::calNormalMean(Eigen::Matrix3Xf data, vector<int> part,
+                              Eigen::Vector3f &mean_part1, Eigen::Vector3f &mean_part2)
+{
+  Eigen::Matrix3Xf data1(3, part.size());
+  Eigen::Matrix3Xf data2(3, data.cols() - part.size());
+  int j = 0;
+  int k = 0;
+  for (size_t i = 0; i < data.cols(); ++i) {
+    int pos;
+    if (isInVector(i, part, pos)) {
+      data1(0, j) = data(0, i);
+      data1(1, j) = data(1, i);
+      data1(2, j) = data(2, i);
+      j++;
+    }
+    else {
+      data2(0, k) = data(0, i);
+      data2(1, k) = data(1, i);
+      data2(2, k) = data(2, i);
+      k++;
+    }
   }
-  else {
-    proj = fabs(axis1.transpose() * maxDeltaZVector);
-  }
-
-  return true;
+  mean_part1 = data1.rowwise().mean();
+  mean_part2 = data2.rowwise().mean();
 }
 
 bool Utilities::calRANSAC(const PointCloudMono::ConstPtr cloud_3d_in, float dt, float &grad)
@@ -668,6 +659,7 @@ void Utilities::getCloudByNorm(NormalCloud::Ptr cloud_in,
     // If point normal fulfill this criterion, consider it from plane
     // Here we use absolute value cause the normal direction may be opposite to
     // the z-axis due to the algorithm's settings
+    /// The normal is an unit vector
     if (fabs(n_z) > th_norm)
       inliers->indices.push_back(i);
     ++i;
@@ -1397,4 +1389,39 @@ float Utilities::pointToSegDist(float x, float y, float x1, float y1, float x2, 
   float px = x1 + (x2 - x1) * r;
   float py = y1 + (y2 - y1) * r;
   return sqrt((x - px) * (x - px) + (py - y) * (py - y));
+}
+
+void Utilities::heatmapRGB(float gray, uint8_t &r, uint8_t &g, uint8_t &b)
+{
+  /// From: https://github.com/junhaoxiao/TAMS-Planar-Surface-Based-Perception/
+  /// blob/master/fftw_correlate/src/fftw_correlate.cpp
+  if (gray >= 0.0 && gray <= 0.125) {
+    r = 0;
+    g = 0;
+    b = 127 + floor (gray * 128 / 0.125);
+  }
+  else if (gray > 0.125 && gray <= 0.375)
+  {
+    r = 0;
+    g = floor ((gray - 0.125) * 255 / 0.25);
+    b = 255;
+  }
+  else if (gray > 0.375 && gray <= 0.625)
+  {
+    r = floor ((gray - 0.375) * 255 / 0.25);
+    g = 255;
+    b = 255 - floor ((gray - 0.375) * 255 / 0.25);
+  }
+  else if (gray > 0.625 && gray <= 0.875)
+  {
+    r = 255;
+    g = 255 - floor ((gray - 0.625) * 255 / 0.25);
+    b = 0;
+  }
+  else if (gray > 0.875 && gray <= 1.0)
+  {
+    r = 255 - floor ((gray - 0.875) * 128 / 0.125);
+    g = 0;
+    b = 0;
+  }
 }

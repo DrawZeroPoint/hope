@@ -8,6 +8,7 @@ float th_z_rsl_ = 0.002; // Resolution in Z direction
 
 /// Calculated parameters
 float th_theta_;
+float th_angle_;
 float th_norm_;
 
 // Depth threshold for filtering source cloud, only used for real data
@@ -15,7 +16,8 @@ float th_min_depth_ = 0.3;
 float th_max_depth_ = 8.0;
 
 bool cal_hull_ = false;
-bool vis_cluster_ = false;
+bool show_cluster_ = false;
+bool show_egi_ = false;
 
 HighResTimer hst_1_("pca");
 HighResTimer hst_2_("ransac");
@@ -42,6 +44,7 @@ PlaneSegment::PlaneSegment(string base_frame, float th_xy, float th_z) :
   th_grid_rsl_ = th_xy;
   th_z_rsl_ = th_z;
   th_theta_ = th_z_rsl_ / th_grid_rsl_;
+  th_angle_ = atan(th_theta_);
   th_norm_ = sqrt(1 / (1 + 2 * pow(th_theta_, 2)));
   
   // For store max hull id and area
@@ -302,7 +305,7 @@ void PlaneSegment::getMeanZofEachCluster(PointCloudMono::Ptr cloud_norm_fit_mono
       idx_seed->indices = it->indices;
       utl_->getCloudByInliers(cloud_norm_fit_mono, cloud_fit_part, idx_seed, false, false);
       
-      if (vis_cluster_) {
+      if (show_cluster_) {
         string name = utl_->getName(k, "part_", -1);
         Vec3f c = utl_->getColorWithID(k);
 
@@ -367,11 +370,10 @@ void PlaneSegment::getPlane(size_t id, float z_in, PointCloudMono::Ptr &cloud_no
   
   // If the points do not pass the error test, return
   PointCloud::Ptr cluster_2d_rgb(new PointCloud);
-  //if (!errorAnalysis(z_in, cluster_near_z, cluster_2d_rgb, true)) return;
   if (!gaussianImageAnalysis(id)) return;
   
-  // If the cluster of points pass the error check,
-  // push it and corresponding projected points into result vectors
+  // If the cluster of points pass the check,
+  // push it and corresponding projected points into resulting vectors
   plane_results_.push_back(cluster_2d_rgb);
   plane_points_.push_back(cluster_near_z);
   
@@ -432,156 +434,68 @@ bool PlaneSegment::gaussianImageAnalysis(size_t id)
   NormalCloud::Ptr cluster_normal(new NormalCloud);
   utl_->getCloudByInliers(cloud_norm_fit_, cluster_normal, idx_seed, false, false);
 
-  if (utl_->normalAnalysis(cluster_normal, th_theta_)) return true;
-  else return false;
+  /// Construct a Pointcloud to store normal points
+  if (show_egi_) {
+    PointCloudMono::Ptr cloud(new PointCloudMono);
+    cloud->width = cluster_normal->width;
+    cloud->height = cluster_normal->height;
+    cloud->resize(cluster_normal->width * cluster_normal->height);
 
-  // Construct a Pointcloud to store normal points
-  //  PointCloudMono::Ptr cloud(new PointCloudMono);
-  //  cloud->width = cluster_normal->width;
-  //  cloud->height = cluster_normal->height;
-  //  cloud->resize(cluster_normal->width * cluster_normal->height);
+    size_t k = 0;
+    for (PointCloudMono::const_iterator pit = cloud->begin();
+         pit != cloud->end(); ++pit) {
+      cloud->points[k].x = cluster_normal->points[k].normal_x;
+      cloud->points[k].y = cluster_normal->points[k].normal_y;
+      cloud->points[k].z = cluster_normal->points[k].normal_z;
+      k++;
+    }
+    pcl::visualization::PCLVisualizer viewer ("EGI and normals distribution");
+    viewer.setBackgroundColor(0.8, 0.83, 0.86);
+    viewer.addPointCloud(cloud, "normals");
 
-  //  size_t k = 0;
-  //  for (PointCloudMono::const_iterator pit = cloud->begin();
-  //       pit != cloud->end(); ++pit) {
-  //    cloud->points[k].x = cluster_normal->normal_x;
-  //    cloud->points[k].y = cluster_normal->normal_y;
-  //    cloud->points[k].z = cluster_normal->normal_z;
-  //    k++;
-  //  }
+    /// Use wire frame sphere
+    //pcl::PointXYZ p;
+    //p.x = 0; p.y = 0; p.z = 0;
+    //viewer.addSphere(p, 1.0, 0, 0.6, 0.8, "EGI");
+    //viewer.setRepresentationToWireframeForAllActors();
 
-  // Visualizing
-  //  float max = 0.0;
-  //  for (size_t i = 0; i < 4 * bandwidth * bandwidth; i++)
-  //  {
-  //    if (egi[i] > max)
-  //    {
-  //      max = egi[i];
-  //    }
-  //  }
-  //  float *gray = new float[4 * bandwidth * bandwidth];
-  //  for (size_t i = 0; i < 4 * bandwidth * bandwidth; i++)
-  //  {
-  //    gray[i] = egi[i] / max;
-  //  }
-  //  pcl::PointCloud<pcl::PointXYZRGB>::Ptr sphere (new pcl::PointCloud<pcl::PointXYZRGB>);
-  //  sphere->resize (4 * bandwidth * bandwidth);
-  //  uint8_t r = 0, g = 0, b = 0;
-  //  uint32_t rgb = 0;
-  //  float tmp_theta = 0.0;
-  //  float tmp_phi = 0.0;
-  //  for (size_t i = 0; i < 2 * bandwidth; i++)
-  //  {
-  //    tmp_theta = (2 * i + 1) * M_PI / 4 / bandwidth;
-  //    for (size_t j = 0; j < 2 * bandwidth; j++)
-  //    {
-  //      tmp_phi = M_PI * j / bandwidth;
-  //      sphere->points[i * 2 * bandwidth + j].x = cos (tmp_phi) * sin (tmp_theta);
-  //      sphere->points[i * 2 * bandwidth + j].y = sin (tmp_phi) * sin (tmp_theta);
-  //      sphere->points[i * 2 * bandwidth + j].z = cos (tmp_theta);
-  //      heatmapRGB (gray[i * 2 * bandwidth + j], r, g, b);
-  //      rgb = ((uint32_t)r << 16 | (uint32_t)g << 8 | (uint32_t)b);
-  //      sphere->points[i * 2 * bandwidth + j].rgb = *reinterpret_cast<float*> (&rgb);
-  //    }
-  //  }
-  //  pcl::PointCloud<pcl::PointXYZ>::Ptr normals (new pcl::PointCloud<pcl::PointXYZ>);
-  //  normals->resize (cloud_normals->size ());
-  //  for (size_t i = 0; i < cloud_normals->size (); i++)
-  //  {
-  //    normals->points[i].x = -cloud_normals->points[i].normal_x;
-  //    normals->points[i].y = -cloud_normals->points[i].normal_y;
-  //    normals->points[i].z = -cloud_normals->points[i].normal_z;
-  //  }
+    /// Use point cloud sphere
+    int bandwidth = 128;
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr sphere (new pcl::PointCloud<pcl::PointXYZRGB>);
+    sphere->resize (4 * bandwidth * bandwidth);
+    uint8_t r = 0, g = 0, b = 0;
+    uint32_t rgb = 0;
+    float tmp_theta = 0.0;
+    float tmp_phi = 0.0;
+    for (size_t i = 0; i < 2 * bandwidth; i++)
+    {
+      tmp_theta = (2 * i + 1) * M_PI / 4 / bandwidth;
+      for (size_t j = 0; j < 2 * bandwidth; j++)
+      {
+        tmp_phi = M_PI * j / bandwidth;
+        sphere->points[i * 2 * bandwidth + j].x = cos (tmp_phi) * sin (tmp_theta);
+        sphere->points[i * 2 * bandwidth + j].y = sin (tmp_phi) * sin (tmp_theta);
+        sphere->points[i * 2 * bandwidth + j].z = cos (tmp_theta);
+        utl_->heatmapRGB(float(i)/bandwidth/4, r, g, b);
+        rgb = ((uint32_t)r << 16 | (uint32_t)g << 8 | (uint32_t)b);
+        sphere->points[i * 2 * bandwidth + j].rgb = *reinterpret_cast<float*> (&rgb);
+      }
+    }
+    pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> sp_rgb(sphere);
+    viewer.addPointCloud<pcl::PointXYZRGB>(sphere, sp_rgb, "egi");
+    viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1.0, "egi");
 
-  //  delete [] gray;
+    // Show normal distribution on the sphere
+    viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2.0, "normals");
+    viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1, 0.4, 0, "normals");
 
-  //  int viewports[2] = {1, 2};
-  //  pcl::visualization::PCLVisualizer viewer ("EGI and normals distribution");
-  //  viewer.createViewPort (0.0, 0.0, 0.5, 1.0, viewports[0]);
-  //  viewer.createViewPort (0.5, 0.0, 1.0, 1.0, viewports[1]);
-  //  viewer.setBackgroundColor (0.0, 0.0, 0.0);
-  //  viewer.addPointCloud (normals, "normals", viewports[0]);
-  //  viewer.addPointCloud (sphere, "EGI", viewports[1]);
-  //  viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "normals");
-  //  viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "EGI");
-  //  viewer.spin ();
-  //}
-}
-
-bool PlaneSegment::errorAnalysis(float z, PointCloudMono::Ptr cloud_in,
-                                 PointCloud::Ptr &cloud_flat, bool fix_z)
-{
-  if (cloud_in->points.size() < 3)
-    return false;
-
-  pcl::PointXYZ minPt, maxPt;
-  pcl::getMinMax3D(*cloud_in, minPt, maxPt);
-  float dz = maxPt.z - minPt.z;
-
-  pcl::PointXYZ pointMaxZ, pointMinZ;
-  utl_->getPointByZ(maxPt.z, cloud_in, pointMaxZ);
-  utl_->getPointByZ(minPt.z, cloud_in, pointMinZ);
-  
-  // Generate the cloud that represents error along z-axis with color
-  cloud_flat->width = cloud_in->width;
-  cloud_flat->height = cloud_in->height;
-  cloud_flat->resize(cloud_flat->width *cloud_flat->height);
-  
-  size_t k = 0;
-  for (PointCloudMono::const_iterator pit = cloud_in->begin();
-       pit != cloud_in->end(); ++pit) {
-    float dis_z = pit->z - z;
-    //avr_dz += fabs(dis_z);
-    // The color represents the distance from the point in cloud_in to z
-    float rgb = utl_->shortRainbowColorMap(dis_z, minPt.z - z, maxPt.z - z);
-    
-    cloud_flat->points[k].x = pit->x;
-    cloud_flat->points[k].y = pit->y;
-    if (fix_z)
-      cloud_flat->points[k].z = z;
-    else
-      cloud_flat->points[k].z = pit->z;
-    cloud_flat->points[k].rgb = rgb;
-    k++;
+    while (!viewer.wasStopped()) {
+      viewer.spinOnce(1); // ms
+    }
   }
-  
-  float proj = 0;
-  float grad = 0;
-  float grad_ransac = 0;
 
-  //hst_2_.reset();
-  //hst_2_.start();
-  utl_->calRANSAC(cloud_in, 1.01*th_grid_rsl_, grad_ransac);
-  if (grad_ransac < atan(th_theta_))
-    return true;
-  else
-    return false;
-  //hst_2_.stop();
-  //hst_2_.print();
-
-  //  hst_1_.reset();
-  //  hst_1_.start();
-  //  utl_->pcaAnalysis(pointMaxZ, pointMinZ, cloud_in, proj, grad);
-  //  hst_1_.stop();
-  //  hst_1_.print();
-
-  //  cout << cloud_in->points.size() << endl;
-
-  //  return true;
-
-  //  if (utl_->pcaAnalysis(pointMaxZ, pointMinZ, cloud_in, proj, grad)) {
-  //    if (grad < atan(th_theta_)) {
-  //      if (2 * proj * th_theta_ < dz) {
-  //        cout << "ambiguous" << "proj*th: " << 2*proj*th_theta_ << " dz: " << dz << endl;
-  //        //return false;
-  //      }
-  //      return true;
-  //    }
-  //    else
-  //      return false;
-  //  }
-  //  else
-  //    return false;
+  if (utl_->normalAnalysis(cluster_normal, th_angle_)) return true;
+  else return false;
 }
 
 void PlaneSegment::setID()
@@ -639,9 +553,10 @@ void PlaneSegment::visualizeResult(bool display_source, bool display_raw,
     // Add source colored cloud for reference
     name = utl_->getName(0, "source_", -1);
 
-    //    viewer->addPointCloud<pcl::PointXYZRGB>(src_sp_rgb_, name);
-    //    viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2.0, name);
-    //    viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0, 0, 0, name);
+    //viewer->addPointCloud<pcl::PointXYZRGB>(src_sp_rgb_, name);
+    //viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2.0, name);
+    //viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0, 0, 0, name);
+    //viewer->addPointCloudNormals<pcl::PointXYZRGB, pcl::Normal> (src_sp_rgb_, src_normals_, 1, 0.05, "normals");
 
     pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> src_rgb(src_rgb_cloud_);
     if (!viewer->updatePointCloud(src_rgb_cloud_, src_rgb, name)){
