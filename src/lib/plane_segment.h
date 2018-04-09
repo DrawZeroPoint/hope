@@ -214,7 +214,7 @@ private:
   void zClustering(PointCloudMono::Ptr cloud_norm_fit_mono);
   void getPlane(size_t id, float z_in, PointCloudMono::Ptr &cloud_norm_fit_mono);
   bool gaussianImageAnalysis(size_t id);
-  int checkSimiliar(vector<float> coeff);
+  int  checkSimiliar(vector<float> coeff);
   void setID();
 
   /**

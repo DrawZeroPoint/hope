@@ -188,8 +188,8 @@ int main(int argc, char **argv)
   
 //  float xy_resolution = 0.02; // In meter
 //  float z_resolution = 0.004; // In meter
-  float xy_resolution = 0.04; // In meter
-  float z_resolution = 0.01; // In meter
+  float xy_resolution = 0.05; // In meter
+  float z_resolution = 0.02; // In meter
   cout << "Using threshold: xy@" << xy_resolution << " " << "z@" << z_resolution << endl;
 
   PlaneSegment hope(base_frame_, xy_resolution, z_resolution);

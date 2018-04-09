@@ -189,6 +189,7 @@ public:
                 pcl::PointXY &offset, pcl::PointXY &p_closest);
   
   bool isInVector(int id, vector<int> vec, int &pos);
+  bool isInVector(int id, vector<int> &vec);
 
   void matchID(vector<vector<float> > global, vector<vector<float> > local, vector<int> in,
                vector<int> &out, int feature_dim);
@@ -255,7 +256,7 @@ public:
                     int width = 640, int height = 480);
 
 private:
-  void calNormalMean(Eigen::Matrix3Xf data, vector<int> part,
+  bool calNormalMean(Eigen::Matrix3Xf data, vector<int> part1, vector<int> part2,
                      Eigen::Vector3f &mean_part1, Eigen::Vector3f &mean_part2);
 
   float determinant(float v1, float v2, float v3, float v4);

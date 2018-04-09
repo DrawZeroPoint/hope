@@ -172,6 +172,8 @@ bool Utilities::normalAnalysis(NormalCloud::Ptr cloud, float th_angle)
   norm_proj(1) = mean(1);
 
   float grad = asin(norm_proj.norm() / mean.norm());
+  if (grad > th_angle)
+    return false;
 
   /// Divide the data points into 2 distinct parts using PCA
   Eigen::Matrix2Xf data_2d(2, sz);
@@ -211,6 +213,7 @@ bool Utilities::normalAnalysis(NormalCloud::Ptr cloud, float th_angle)
   axis0(1) = val_y_1.real();
 
   vector<int> part1;
+  vector<int> part2;
   for (size_t i = 0; i < sz; ++i) {
     Eigen::Vector2f p;
     p(0) = tmp(0, i);
@@ -218,16 +221,20 @@ bool Utilities::normalAnalysis(NormalCloud::Ptr cloud, float th_angle)
     if (axis0.transpose() * p > 0) {
       part1.push_back(i);
     }
+    else {
+      part2.push_back(i);
+    }
   }
 
   Eigen::Vector3f mean_part1;
   Eigen::Vector3f mean_part2;
-  calNormalMean(data, part1, mean_part1, mean_part2);
+  if (!calNormalMean(data, part1, part2, mean_part1, mean_part2))
+    return false;
   float mu = mean_part2.transpose() * mean_part1;
   float rad_mu = acos(mu / (mean_part1.norm() * mean_part2.norm()));
 
   /// Using standard deviation value or 68-95-97 rule to judge whether the distribution
-  /// is a gaussian distribution is less accurate and relies on extra threshold
+  /// is a gaussian distribution is less accurate and relies on extra thresholds
   //  Eigen::Vector3f std(3, 1);
   //  std = ((data.colwise() - mean).array().pow(2).rowwise().sum() / (sz-1)).abs().sqrt();
   //  int pn = 0.7 * sz;
@@ -245,39 +252,40 @@ bool Utilities::normalAnalysis(NormalCloud::Ptr cloud, float th_angle)
   //    }
   //  }
   //|| std(0) > 0.15 || std(1) > 0.15 || (num_in_one_theta_x >= pn || num_in_one_theta_y >= pn)
-  /// Only for reference, DO NOT unlock code above
+  /// Only for reference, DO NOT unlock the code above
 
-  if (grad <= th_angle && rad_mu <= th_angle)
+  if (rad_mu <= th_angle)
     return true;
   else {
     return false;
   }
 }
 
-void Utilities::calNormalMean(Eigen::Matrix3Xf data, vector<int> part,
+bool Utilities::calNormalMean(Eigen::Matrix3Xf data, vector<int> part1, vector<int> part2,
                               Eigen::Vector3f &mean_part1, Eigen::Vector3f &mean_part2)
 {
-  Eigen::Matrix3Xf data1(3, part.size());
-  Eigen::Matrix3Xf data2(3, data.cols() - part.size());
+  if (part1.size() == 0 || part2.size() == 0)
+    return false;
+  Eigen::Matrix3Xf data1(3, part1.size());
+  Eigen::Matrix3Xf data2(3, part2.size());
+
   int j = 0;
   int k = 0;
-  for (size_t i = 0; i < data.cols(); ++i) {
-    int pos;
-    if (isInVector(i, part, pos)) {
-      data1(0, j) = data(0, i);
-      data1(1, j) = data(1, i);
-      data1(2, j) = data(2, i);
-      j++;
-    }
-    else {
-      data2(0, k) = data(0, i);
-      data2(1, k) = data(1, i);
-      data2(2, k) = data(2, i);
-      k++;
-    }
+  for (size_t i = 0; i < part1.size(); ++i) {
+    data1(0, j) = data(0, part1[i]);
+    data1(1, j) = data(1, part1[i]);
+    data1(2, j) = data(2, part1[i]);
+    j++;
+  }
+  for (size_t i = 0; i < part2.size(); ++i) {
+    data2(0, k) = data(0, part2[i]);
+    data2(1, k) = data(1, part2[i]);
+    data2(2, k) = data(2, part2[i]);
+    k++;
   }
   mean_part1 = data1.rowwise().mean();
   mean_part2 = data2.rowwise().mean();
+  return true;
 }
 
 bool Utilities::calRANSAC(const PointCloudMono::ConstPtr cloud_3d_in, float dt, float &grad)
@@ -1154,6 +1162,18 @@ bool Utilities::isInVector(int id, vector<int> vec, int &pos)
   for (size_t i = 0; i < vec.size(); ++i) {
     if (id == vec[i]) {
       pos = i;
+      return true;
+    }
+  }
+  return false;
+}
+
+bool Utilities::isInVector(int id, vector<int> &vec)
+{
+  for (vector<int>::iterator it = vec.begin();
+       it != vec.end(); ++it) {
+    if (*it == id) {
+      vec.erase(it);
       return true;
     }
   }

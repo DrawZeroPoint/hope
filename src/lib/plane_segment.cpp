@@ -446,12 +446,13 @@ bool PlaneSegment::gaussianImageAnalysis(size_t id)
          pit != cloud->end(); ++pit) {
       cloud->points[k].x = cluster_normal->points[k].normal_x;
       cloud->points[k].y = cluster_normal->points[k].normal_y;
-      cloud->points[k].z = cluster_normal->points[k].normal_z;
+      cloud->points[k].z = fabs(cluster_normal->points[k].normal_z);
       k++;
     }
     pcl::visualization::PCLVisualizer viewer ("EGI and normals distribution");
     viewer.setBackgroundColor(0.8, 0.83, 0.86);
     viewer.addPointCloud(cloud, "normals");
+    viewer.addCoordinateSystem(0.5);
 
     /// Use wire frame sphere
     //pcl::PointXYZ p;
@@ -558,9 +559,9 @@ void PlaneSegment::visualizeResult(bool display_source, bool display_raw,
     //viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0, 0, 0, name);
     //viewer->addPointCloudNormals<pcl::PointXYZRGB, pcl::Normal> (src_sp_rgb_, src_normals_, 1, 0.05, "normals");
 
-    pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> src_rgb(src_rgb_cloud_);
-    if (!viewer->updatePointCloud(src_rgb_cloud_, src_rgb, name)){
-      viewer->addPointCloud<pcl::PointXYZRGB>(src_rgb_cloud_, src_rgb, name);
+    pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> src_rgb(src_sp_rgb_);
+    if (!viewer->updatePointCloud(src_sp_rgb_, src_rgb, name)){
+      viewer->addPointCloud<pcl::PointXYZRGB>(src_sp_rgb_, src_rgb, name);
       viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2.0, name);
     }
   }
@@ -649,10 +650,10 @@ void PlaneSegment::poisson_reconstruction(NormalPointCloud::Ptr point_cloud,
   pcl::Poisson<pcl::PointNormal> poisson;
   
   /*
-     * Set the maximum depth of the tree used in Poisson surface reconstruction.
-     * A higher value means more iterations which could lead to better results but
-     * it is also more computationally heavy.
-     */
+   * Set the maximum depth of the tree used in Poisson surface reconstruction.
+   * A higher value means more iterations which could lead to better results but
+   * it is also more computationally heavy.
+   */
   poisson.setDepth(10);
   poisson.setInputCloud(point_cloud);
   
