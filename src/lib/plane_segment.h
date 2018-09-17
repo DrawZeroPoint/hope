@@ -22,10 +22,6 @@
 #include <cv_bridge/cv_bridge.h>
 #include <pcl_conversions/pcl_conversions.h>
 
-// OpenCV
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/opencv.hpp>
-
 // PCL
 #include <pcl/common/common.h>
 #include <pcl/common/transforms.h>
@@ -73,15 +69,16 @@
 #include <vector>
 #include <string>
 
+// OpenCV
+#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/opencv.hpp>
+
 // HOPE
 #include "fetch_rgbd.h"
 #include "high_res_timer.h"
 #include "z_growing.h"
 #include "transform.h"
 #include "utilities.h"
-
-using namespace std;
-using namespace cv;
 
 enum data_type{REAL, SYN, POINT_CLOUD, TUM_SINGLE, TUM_LIST};
 

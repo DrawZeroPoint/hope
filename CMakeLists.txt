@@ -7,6 +7,7 @@ project(hope)
 #Comment this if don't want debug
 #set(CMAKE_BUILD_TYPE Debug)
 #set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O1")
+find_package(PCL 1.7 REQUIRED)
 
 find_package(catkin REQUIRED COMPONENTS
   cv_bridge
@@ -23,8 +24,6 @@ find_package(catkin REQUIRED COMPONENTS
 
 find_package(Boost COMPONENTS system filesystem regex REQUIRED)
 
-find_package(PCL 1.7 REQUIRED)
-
 include_directories(${PCL_INCLUDE_DIRS})
 link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
@@ -37,6 +36,9 @@ include_directories(
   include
   ${catkin_INCLUDE_DIRS}
 )
+
+find_package(OpenCV REQUIRED)
+message("Found OpenCV ${OpenCV_VERSION}")
 
 # Declare a C++ library
 add_library(${PROJECT_NAME}
@@ -56,6 +58,7 @@ add_library(${PROJECT_NAME}
   src/lib/plane_segment.h
   src/lib/utilities.h
 )
+
 
 add_library(fmc
   src/lib/fmc/findClique.cpp
@@ -79,7 +82,12 @@ target_link_libraries(${PROJECT_NAME} fmc ${catkin_LIBRARIES})
 add_executable(${PROJECT_NAME}_node src/hope_node.cpp)
 
 # Specify libraries to link a library or executable target against
-target_link_libraries(${PROJECT_NAME}_node ${catkin_LIBRARIES} ${PROJECT_NAME} ${GLOG_LIB})
+target_link_libraries(${PROJECT_NAME}_node ${catkin_LIBRARIES} ${PROJECT_NAME} ${GLOG_LIB} ${OpenCV_LIBS})
+
+add_executable(${PROJECT_NAME}_ros src/hope_ros.cpp)
+
+# Specify libraries to link a library or executable target against
+target_link_libraries(${PROJECT_NAME}_ros ${catkin_LIBRARIES} ${PROJECT_NAME} ${GLOG_LIB} ${OpenCV_LIBS})
 
 add_executable(view_cloud src/view_cloud.cpp)
 target_link_libraries(view_cloud ${PCL_LIBRARIES})

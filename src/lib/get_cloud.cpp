@@ -1,5 +1,7 @@
 #include "get_cloud.h"
 
+using namespace cv;
+
 GetCloud::GetCloud()
 {
 }

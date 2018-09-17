@@ -29,22 +29,21 @@
 #include "utilities.h"
 
 using namespace std;
-using namespace cv;
 
 class GetCloud
 {
 public:
   GetCloud();
   
-  static bool getMonoCloud(Mat depth, float fx, float fy, float cx, float cy,
+  static bool getMonoCloud(cv::Mat depth, float fx, float fy, float cx, float cy,
                            float max_depth, float min_depth, PointCloudMono::Ptr &cloud);
   
-  static bool getColorCloud(Mat rgb, Mat depth, float fx, float fy, float cx, float cy, 
+  static bool getColorCloud(cv::Mat rgb, cv::Mat depth, float fx, float fy, float cx, float cy, 
                             float max_depth, float min_depth, PointCloud::Ptr &cloud);
   
-  static bool getColorCloud(Mat rgb, Mat depth, PointCloud::Ptr &cloud, float max_depth, float min_depth);
+  static bool getColorCloud(cv::Mat rgb, cv::Mat depth, PointCloud::Ptr &cloud, float max_depth, float min_depth);
   
-  static bool getPoint(Mat depth, int row, int col, float fx, float fy, float cx, float cy,
+  static bool getPoint(cv::Mat depth, int row, int col, float fx, float fy, float cx, float cy,
                        float maxDepth, float min_depth, pcl::PointXYZ &pt);
   
 };

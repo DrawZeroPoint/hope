@@ -1,4 +1,6 @@
-﻿#include <ros/ros.h>
+﻿// This cpp is for producing the experiment result in our papar titled:
+//
+// For a handy tool for extracting horizontal planes in ROS, please use hope_ros by
 
 #include <geometry_msgs/TransformStamped.h>
 
@@ -8,28 +10,7 @@
 #include <iomanip>
 #include <fstream>  
 
-#include <sensor_msgs/Image.h>
-#include <sensor_msgs/image_encodings.h>
-#include <sensor_msgs/CameraInfo.h>
-#include <sensor_msgs/PointCloud2.h>
-
-#include <std_msgs/Bool.h>
-#include <std_msgs/Int8.h>
-#include <std_msgs/Header.h>
-#include <std_msgs/UInt16MultiArray.h>
-#include <visualization_msgs/Marker.h>
-
-#include <geometry_msgs/PoseStamped.h>
-
 #include <cv_bridge/cv_bridge.h>
-#include <image_transport/image_transport.h>
-#include <image_transport/subscriber_filter.h>
-
-#include <image_geometry/pinhole_camera_model.h>
-
-#include <message_filters/sync_policies/approximate_time.h>
-#include <message_filters/sync_policies/exact_time.h>
-#include <message_filters/subscriber.h>
 
 // PCL-ROS
 #include <pcl_ros/point_cloud.h>
@@ -55,7 +36,6 @@
 //#define DEBUG
 
 using namespace std;
-using namespace cv;
 
 // Publishers
 
@@ -119,26 +99,13 @@ int main(int argc, char **argv)
   string path_list_all;
   data_type type;
 
-
   // Indoor RGB-D && synthesized
   string path_cloud;
   string cloud_type;
 
   int arg_index = 1;
 
-  if (argc == 1) {
-    type = REAL;
-    ROS_INFO("Using real data.");
-  }
-  else if (argc == 4) {
-    type = SYN;
-
-    roll_angle_ = atof(argv[arg_index++]);
-    pitch_angle_ = atof(argv[arg_index++]);
-    yaw_angle_ = atof(argv[arg_index++]);
-    ROS_INFO("Using synthesized data.");
-  }
-  else if (argc == 2) {
+  if (argc == 2) {
     // Test on a series of images, recommended
     // /home/omnisky/TUM/rgbd_dataset_freiburg1_desk
     int arg_index = 1;
@@ -156,6 +123,13 @@ int main(int argc, char **argv)
     cloud_type = argv[arg_index++];
     ROS_INFO("Using point cloud file.");
     type = POINT_CLOUD;
+  }
+  else if (argc == 4) {
+    type = SYN;
+    roll_angle_ = atof(argv[arg_index++]);
+    pitch_angle_ = atof(argv[arg_index++]);
+    yaw_angle_ = atof(argv[arg_index++]);
+    ROS_INFO("Using syntheic data.");
   }
   else if (argc == 11) {
     // Test on a single image pair
@@ -179,12 +153,9 @@ int main(int argc, char **argv)
     type = TUM_SINGLE;
   }
   else {
-    cerr << "Argument number should be 1, 2, 3, 4, or 11" << endl;
+    cerr << "Argument number should be 2, 3, 4, or 11" << endl;
     return -1;
   }
-  
-  ros::NodeHandle nh;
-  ros::NodeHandle pnh("~");
   
 //  float xy_resolution = 0.02; // In meter
 //  float z_resolution = 0.004; // In meter
@@ -197,7 +168,7 @@ int main(int argc, char **argv)
 
   hope.setMode(type);
   if (type == REAL) {
-    while (ros::ok()) {
+    while (true) {
       // The src_cloud is actually not used here
       hope.getHorizontalPlanes(src_cloud);
     }
@@ -205,7 +176,7 @@ int main(int argc, char **argv)
   else if (type == SYN) {
     // -2.0944 0 0
     hope.setRPY(roll_angle_, pitch_angle_, yaw_angle_);
-    while (ros::ok()) {
+    while (true) {
       hope.getHorizontalPlanes(src_cloud);
     }
   }
@@ -229,8 +200,8 @@ int main(int argc, char **argv)
       hope.getHorizontalPlanes(src_cloud);
     }
 
-    Mat rgb;
-    Mat depth;
+    cv::Mat rgb;
+    cv::Mat depth;
     GetCloud m_gc;
 
     if (type == TUM_SINGLE) {
@@ -239,16 +210,16 @@ int main(int argc, char **argv)
       hope.setT(tx_, ty_, tz_);
       
       // Precaptured images are used for testing on benchmarks
-      rgb = imread(path_rgb);
-      depth = imread(path_depth, -1); // Using flag<0 to read the image without changing its type
+      rgb = cv::imread(path_rgb);
+      depth = cv::imread(path_depth, -1); // Using flag<0 to read the image without changing its type
 
 #ifdef DEBUG
     // The rgb images from TUM dataset are in CV_8UC3 type while the depth images are in CV_16UC1
     // The rgb image should be phrased with Vec3b while the depth with ushort
     cout << "Image type: rgb: " << rgb.type() << " depth: " << depth.type() << endl;
-    imshow("rgb", rgb);
-    imshow("depth", depth);
-    waitKey();
+    cv::imshow("rgb", rgb);
+    cv::imshow("depth", depth);
+    cv::waitKey();
 #endif
 
       // Filter the cloud with range 0.3-8.0m cause most RGB-D sensors are unreliable outside this range
@@ -268,8 +239,8 @@ int main(int argc, char **argv)
         hope.setT(tx_, ty_, tz_);
         
         cout << "Processing: " << fnames_rgb[i] << endl;
-        rgb = imread(path_prefix + "/" + fnames_rgb[i]);
-        depth = imread(path_prefix + "/" + fnames_depth[i], -1);
+        rgb = cv::imread(path_prefix + "/" + fnames_rgb[i]);
+        depth = cv::imread(path_prefix + "/" + fnames_depth[i], -1);
 
         // Filter the cloud with range 0.3-8.0m cause most RGB-D sensors are unreliable outside this range
         // But if Lidar data are used, try expanding the range
@@ -278,5 +249,6 @@ int main(int argc, char **argv)
       }
     }
   }
+
   return 0;
 }

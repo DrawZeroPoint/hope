@@ -2,6 +2,9 @@
 
 #include <tf2/LinearMath/Quaternion.h>
 
+using namespace std;
+using namespace cv;
+
 /// Parameters of HOPE 
 float th_grid_rsl_ = 0.015; // Resolution in XY direction
 float th_z_rsl_ = 0.002; // Resolution in Z direction

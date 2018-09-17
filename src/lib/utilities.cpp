@@ -1,5 +1,8 @@
 #include "utilities.h"
 
+using namespace std;
+using namespace cv;
+
 Vec3b pascal_map[] = {
   Vec3b(0,0,0),
   Vec3b(128,0,0),

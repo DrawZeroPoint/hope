@@ -9,14 +9,6 @@
 #include <vector>
 #include <math.h>
 
-// OpenCV
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/opencv.hpp>
-#include <opencv2/flann/flann.hpp>
-#include <opencv2/core/core.hpp>
-#include <opencv2/features2d/features2d.hpp>
-#include <opencv2/highgui/highgui.hpp>
-
 // PCL
 #include <pcl/common/common.h>
 #include <pcl/common/transforms.h>
@@ -62,11 +54,18 @@
 #include <pcl/surface/mls.h>
 #include <pcl/surface/gp3.h>
 
+// OpenCV
+#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/opencv.hpp>
+#include <opencv2/flann/flann.hpp>
+#include <opencv2/core/core.hpp>
+#include <opencv2/features2d/features2d.hpp>
+#include <opencv2/highgui/highgui.hpp>
+
+//Eigen
 #include <Eigen/Dense>
 #include <Eigen/Eigenvalues>
 
-using namespace std;
-using namespace cv;
 
 typedef pcl::PointCloud<pcl::PointXYZRGB> PointCloud;
 typedef pcl::PointCloud<pcl::PointXYZ> PointCloudMono;
@@ -81,7 +80,7 @@ public:
 
   bool calRANSAC(const PointCloudMono::ConstPtr cloud_3d_in, float dt, float &grad);
   void calRegionGrowing(PointCloudRGBN::Ptr cloud_in, int minsz, int maxsz, int nb, int smooth,
-                        pcl::PointCloud<pcl::Normal>::Ptr normals, vector<pcl::PointIndices> &inliers);
+                        pcl::PointCloud<pcl::Normal>::Ptr normals, std::vector<pcl::PointIndices> &inliers);
   
   /**
    * @brief checkWithIn Check if ref_inliers contains elements in tgt_inliers
@@ -92,15 +91,15 @@ public:
   bool checkWithIn(pcl::PointIndices::Ptr ref_inliers, pcl::PointIndices::Ptr tgt_inliers);
   
   void clusterExtract(PointCloudMono::Ptr cloud_in,
-                      vector<pcl::PointIndices> &cluster_indices,
+                      std::vector<pcl::PointIndices> &cluster_indices,
                       float th_cluster, int minsize, int maxsize);
   
   void cutCloud(pcl::ModelCoefficients::Ptr coeff_in, float th_distance,
-                PointCloudRGBN::Ptr cloud_in, vector<int> &inliers_cut,
+                PointCloudRGBN::Ptr cloud_in, std::vector<int> &inliers_cut,
                 PointCloudMono::Ptr &cloud_out);
   
   void cutCloud(pcl::ModelCoefficients::Ptr coeff_in, float th_distance,
-                PointCloudMono::Ptr cloud_in, vector<int> &inliers_cut,
+                PointCloudMono::Ptr cloud_in, std::vector<int> &inliers_cut,
                 PointCloudMono::Ptr &cloud_out);
   
   void downSampling(PointCloudMono::Ptr cloud_in,
@@ -158,9 +157,9 @@ public:
   
   float getCloudMeanZ(PointCloudRGBN::Ptr cloud_in);
   
-  Vec3f getColorWithID(int id);
+  cv::Vec3f getColorWithID(int id);
   
-  float getDistance(vector<float> v1, vector<float> v2);
+  float getDistance(std::vector<float> v1, std::vector<float> v2);
 
   void getHullCenter(PointCloud::Ptr hull, float &x, float &y);
   
@@ -168,7 +167,7 @@ public:
   
   void getMinMax(std::vector<int> vec, int &minv, int &maxv);
   
-  string getName(int count, string pref, int surf);
+  std::string getName(int count, std::string pref, int surf);
   
   void getOccupancyMap(PointCloudMono::Ptr cloud_src, PointCloudMono::Ptr cloud_upper, std::vector<int> occupy,
                        PointCloud::Ptr &cloud_out);
@@ -188,14 +187,14 @@ public:
   bool isInHull(PointCloudMono::Ptr hull, pcl::PointXY p_in,
                 pcl::PointXY &offset, pcl::PointXY &p_closest);
   
-  bool isInVector(int id, vector<int> vec, int &pos);
-  bool isInVector(int id, vector<int> &vec);
+  bool isInVector(int id, std::vector<int> vec, int &pos);
+  bool isInVector(int id, std::vector<int> &vec);
 
-  void matchID(vector<vector<float> > global, vector<vector<float> > local, vector<int> in,
-               vector<int> &out, int feature_dim);
+  void matchID(std::vector<std::vector<float> > global, std::vector<std::vector<float> > local, std::vector<int> in,
+               std::vector<int> &out, int feature_dim);
 
-  bool mergeOrReplace(size_t g_id, vector<int> l_ids, size_t q_id,
-                      vector<vector<float> > global, vector<vector<float> > local);
+  bool mergeOrReplace(size_t g_id, std::vector<int> l_ids, size_t q_id,
+                      std::vector<std::vector<float> > global, std::vector<std::vector<float> > local);
   
   void msgToCloud(const PointCloud::ConstPtr msg,
                   PointCloudMono::Ptr cloud);
@@ -203,7 +202,7 @@ public:
   bool normalAnalysis(NormalCloud::Ptr cloud, float th_angle);
 
   bool pcaAnalysis(pcl::PointXYZ pointMaxZ, pcl::PointXYZ pointMinZ,
-                  const PointCloudMono::ConstPtr cloud_3d_in, float &proj, float &grad);
+                   const PointCloudMono::ConstPtr cloud_3d_in, float &proj, float &grad);
   
   float pointToSegDist(float x, float y, float x1, float y1, float x2, float y2);
   
@@ -256,23 +255,23 @@ public:
                     int width = 640, int height = 480);
 
 private:
-  bool calNormalMean(Eigen::Matrix3Xf data, vector<int> part1, vector<int> part2,
+  bool calNormalMean(Eigen::Matrix3Xf data, std::vector<int> part1, std::vector<int> part2,
                      Eigen::Vector3f &mean_part1, Eigen::Vector3f &mean_part2);
 
   float determinant(float v1, float v2, float v3, float v4);
 
   void getFurthestPointsAlongAxis(Eigen::Vector2f axis, Eigen::MatrixXf data,
-                                  vector<int> &inlist, int &id_max, int &id_min);
+                                  std::vector<int> &inlist, int &id_max, int &id_min);
 
   bool isIntersect(pcl::PointXY p1, pcl::PointXY p2, pcl::PointXY p3, pcl::PointXY p4);
 
-  bool isInVector(int id, vector<vector<int> > vec, int &pos);
+  bool isInVector(int id, std::vector<std::vector<int> > vec, int &pos);
 
-  void matFill(vector<vector<float> > features, Mat &out);
+  void matFill(std::vector<std::vector<float> > features, cv::Mat &out);
 
-  void matNormalize(Mat query_in, Mat train_in, Mat &query_out, Mat &train_out);
+  void matNormalize(cv::Mat query_in, cv::Mat train_in, cv::Mat &query_out, cv::Mat &train_out);
 
-  void searchAvailableID(vector<int> id_used, vector<int> &id_ava, size_t limit);
+  void searchAvailableID(std::vector<int> id_used, std::vector<int> &id_ava, size_t limit);
 };
 
 #endif // UTILITIES_H
