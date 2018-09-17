@@ -17,7 +17,6 @@
 #include <std_msgs/Int8.h>
 #include <std_msgs/Header.h>
 #include <std_msgs/UInt16MultiArray.h>
-#include <visualization_msgs/Marker.h>
 
 #include <geometry_msgs/PoseStamped.h>
 
