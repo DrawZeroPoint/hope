@@ -1,5 +1,5 @@
 <div align="center">
-<img src="illustration.png" width="400" alt="HoPE" />
+<img src="illustration.png" width="800" alt="HoPE" />
 </div>
 
 **Horizontal Plane Extractor** (or **HoPE** for short) is a ROS package for
