@@ -70,3 +70,17 @@ MIT.
 
 ## Cite
 If you referred or used HoPE in your article, please considering cite:
+···
+@Article{s18103214,
+AUTHOR = {Dong, Zhipeng and Gao, Yi and Zhang, Jinfeng and Yan, Yunhui and Wang, Xin and Chen, Fei},
+TITLE = {HoPE: Horizontal Plane Extractor for Cluttered 3D Scenes},
+JOURNAL = {Sensors},
+VOLUME = {18},
+YEAR = {2018},
+NUMBER = {10},
+ARTICLE NUMBER = {3214},
+URL = {http://www.mdpi.com/1424-8220/18/10/3214},
+ISSN = {1424-8220},
+DOI = {10.3390/s18103214}
+}
+···
