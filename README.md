@@ -44,7 +44,7 @@ rosrun hope hope_ros
 ```
 
 ## Advanced Usage
-To reproduce the experiments in our parper:
+To reproduce the experiments in our paper:
 
 #### Test on [TUM](https://vision.in.tum.de/data/datasets/rgbd-dataset) RGB-D data 
 
