@@ -7,3 +7,4 @@
 #IGNORED FOLDERS
 build/
 .idea/
+/cmake-build-debug/

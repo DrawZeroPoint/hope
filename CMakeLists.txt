@@ -2,12 +2,11 @@ cmake_minimum_required(VERSION 2.8.3)
 project(hope)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-#add_compile_options(-std=c++11)
+add_compile_options(-std=c++11)
 
 #Comment this if don't want debug
 #set(CMAKE_BUILD_TYPE Debug)
 #set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O1")
-find_package(PCL 1.7 REQUIRED)
 
 find_package(catkin REQUIRED COMPONENTS
   cv_bridge
@@ -22,23 +21,31 @@ find_package(catkin REQUIRED COMPONENTS
   tf2_ros
 )
 
+# Set BOOST_LIBRARYDIR accordingly in case that PCL could not find Boost
+set(BOOST_LIBRARYDIR /usr/lib/x86_64-linux-gnu)
+
 find_package(Boost COMPONENTS system filesystem regex REQUIRED)
+
+find_package(PCL 1.7 REQUIRED)
 
 include_directories(${PCL_INCLUDE_DIRS})
 link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 
-catkin_package(
+find_package(OpenCV REQUIRED)
+message("Found OpenCV ${OpenCV_VERSION}")
 
+catkin_package(
+  CATKIN_DEPENDS 
+  cv_bridge
 )
 
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
+  ${PCL_INCLUDE_DIRS}
+  ${OpenCV_INCLUDE_DIRS}
 )
-
-find_package(OpenCV REQUIRED)
-message("Found OpenCV ${OpenCV_VERSION}")
 
 # Declare a C++ library
 add_library(${PROJECT_NAME}
@@ -58,36 +65,29 @@ add_library(${PROJECT_NAME}
   src/lib/plane_segment.h
   src/lib/utilities.h
 )
-
-
-add_library(fmc
-  src/lib/fmc/findClique.cpp
-  src/lib/fmc/findCliqueHeu.cpp
-  src/lib/fmc/graphIO.cpp
-  src/lib/fmc/utils.cpp
-
-  src/lib/fmc/findClique.h
-  src/lib/fmc/graphIO.h
+target_link_libraries(${PROJECT_NAME}
+  ${catkin_LIBRARIES}
 )
 
-add_executable(test_fmc src/lib/fmc/main_fmc.cpp)
-target_link_libraries(test_fmc fmc)
+# Declare C++ executables
 
-# Notice that the customized lib needs to link to ROS too
-target_link_libraries(${PROJECT_NAME} fmc ${catkin_LIBRARIES})
-
-# Declare a C++ executable
-# With catkin_make all packages are built within a single CMake context
-# The recommended prefix ensures that target names across packages don't collide
 add_executable(${PROJECT_NAME}_node src/hope_node.cpp)
+target_link_libraries(${PROJECT_NAME}_node
+  ${catkin_LIBRARIES}
+  ${GLOG_LIB}
+  ${OpenCV_LIBS}
+  ${PCL_LIBRARIES}
+  ${PROJECT_NAME}
+)
 
-# Specify libraries to link a library or executable target against
-target_link_libraries(${PROJECT_NAME}_node ${catkin_LIBRARIES} ${PROJECT_NAME} ${GLOG_LIB} ${OpenCV_LIBS})
-
-add_executable(${PROJECT_NAME}_ros src/hope_ros.cpp)
-
-# Specify libraries to link a library or executable target against
-target_link_libraries(${PROJECT_NAME}_ros ${catkin_LIBRARIES} ${PROJECT_NAME} ${GLOG_LIB} ${OpenCV_LIBS})
+ add_executable(${PROJECT_NAME}_ros src/hope_ros.cpp)
+ target_link_libraries(${PROJECT_NAME}_ros
+   ${catkin_LIBRARIES}
+   ${PROJECT_NAME}
+   ${GLOG_LIB}
+   ${OpenCV_LIBS}
+   ${PCL_LIBRARIES}
+ )
 
 add_executable(view_cloud src/view_cloud.cpp)
 target_link_libraries(view_cloud ${PCL_LIBRARIES})

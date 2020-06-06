@@ -53,7 +53,7 @@ PlaneSegment::PlaneSegment(string base_frame, float th_xy, float th_z) :
   // For store max hull id and area
   global_size_temp_ = 0;
   
-  // Regist the callback if using real point cloud data
+  // Register the callback if using real point cloud data
   sub_pointcloud_ = nh_.subscribe<sensor_msgs::PointCloud2>("/camera/depth/points", 1,
                                                             &PlaneSegment::cloudCallback, this);
   
@@ -141,7 +141,7 @@ void PlaneSegment::getHorizontalPlanes(PointCloud::Ptr cloud)
   utl_->pointTypeTransfer(src_rgb_cloud_, src_mono_cloud_);
 
   //visualizeProcess(src_rgb_cloud_);
-  //pcl::io::savePCDFile("/home/omnisky/src.pcd", *src_rgb_cloud_);
+  //pcl::io::savePCDFile("~/src.pcd", *src_rgb_cloud_);
   
   // Down sampling
   if (th_grid_rsl_ > 0 && th_z_rsl_ > 0) {
@@ -164,12 +164,16 @@ void PlaneSegment::getHorizontalPlanes(PointCloud::Ptr cloud)
   reset();
   computeNormalAndFilter();
 
-  //pcl::io::savePCDFile("/home/omnisky/normal_filter.pcd", *cloud_norm_fit_mono_);
+  //pcl::io::savePCDFile("~/normal_filter.pcd", *cloud_norm_fit_mono_);
   
   // Start timer
   hst_.start();
   
   findAllPlanes();
+
+  /* You can alternatively use RANSAC or Region Growing instead of HoPE
+   * to carry out the comparision experiments in the paper
+   */
   //findAllPlanesRANSAC(true, 500, 1.01*th_grid_rsl_, 0.001);
   //findAllPlanesRG(20, 20, 8.0, 1.0);
   
@@ -323,7 +327,7 @@ void PlaneSegment::getMeanZofEachCluster(PointCloudMono::Ptr cloud_norm_fit_mono
       k++;
     }
     
-    ROS_DEBUG("Hypothetic plane number: %d", int(plane_z_values_.size()));
+    ROS_DEBUG("Hypothesis plane number: %d", int(plane_z_values_.size()));
     // Z is ordered from small to large, i.e., low to high
     //sort(planeZVector_.begin(), planeZVector_.end());
   }
@@ -498,8 +502,7 @@ bool PlaneSegment::gaussianImageAnalysis(size_t id)
     }
   }
 
-  if (utl_->normalAnalysis(cluster_normal, th_angle_)) return true;
-  else return false;
+  return utl_->normalAnalysis(cluster_normal, th_angle_);
 }
 
 void PlaneSegment::setID()
@@ -601,7 +604,9 @@ void PlaneSegment::visualizeResult(bool display_source, bool display_raw,
       viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, c[0], c[1], c[2], name);
     }
   }
-  
+
+  cout << "Total plane patches #: " << plane_points_.size() << endl;
+
   while (!viewer->wasStopped()) {
     viewer->spinOnce(1); // ms
     if (type_ == TUM_LIST || type_ == REAL || type_ == SYN)
