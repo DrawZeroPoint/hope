@@ -40,10 +40,7 @@ using namespace std;
 
 // Publishers
 
-// Transform frame, only used with real time data
-// You may change the name based on your robot configuration
-string base_frame_ = "base_link"; // world frame
-string camera_optical_frame_ = "vision_depth_optical_frame";
+
 
 /// Camera orientation params, only used for benchmarking
 float roll_angle_ = 0.0;
@@ -175,7 +172,7 @@ int main(int argc, char **argv)
   float z_resolution = 0.02; // In meter
   cout << "Using threshold: xy@" << xy_resolution << " " << "z@" << z_resolution << endl;
 
-  PlaneSegment hope(base_frame_, xy_resolution, z_resolution);
+  PlaneSegment hope(xy_resolution, z_resolution);
   PointCloud::Ptr src_cloud(new PointCloud); // Cloud input for all pipelines
 
   hope.setMode(type);

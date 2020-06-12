@@ -1,0 +1,19 @@
+<launch>
+
+    <!-- Comment this if using wall time -->
+    <param name="/use_sim_time" value="true" />
+
+    <arg name="ns" default="vision"/>
+    <arg name="base_frame" default="base_link"/>
+    <arg name="cloud_topic" default="/point_cloud"/>
+
+    <node ns="$(arg ns)" name="hope_ros" pkg="hope" type="hope_ros" respawn="false">
+        <!-- No slash on the front -->
+        <param name="base_frame" value="$(arg base_frame)" />
+        <param name="cloud_topic" value="$(arg cloud_topic)" />
+        <param name="xy_resolution" value="0.05" />
+        <param name="z_resolution" value="0.02" />
+        <!-- <param name="camera_optical_frame_id" value="$(arg vision_namespace)_depth_optical_frame" />-->
+    </node>
+
+</launch>

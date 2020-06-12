@@ -80,14 +80,23 @@ target_link_libraries(${PROJECT_NAME}_node
   ${PROJECT_NAME}
 )
 
- add_executable(${PROJECT_NAME}_ros src/hope_ros.cpp)
- target_link_libraries(${PROJECT_NAME}_ros
-   ${catkin_LIBRARIES}
-   ${PROJECT_NAME}
-   ${GLOG_LIB}
-   ${OpenCV_LIBS}
-   ${PCL_LIBRARIES}
- )
+add_executable(${PROJECT_NAME}_ros src/hope_ros.cpp)
+target_link_libraries(${PROJECT_NAME}_ros
+  ${catkin_LIBRARIES}
+  ${PROJECT_NAME}
+  ${GLOG_LIB}
+  ${OpenCV_LIBS}
+  ${PCL_LIBRARIES}
+)
+
+add_executable(pub_cloud src/pub_cloud.cpp)
+target_link_libraries(pub_cloud
+  ${catkin_LIBRARIES}
+  ${PROJECT_NAME}
+  ${GLOG_LIB}
+  ${OpenCV_LIBS}
+  ${PCL_LIBRARIES}
+)
 
 add_executable(view_cloud src/view_cloud.cpp)
 target_link_libraries(view_cloud ${PCL_LIBRARIES})

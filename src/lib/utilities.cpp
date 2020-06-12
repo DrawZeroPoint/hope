@@ -1354,9 +1354,9 @@ bool Utilities::mergeOrReplace(size_t g_id, vector<int> l_ids, size_t q_id,
   return false; // replace
 }
 
-float Utilities::shortRainbowColorMap(const double value, 
-                                      const double min,
-                                      const double max) {
+float Utilities::shortRainbowColorMap(const double &value,
+                                      const double &min,
+                                      const double &max) {
   uint8_t r, g, b;
   
   // Normalize value to [0, 1]
@@ -1416,8 +1416,8 @@ float Utilities::pointToSegDist(float x, float y, float x1, float y1, float x2, 
 
 void Utilities::heatmapRGB(float gray, uint8_t &r, uint8_t &g, uint8_t &b)
 {
-  /// From: https://github.com/junhaoxiao/TAMS-Planar-Surface-Based-Perception/
-  /// blob/master/fftw_correlate/src/fftw_correlate.cpp
+  // From: https://github.com/junhaoxiao/TAMS-Planar-Surface-Based-Perception/
+  // blob/master/fftw_correlate/src/fftw_correlate.cpp
   if (gray >= 0.0 && gray <= 0.125) {
     r = 0;
     g = 0;
@@ -1447,4 +1447,21 @@ void Utilities::heatmapRGB(float gray, uint8_t &r, uint8_t &g, uint8_t &b)
     g = 0;
     b = 0;
   }
+}
+
+void Utilities::publishCloud(PointCloud::Ptr cloud, const ros::Publisher& pub, string cloud_frame)
+{
+  sensor_msgs::PointCloud2 ros_cloud;
+  pcl::toROSMsg(*cloud, ros_cloud);
+  ros_cloud.header.frame_id = std::move(cloud_frame);
+  ros_cloud.header.stamp = ros::Time(0);
+  pub.publish(ros_cloud);
+}
+
+void Utilities::publishCloud(PointCloudMono::Ptr cloud, const ros::Publisher &pub, std::string cloud_frame) {
+  sensor_msgs::PointCloud2 ros_cloud;
+  pcl::toROSMsg(*cloud, ros_cloud);
+  ros_cloud.header.frame_id = std::move(cloud_frame);
+  ros_cloud.header.stamp = ros::Time(0);
+  pub.publish(ros_cloud);
 }

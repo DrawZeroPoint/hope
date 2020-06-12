@@ -2,6 +2,8 @@
 
 #include <tf2/LinearMath/Quaternion.h>
 
+#include <utility>
+
 using namespace std;
 using namespace cv;
 
@@ -25,8 +27,7 @@ bool show_egi_ = false;
 HighResTimer hst_1_("pca");
 HighResTimer hst_2_("ransac");
 
-PlaneSegment::PlaneSegment(string base_frame, float th_xy, float th_z) :
-  fi_(new FetchRGBD),
+PlaneSegment::PlaneSegment(float th_xy, float th_z, string base_frame, const string& cloud_topic) :
   type_(REAL),
   pub_it_(nh_),
   src_mono_cloud_(new PointCloudMono),
@@ -40,8 +41,8 @@ PlaneSegment::PlaneSegment(string base_frame, float th_xy, float th_z) :
   src_z_inliers_(new pcl::PointIndices),
   tf_(new Transform),
   utl_(new Utilities),
-  base_frame_(base_frame),
-  viewer(new pcl::visualization::PCLVisualizer("HOPE Result")),
+  base_frame_(std::move(base_frame)),
+  viewer(new pcl::visualization::PCLVisualizer("HoPE Result")),
   hst_("total")
 {
   th_grid_rsl_ = th_xy;
@@ -50,14 +51,14 @@ PlaneSegment::PlaneSegment(string base_frame, float th_xy, float th_z) :
   th_angle_ = atan(th_theta_);
   th_norm_ = sqrt(1 / (1 + 2 * pow(th_theta_, 2)));
   
-  // For store max hull id and area
+  // For storing max hull id and area
   global_size_temp_ = 0;
   
   // Register the callback if using real point cloud data
-  sub_pointcloud_ = nh_.subscribe<sensor_msgs::PointCloud2>("/camera/depth/points", 1,
+  sub_pointcloud_ = nh_.subscribe<sensor_msgs::PointCloud2>(cloud_topic, 1,
                                                             &PlaneSegment::cloudCallback, this);
   
-  // Detect table obstacle
+  // Detect table surface as an obstacle
   pub_max_plane_ = nh_.advertise<sensor_msgs::PointCloud2>("/vision/max_plane", 1, true);
   pub_cloud_ = nh_.advertise<sensor_msgs::PointCloud2>("/vision/points", 1, true);
   pub_max_mesh_ = nh_.advertise<geometry_msgs::PolygonStamped>("/vision/max_mesh",1, true);
@@ -528,7 +529,7 @@ void PlaneSegment::setID()
   }
 }
 
-int PlaneSegment::checkSimiliar(vector<float> coeff)
+int PlaneSegment::checkSimilar(vector<float> coeff)
 {
   int id = -1;
   float distemp = FLT_MAX;
@@ -627,7 +628,7 @@ void PlaneSegment::publishCloud(PointTPtr cloud, ros::Publisher pub)
 void PlaneSegment::cloudCallback(const sensor_msgs::PointCloud2ConstPtr &msg)
 {
   if (msg->data.empty()) {
-    ROS_WARN_THROTTLE(31, "PlaneSegment: PointCloud is empty.");
+    ROS_WARN_THROTTLE(31, "HoPE: PointCloud is empty.");
     return;
   }
   PointCloud::Ptr src_temp(new PointCloud);
@@ -716,7 +717,7 @@ bool PlaneSegment::getSourceCloud()
     // Handle callbacks and sleep for a small amount of time
     // before looping again
     ros::spinOnce();
-    ros::Duration(0.005).sleep();
+    ros::Duration(0.001).sleep();
   }
 }
 

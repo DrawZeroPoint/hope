@@ -155,7 +155,7 @@ bool projectDepthTo3D(const Mat &depthImage, pcl::PointXYZ &pt,
   }
 }
 
-bool GetCloud::getMonoCloud(Mat depth, float fx, float fy, float cx, float cy, 
+bool GetCloud::getMonoCloud(const Mat& depth, float fx, float fy, float cx, float cy,
                             float max_depth, float min_depth, PointCloudMono::Ptr &cloud)
 {
   cloud->height = depth.rows;
@@ -174,6 +174,7 @@ bool GetCloud::getMonoCloud(Mat depth, float fx, float fy, float cx, float cy,
     pit->z = pt.z;
     ++i;
   }
+  return true;
 }
 
 bool GetCloud::getColorCloud(Mat rgb, Mat depth, float fx, float fy, float cx, float cy, 

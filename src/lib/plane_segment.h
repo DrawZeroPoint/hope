@@ -108,7 +108,15 @@ public:
 class PlaneSegment
 {
 public:
-  PlaneSegment(string base_frame, float th_xy, float th_z);
+
+  /** Class for extracting planes in point cloud
+   *
+   * @param th_xy Clustering threshold for points in x-y plane
+   * @param th_z Clustering threshold in z direction
+   * @param base_frame Optional, only used for point clouds obtained from ROS in real-time
+   * @param cloud_topic Optional, only used for point clouds obtained from ROS in real-time
+   */
+  PlaneSegment(float th_xy, float th_z, string base_frame = "", const string& cloud_topic = "");
 
   inline void setMode(data_type type) {type_ = type;}
 
@@ -191,7 +199,6 @@ private:
   vector<pcl::PointIndices> seed_clusters_indices_;
   
   /// Tool objects
-  FetchRGBD *fi_;
   Transform *tf_;
   Utilities *utl_;
   HighResTimer hst_;
@@ -211,7 +218,7 @@ private:
   void zClustering(PointCloudMono::Ptr cloud_norm_fit_mono);
   void getPlane(size_t id, float z_in, PointCloudMono::Ptr &cloud_norm_fit_mono);
   bool gaussianImageAnalysis(size_t id);
-  int  checkSimiliar(vector<float> coeff);
+  int  checkSimilar(vector<float> coeff);
   void setID();
 
   /**
@@ -224,8 +231,7 @@ private:
   void visualizeResult(bool display_source, bool display_raw, bool display_err, bool display_hull);
   
   // Reconstruct mesh from point cloud
-  void poisson_reconstruction(NormalPointCloud::Ptr point_cloud, 
-                              pcl::PolygonMesh &mesh);
+  void poisson_reconstruction(NormalPointCloud::Ptr point_cloud, pcl::PolygonMesh &mesh);
   pcl::PolygonMesh mesh(const PointCloudMono::Ptr point_cloud, NormalCloud::Ptr normals);
   
   void visualizeProcess(PointCloud::Ptr cloud);

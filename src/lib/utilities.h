@@ -2,6 +2,7 @@
 #define UTILITIES_H
 
 #include <ros/ros.h>
+#include <sensor_msgs/PointCloud2.h>
 
 // STL
 #include <iostream> 
@@ -48,11 +49,12 @@
 #include <pcl/segmentation/region_growing.h>
 #include <pcl/segmentation/extract_polygonal_prism_data.h>
 
-
 #include <pcl/surface/convex_hull.h>
 #include <pcl/surface/concave_hull.h>
 #include <pcl/surface/mls.h>
 #include <pcl/surface/gp3.h>
+
+#include <pcl_conversions/pcl_conversions.h>
 
 // OpenCV
 #include <opencv2/imgproc/imgproc.hpp>
@@ -174,7 +176,7 @@ public:
 
   void getPointByZ(float z, PointCloudMono::Ptr cloud_in, pcl::PointXYZ &pt);
 
-  void heatmapRGB(float gray, uint8_t &r, uint8_t &g, uint8_t &b);
+  static void heatmapRGB(float gray, uint8_t &r, uint8_t &g, uint8_t &b);
   
   /**
    * @brief isInHull
@@ -238,7 +240,7 @@ public:
    */
   void shrinkHull(PointCloudMono::Ptr cloud, PointCloudMono::Ptr &cloud_sk, float dis);
   
-  float shortRainbowColorMap(const double value, const double min, const double max);
+  float shortRainbowColorMap(const double &value, const double &min, const double &max);
   /**
    * @brief tryExpandROI
    * Expand given ROI by pad in both xy direction
@@ -248,11 +250,14 @@ public:
    * @param maxy
    * @param width Image width
    * @param height Image height
-   * @param pad Expand value in px, can be negtive
+   * @param pad Expand value in px, can be negative
    * @return false if the given ROI is abnormal, else return true
    */
   bool tryExpandROI(int &minx, int &miny, int &maxx, int &maxy, int pad,
                     int width = 640, int height = 480);
+
+  static void publishCloud(PointCloud::Ptr cloud, const ros::Publisher& pub, std::string cloud_frame);
+  static void publishCloud(PointCloudMono::Ptr cloud, const ros::Publisher& pub, std::string cloud_frame);
 
 private:
   bool calNormalMean(Eigen::Matrix3Xf data, std::vector<int> part1, std::vector<int> part2,

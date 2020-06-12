@@ -1,0 +1,26 @@
+<launch>
+
+    <!-- Comment this if using wall time -->
+    <param name="/use_sim_time" value="true" />
+
+    <arg name="ns" default=""/>
+    <arg name="camera_frame" default="/camera"/>
+    <arg name="depth_topic" default="/depth/image"/>
+    <arg name="rgb_topic" default="/rgb/image"/>
+    <arg name="cloud_topic" default="/point_cloud"/>
+
+    <node ns="$(arg ns)" name="pub_cloud" pkg="hope" type="pub_cloud" respawn="false">
+        <param name="camera_frame" value="$(arg camera_frame)" />
+        <param name="rgb_topic" value="$(arg rgb_topic)" />
+        <param name="depth_topic" value="$(arg depth_topic)" />
+        <param name="cloud_topic" value="$(arg cloud_topic)" />
+
+        <param name="fx" value="521.1711084" />
+        <param name="fy" value="547.7089685" />
+        <param name="cx" value="0" />
+        <param name="cy" value="0" />
+        <param name="min_depth" value="0.15" />
+        <param name="max_depth" value="10" />
+    </node>
+
+</launch>
