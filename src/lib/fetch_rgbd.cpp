@@ -24,6 +24,8 @@ void FetchRGBD::fetchRGBDInfo(cv_bridge::CvImagePtr &rgb,
                               cv_bridge::CvImagePtr &depth,
                               sensor_msgs::CameraInfo &info)
 {
+  rgb_ptr_ = nullptr;
+  depth_ptr_ = nullptr;
   while (ros::ok()) {
     if (rgb_ptr_ != nullptr && depth_ptr_ != nullptr)
       break;
@@ -37,6 +39,8 @@ void FetchRGBD::fetchRGBDInfo(cv_bridge::CvImagePtr &rgb,
 
 void FetchRGBD::fetchRGBD(cv_bridge::CvImagePtr &rgb, cv_bridge::CvImagePtr &depth)
 {
+  rgb_ptr_ = nullptr;
+  depth_ptr_ = nullptr;
   while (ros::ok()) {
     if (rgb_ptr_ != nullptr && depth_ptr_ != nullptr)
       break;
@@ -49,11 +53,12 @@ void FetchRGBD::fetchRGBD(cv_bridge::CvImagePtr &rgb, cv_bridge::CvImagePtr &dep
 
 void FetchRGBD::fetchDepth(cv_bridge::CvImagePtr &depth)
 {
+  depth_ptr_ = nullptr;
   while (ros::ok()) {
     if (depth_ptr_ != nullptr)
       break;
     ros::spinOnce();
-    ros::Duration(0.005).sleep();
+    ros::Duration(0.01).sleep();
   }
   depth = depth_ptr_;
 }
@@ -105,6 +110,5 @@ void FetchRGBD::RGBDCallback(const sensor_msgs::ImageConstPtr &rgb_msg, const se
 
 void FetchRGBD::depthCallback(const sensor_msgs::ImageConstPtr &depth_msg)
 {
-  depth_ptr_ = cv_bridge::toCvCopy(depth_msg);
-  cerr << depth_ptr_->encoding << endl;
+  depth_ptr_ = cv_bridge::toCvCopy(depth_msg);  // encoding 32FC1
 }
