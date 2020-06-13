@@ -228,7 +228,8 @@ int main(int argc, char **argv)
       // Filter the cloud with range 0.3-8.0m cause most RGB-D sensors are unreliable outside this range
       // But if Lidar data are used, try expanding the range
       // TODO add Nan filter in this function
-      m_gc.getColorCloud(rgb, depth, src_cloud, 8.0, 0.3);
+      GetCloud::getColorCloud(rgb, depth, src_cloud, 8.0, 0.3);
+      assert(Utilities::isPointCloudValid(src_cloud));
       hope.getHorizontalPlanes(src_cloud);
     }
     else if (type == TUM_LIST) {

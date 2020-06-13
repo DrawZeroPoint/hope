@@ -204,7 +204,7 @@ bool GetCloud::getColorCloud(Mat rgb, Mat depth, float fx, float fy, float cx, f
   }
 }
 
-bool GetCloud::getColorCloud(Mat rgb, Mat depth, PointCloud::Ptr &cloud,
+void GetCloud::getColorCloud(Mat rgb, Mat depth, PointCloud::Ptr &cloud,
                              float max_depth, float min_depth)
 {
   cloud->height = depth.rows;
@@ -218,7 +218,7 @@ bool GetCloud::getColorCloud(Mat rgb, Mat depth, PointCloud::Ptr &cloud,
   float scalingFactor = 5000.0;
   
   size_t i = 0;
-  for (PointCloud::iterator pit = cloud->begin(); 
+  for (auto pit = cloud->begin();
        pit != cloud->end(); ++pit) {
     float x, y;
     int c = i % 640;
@@ -242,7 +242,6 @@ bool GetCloud::getColorCloud(Mat rgb, Mat depth, PointCloud::Ptr &cloud,
     pit->b = vc[0];
     ++i;
   }
-
 }
 
 bool GetCloud::getPoint(cv::Mat depth, int row, int col, 

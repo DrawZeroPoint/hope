@@ -66,7 +66,7 @@ public:
   static bool getColorCloud(cv::Mat rgb, cv::Mat depth, float fx, float fy, float cx, float cy, 
                             float max_depth, float min_depth, PointCloud::Ptr &cloud);
   
-  static bool getColorCloud(cv::Mat rgb, cv::Mat depth, PointCloud::Ptr &cloud, float max_depth, float min_depth);
+  static void getColorCloud(cv::Mat rgb, cv::Mat depth, PointCloud::Ptr &cloud, float max_depth, float min_depth);
   
   static bool getPoint(cv::Mat depth, int row, int col, float fx, float fy, float cx, float cy,
                        float maxDepth, float min_depth, pcl::PointXYZ &pt);

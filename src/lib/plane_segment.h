@@ -239,4 +239,113 @@ private:
   void computeHull(PointCloud::Ptr cluster_2d_rgb);
 };
 
+class PlaneSegmentRT
+{
+public:
+
+  /** Class for extracting planes in point cloud
+   *
+   * @param th_xy Clustering threshold for points in x-y plane
+   * @param th_z Clustering threshold in z direction
+   * @param base_frame Optional, only used for point clouds obtained from ROS in real-time
+   * @param cloud_topic Optional, only used for point clouds obtained from ROS in real-time
+   */
+  PlaneSegmentRT(float th_xy, float th_z, const string & base_frame = "", const string& cloud_topic = "");
+
+  void getHorizontalPlanes(PointCloud::Ptr cloud);
+
+  /// Container for storing final results
+  vector<PointCloud::Ptr> plane_results_;
+  vector<PointCloudMono::Ptr> plane_points_;
+  // Optional
+  vector<PointCloud::Ptr> plane_hull_;
+  vector<pcl::PolygonMesh> plane_mesh_;
+  vector<vector<float> > plane_coeff_;
+
+  /// Container for storing the largest plane
+  PointCloud::Ptr plane_max_result_;
+  PointCloudMono::Ptr plane_max_points_;
+  PointCloud::Ptr plane_max_hull_;
+  pcl::PolygonMesh plane_max_mesh_;
+  vector<float> plane_max_coeff_;
+
+private:
+  /// Predefined camera orientations if not using real data
+  // In Eular angle
+  float roll_;
+  float pitch_;
+  float yaw_;
+  // In Quaternion
+  float qx_, qy_, qz_, qw_;
+  // Camera position in the world coordinates frame
+  float tx_, ty_, tz_;
+  // Frame for point cloud to transfer
+  string base_frame_;
+
+  /// Supporting surface point number threshold
+  int global_size_temp_;
+  vector<vector<float> > global_coeff_temp_;
+  vector<int> global_id_temp_;
+
+  /// ROS stuff
+  ros::NodeHandle nh_;
+  // ROS pub-sub
+  ros::Subscriber sub_pointcloud_;
+  void cloudCallback(const sensor_msgs::PointCloud2ConstPtr &cloud_msg);
+
+  ros::Publisher pub_max_plane_;
+  ros::Publisher pub_cloud_;
+  ros::Publisher pub_max_mesh_;
+  template <typename PointTPtr>
+  void publishCloud(PointTPtr cloud, ros::Publisher pub);
+  bool getSourceCloud();
+
+  /// Intermediate results
+  // Source cloud index from raw cloud (contain Nans)
+  pcl::PointIndices::Ptr src_z_inliers_;
+
+  // Source point cloud
+  PointCloudMono::Ptr src_mono_cloud_;
+
+  // Source cloud after down sampling
+  PointCloudMono::Ptr src_dsp_mono_;
+
+  // Normals of down sampling cloud
+  NormalCloud::Ptr src_normals_;
+  // Normal filtered cloud index and corresponding cloud
+  pcl::PointIndices::Ptr idx_norm_fit_;
+  PointCloudMono::Ptr cloud_norm_fit_mono_;
+  NormalCloud::Ptr cloud_norm_fit_;
+  // Clustered points
+  vector<float> plane_z_values_;
+  vector<PointCloudRGBN::Ptr> cloud_fit_parts_;
+  vector<pcl::PointIndices> seed_clusters_indices_;
+
+  /// Tool objects
+  Transform *tf_;
+  Utilities *utl_;
+
+  void computeNormalAndFilter();
+
+  /// Core process for finding planes
+  void findAllPlanes();
+
+  /// Tool functions
+  void reset();
+  void getMeanZofEachCluster(PointCloudMono::Ptr cloud_norm_fit_mono);
+  void extractPlaneForEachZ(PointCloudMono::Ptr cloud_norm_fit);
+  void zClustering(PointCloudMono::Ptr cloud_norm_fit_mono);
+  void getPlane(size_t id, float z_in, PointCloudMono::Ptr &cloud_norm_fit_mono);
+  bool gaussianImageAnalysis(size_t id);
+  void setID();
+
+  void visualizeResult();
+
+  // Reconstruct mesh from point cloud
+  pcl::PolygonMesh mesh(const PointCloudMono::Ptr point_cloud, NormalCloud::Ptr normals);
+
+  void setFeatures(float z_in, PointCloudMono::Ptr cluster);
+  void computeHull(PointCloud::Ptr cluster_2d_rgb);
+};
+
 #endif // PLANE_SEGMENT_H
