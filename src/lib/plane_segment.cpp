@@ -25,9 +25,8 @@ bool show_egi_ = false;
 //HighResTimer hst_2_("ransac");
 
 
-PlaneSegment::PlaneSegment(float th_xy, float th_z, string base_frame, const string& cloud_topic) :
-  type_(REAL),
-  pub_it_(nh_),
+PlaneSegment::PlaneSegment(data_type mode, float th_xy, float th_z, string base_frame, const string& cloud_topic) :
+  type_(mode),
   src_mono_cloud_(new PointCloudMono),
   src_rgb_cloud_(new PointCloud),
   cloud_norm_fit_mono_(new PointCloudMono),
@@ -55,12 +54,7 @@ PlaneSegment::PlaneSegment(float th_xy, float th_z, string base_frame, const str
   // Register the callback if using real point cloud data
   sub_pointcloud_ = nh_.subscribe<sensor_msgs::PointCloud2>(cloud_topic, 1,
                                                             &PlaneSegment::cloudCallback, this);
-  
-  // Detect table surface as an obstacle
-  pub_max_plane_ = nh_.advertise<sensor_msgs::PointCloud2>("/vision/max_plane", 1, true);
-  pub_cloud_ = nh_.advertise<sensor_msgs::PointCloud2>("/vision/points", 1, true);
-  pub_max_mesh_ = nh_.advertise<geometry_msgs::PolygonStamped>("/vision/max_mesh",1, true);
-  
+
   viewer->setBackgroundColor(0.8, 0.83, 0.86);
   viewer->initCameraParameters();
   viewer->setCameraPosition(1,0,2,0,0,1);
@@ -115,7 +109,7 @@ void PlaneSegment::setT(float tx = 0.0, float ty = 0.0, float tz = 0.0)
 void PlaneSegment::getHorizontalPlanes(PointCloud::Ptr cloud)
 {
   PointCloud::Ptr temp(new PointCloud);
-  if (type_ == REAL || type_ == SYN) {
+  if (type_ == SYN) {
     // If using real data, the transform from camera frame to base frame
     // need to be provided
     getSourceCloud();
@@ -351,7 +345,7 @@ void PlaneSegment::zClustering(PointCloudMono::Ptr cloud_norm_fit_mono)
 void PlaneSegment::extractPlaneForEachZ(PointCloudMono::Ptr cloud_norm_fit)
 {
   size_t id = 0;
-  for (vector<float>::iterator cit = plane_z_values_.begin();
+  for (auto cit = plane_z_values_.begin();
        cit != plane_z_values_.end(); cit++) {
     getPlane(id, *cit, cloud_norm_fit);
     id++;
@@ -613,16 +607,6 @@ void PlaneSegment::visualizeResult(bool display_source, bool display_raw,
   }
 }
 
-template <typename PointTPtr>
-void PlaneSegment::publishCloud(PointTPtr cloud, ros::Publisher pub)
-{
-  sensor_msgs::PointCloud2 ros_cloud;
-  pcl::toROSMsg(*cloud, ros_cloud);
-  ros_cloud.header.frame_id = base_frame_;
-  ros_cloud.header.stamp = ros::Time(0);
-  pub.publish(ros_cloud);
-}
-
 void PlaneSegment::cloudCallback(const sensor_msgs::PointCloud2ConstPtr &msg)
 {
   if (msg->data.empty()) {
@@ -639,14 +623,7 @@ void PlaneSegment::cloudCallback(const sensor_msgs::PointCloud2ConstPtr &msg)
   utl_->getCloudByZ(src_temp, src_z_inliers_, temp,
                     th_min_depth_, th_max_depth_);
 
-  if (type_ == REAL) {
-    tf_->getTransform(base_frame_, msg->header.frame_id);
-    tf_->doTransform(temp, src_rgb_cloud_);
-  }
-  else {
-    tf_->doTransform(temp, src_rgb_cloud_, roll_, pitch_, yaw_);
-  }
-
+  tf_->doTransform(temp, src_rgb_cloud_, roll_, pitch_, yaw_);
   utl_->pointTypeTransfer(src_rgb_cloud_, src_mono_cloud_);
 }
 
@@ -761,10 +738,11 @@ PlaneSegmentRT::PlaneSegmentRT(float th_xy, float th_z, const string &base_frame
   pub_max_mesh_ = nh_.advertise<geometry_msgs::PolygonStamped>("/vision/max_mesh",1, true);
 }
 
-void PlaneSegmentRT::getHorizontalPlanes(PointCloud::Ptr cloud) {
+void PlaneSegmentRT::getHorizontalPlanes() {
   // If using real data, the transform from camera frame to base frame
   // need to be provided
   getSourceCloud();
+  assert(Utilities::isPointCloudValid(src_mono_cloud_));
 
   // Down sampling
   if (th_grid_rsl_ > 0 && th_z_rsl_ > 0) {
@@ -773,10 +751,9 @@ void PlaneSegmentRT::getHorizontalPlanes(PointCloud::Ptr cloud) {
   else {
     src_dsp_mono_ = src_mono_cloud_;
   }
-  cout << "Point number after down sampling: #" << src_dsp_mono_->points.size() << endl;
 
   if (src_dsp_mono_->points.empty()) {
-    ROS_WARN("PlaneSegment: Source cloud is empty.");
+    ROS_ERROR("PlaneSegment: Source cloud is empty.");
     return;
   }
 
@@ -796,6 +773,8 @@ bool PlaneSegmentRT::getSourceCloud()
     if (!src_mono_cloud_->points.empty())
       return true;
 
+    cerr << "waiting source cloud" << endl;
+
     // Handle callbacks and sleep for a small amount of time
     // before looping again
     ros::spinOnce();
@@ -806,7 +785,7 @@ bool PlaneSegmentRT::getSourceCloud()
 void PlaneSegmentRT::cloudCallback(const sensor_msgs::PointCloud2ConstPtr &msg)
 {
   if (msg->data.empty()) {
-    ROS_WARN_THROTTLE(31, "HoPE: PointCloud is empty.");
+    cerr << "HoPE: PointCloud is empty." << endl;
     return;
   }
   PointCloudMono::Ptr src_temp(new PointCloudMono);
@@ -816,6 +795,7 @@ void PlaneSegmentRT::cloudCallback(const sensor_msgs::PointCloud2ConstPtr &msg)
   pcl_conversions::toPCL(*msg, pcl_pc2);
   pcl::fromPCLPointCloud2(pcl_pc2, *src_temp);
 
+  assert(Utilities::isPointCloudValid(src_temp));
   utl_->getCloudByZ(src_temp, src_z_inliers_, temp,
                     th_min_depth_, th_max_depth_);
 

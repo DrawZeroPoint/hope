@@ -260,6 +260,7 @@ public:
   static void publishCloud(PointCloudMono::Ptr cloud, const ros::Publisher& pub, std::string cloud_frame);
 
   static inline bool isPointCloudValid(PointCloud::Ptr cloud) { return cloud->empty() == 0; }
+  static inline bool isPointCloudValid(PointCloudMono::Ptr cloud) { return cloud->empty() == 0; }
 
 private:
   bool calNormalMean(Eigen::Matrix3Xf data, std::vector<int> part1, std::vector<int> part2,

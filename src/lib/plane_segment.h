@@ -74,7 +74,6 @@
 #include <opencv2/opencv.hpp>
 
 // HOPE
-#include "fetch_rgbd.h"
 #include "high_res_timer.h"
 #include "z_growing.h"
 #include "transform.h"
@@ -116,9 +115,7 @@ public:
    * @param base_frame Optional, only used for point clouds obtained from ROS in real-time
    * @param cloud_topic Optional, only used for point clouds obtained from ROS in real-time
    */
-  PlaneSegment(float th_xy, float th_z, string base_frame = "", const string& cloud_topic = "");
-
-  inline void setMode(data_type type) {type_ = type;}
+  PlaneSegment(data_type mode, float th_xy, float th_z, string base_frame = "", const string& cloud_topic = "");
 
   void getHorizontalPlanes(PointCloud::Ptr cloud);
   
@@ -165,15 +162,10 @@ private:
   
   /// ROS stuff
   ros::NodeHandle nh_;
-  image_transport::ImageTransport pub_it_;
   // ROS pub-sub
   ros::Subscriber sub_pointcloud_;
   void cloudCallback(const sensor_msgs::PointCloud2ConstPtr &cloud_msg);
-  ros::Publisher pub_max_plane_;
-  ros::Publisher pub_cloud_;
-  ros::Publisher pub_max_mesh_;
-  template <typename PointTPtr>
-  void publishCloud(PointTPtr cloud, ros::Publisher pub);
+
   bool getSourceCloud();
   
   /// Intermediate results
@@ -252,7 +244,7 @@ public:
    */
   PlaneSegmentRT(float th_xy, float th_z, const string & base_frame = "", const string& cloud_topic = "");
 
-  void getHorizontalPlanes(PointCloud::Ptr cloud);
+  void getHorizontalPlanes();
 
   /// Container for storing final results
   vector<PointCloud::Ptr> plane_results_;
@@ -263,7 +255,6 @@ public:
   vector<vector<float> > plane_coeff_;
 
   /// Container for storing the largest plane
-  PointCloud::Ptr plane_max_result_;
   PointCloudMono::Ptr plane_max_points_;
   PointCloud::Ptr plane_max_hull_;
   pcl::PolygonMesh plane_max_mesh_;

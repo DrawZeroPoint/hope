@@ -117,21 +117,18 @@ int main(int argc, char **argv)
   string cloud_type;
 
   if (argc == 2) {
-    // Test on a series of images, recommended
-    // Example: ./hope_node ~/TUM/rgbd_dataset_freiburg1_desk
+    type = TUM_LIST;
     path_prefix = argv[2]; // path prefix of all.txt, see README for the method to generate that
     path_list_all = path_prefix + "/all.txt";
 
     cout << "Using the image list from TUM RGB-D SLAM dataset." << endl;
-    type = TUM_LIST;
   }
   else if (argc == 3) {
-    // Test on a PCD or PLY point cloud
-    // Example: ./hope_node ~/loft.ply ply
+    type = POINT_CLOUD;
+
     path_cloud = argv[2];
     cloud_type = argv[3];
     cout << "Using point cloud file " << path_cloud << endl;
-    type = POINT_CLOUD;
   }
   else if (argc == 4) {
     type = SYN;
@@ -141,11 +138,7 @@ int main(int argc, char **argv)
     cout << "Using synthetic object." << endl;
   }
   else if (argc == 11) {
-    // Test on a single image pair
-    /*
-    Example: ./hope_node ~/TUM/rgbd_dataset_freiburg1_desk/ rgb/1305031459.259760.png depth/1305031459.274941.png \
-    -0.2171 -0.0799 1.3959 -0.8445 -0.0451 0.0954 0.5251
-    */
+    type = TUM_SINGLE;
     int arg_index = 1;
     path_prefix = argv[arg_index++];
     path_rgb = path_prefix + argv[arg_index++];
@@ -159,7 +152,6 @@ int main(int argc, char **argv)
     qz_ = atof(argv[arg_index++]);
     qw_ = atof(argv[arg_index++]);
     cout << "Using single pair of rgb and depth image of TUM RGB-D SLAM dataset." << endl;
-    type = TUM_SINGLE;
   }
   else {
     printHelp();
@@ -172,10 +164,9 @@ int main(int argc, char **argv)
   float z_resolution = 0.02; // In meter
   cout << "Using threshold: xy@" << xy_resolution << " " << "z@" << z_resolution << endl;
 
-  PlaneSegment hope(xy_resolution, z_resolution);
+  PlaneSegment hope(type, xy_resolution, z_resolution);
   PointCloud::Ptr src_cloud(new PointCloud); // Cloud input for all pipelines
 
-  hope.setMode(type);
   if (type == SYN) {
     // -2.0944 0 0
     hope.setRPY(roll_angle_, pitch_angle_, yaw_angle_);
@@ -248,7 +239,7 @@ int main(int argc, char **argv)
 
         // Filter the cloud with range 0.3-8.0m cause most RGB-D sensors are unreliable outside this range
         // But if Lidar data are used, try expanding the range
-        m_gc.getColorCloud(rgb, depth, src_cloud, 8.0, 0.3);
+        GetCloud::getColorCloud(rgb, depth, src_cloud, 8.0, 0.3);
         hope.getHorizontalPlanes(src_cloud);
       }
     }
