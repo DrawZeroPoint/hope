@@ -69,7 +69,7 @@ int main(int argc, char **argv)
     fetcher.fetchDepth(depth);
 
     GetCloud::getMonoCloud(depth->image, fx, fy, cx, cy, max_depth, min_depth, src_cloud);
-    Utilities::publishCloud(src_cloud, pub_cloud, camera_frame);
+    Utilities::publishCloud<PointCloudMono::Ptr>(src_cloud, pub_cloud, camera_frame);
   }
 
   return 0;

@@ -104,11 +104,9 @@ public:
                 PointCloudMono::Ptr cloud_in, std::vector<int> &inliers_cut,
                 PointCloudMono::Ptr &cloud_out);
   
-  void downSampling(PointCloudMono::Ptr cloud_in,
-                    PointCloudMono::Ptr &cloud_out, float gird_sz, float z_sz );
+  void downSampling(PointCloudMono::Ptr cloud_in, PointCloudMono::Ptr &cloud_out, float gird_sz, float z_sz );
 
-  void downSampling(PointCloud::Ptr cloud_in, PointCloud::Ptr &cloud_out,
-                    float gird_sz, float z_sz);
+  void downSampling(PointCloud::Ptr cloud_in, PointCloud::Ptr &cloud_out, float gird_sz, float z_sz);
   
   void estimateNorm(PointCloudMono::Ptr cloud_in,
                     PointCloudRGBN::Ptr &cloud_out,
@@ -131,9 +129,8 @@ public:
    * @param p_c
    * @param acc
    */
-  void getClosestPoint(pcl::PointXY p1, pcl::PointXY p2,
-                       pcl::PointXY p, pcl::PointXY &pc);
-  
+  void getClosestPoint(pcl::PointXY p1, pcl::PointXY p2, pcl::PointXY p, pcl::PointXY &pc);
+
   void getCloudByInliers(PointCloudMono::Ptr cloud_in, PointCloudMono::Ptr &cloud_out,
                          pcl::PointIndices::Ptr inliers, bool negative, bool organized);
   
@@ -198,8 +195,7 @@ public:
   bool mergeOrReplace(size_t g_id, std::vector<int> l_ids, size_t q_id,
                       std::vector<std::vector<float> > global, std::vector<std::vector<float> > local);
   
-  void msgToCloud(const PointCloud::ConstPtr msg,
-                  PointCloudMono::Ptr cloud);
+  void msgToCloud(const PointCloud::ConstPtr msg, PointCloudMono::Ptr cloud);
 
   bool normalAnalysis(NormalCloud::Ptr cloud, float th_angle);
 
@@ -207,15 +203,12 @@ public:
                    const PointCloudMono::ConstPtr cloud_3d_in, float &proj, float &grad);
   
   float pointToSegDist(float x, float y, float x1, float y1, float x2, float y2);
-  
-  void pointTypeTransfer(PointCloudRGBN::Ptr cloud_in,
-                         PointCloudMono::Ptr &cloud_out);
-  
-  void pointTypeTransfer(PointCloud::Ptr cloud_in,
-                         PointCloudMono::Ptr &cloud_out);
-  
+
   void pointTypeTransfer(PointCloudMono::Ptr cloud_in,
                          PointCloud::Ptr &cloud_out, int r, int g, int b);
+
+  template <typename T, typename U>
+  static void convertToMonoCloud(T cloud_in, U &cloud_out);
   
   void planeTo2D(float z, PointCloudMono::Ptr cloud_in,
                  PointCloudMono::Ptr &cloud_out);
@@ -256,11 +249,11 @@ public:
   bool tryExpandROI(int &minx, int &miny, int &maxx, int &maxy, int pad,
                     int width = 640, int height = 480);
 
-  static void publishCloud(PointCloud::Ptr cloud, const ros::Publisher& pub, std::string cloud_frame);
-  static void publishCloud(PointCloudMono::Ptr cloud, const ros::Publisher& pub, std::string cloud_frame);
+  template <typename T>
+  static void publishCloud(T cloud, const ros::Publisher& pub, std::string cloud_frame);
 
-  static inline bool isPointCloudValid(PointCloud::Ptr cloud) { return cloud->empty() == 0; }
-  static inline bool isPointCloudValid(PointCloudMono::Ptr cloud) { return cloud->empty() == 0; }
+  template <typename T>
+  static inline bool isPointCloudValid(T cloud) { return cloud->empty() == 0; }
 
 private:
   bool calNormalMean(Eigen::Matrix3Xf data, std::vector<int> part1, std::vector<int> part2,

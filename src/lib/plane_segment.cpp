@@ -130,8 +130,7 @@ void PlaneSegment::getHorizontalPlanes(PointCloud::Ptr cloud)
       tf_->doTransform(temp, src_rgb_cloud_, roll_, pitch_, yaw_);
     }
   }
-
-  utl_->pointTypeTransfer(src_rgb_cloud_, src_mono_cloud_);
+  Utilities::convertToMonoCloud<PointCloud::Ptr, PointCloudMono::Ptr>(src_rgb_cloud_, src_mono_cloud_);
 
   //visualizeProcess(src_rgb_cloud_);
   //pcl::io::savePCDFile("~/src.pcd", *src_rgb_cloud_);
@@ -624,7 +623,7 @@ void PlaneSegment::cloudCallback(const sensor_msgs::PointCloud2ConstPtr &msg)
                     th_min_depth_, th_max_depth_);
 
   tf_->doTransform(temp, src_rgb_cloud_, roll_, pitch_, yaw_);
-  utl_->pointTypeTransfer(src_rgb_cloud_, src_mono_cloud_);
+  Utilities::convertToMonoCloud<PointCloud::Ptr, PointCloudMono::Ptr>(src_rgb_cloud_, src_mono_cloud_);
 }
 
 void PlaneSegment::poisson_reconstruction(NormalPointCloud::Ptr point_cloud, 

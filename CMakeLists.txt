@@ -49,13 +49,15 @@ include_directories(
 
 # Declare a C++ library
 add_library(${PROJECT_NAME}
+  src/lib/utilities.cpp
+  src/lib/utilities.h
+
   src/lib/fetch_rgbd.cpp
   src/lib/get_cloud.cpp
   src/lib/high_res_timer.cpp
   src/lib/z_growing.cpp
   src/lib/transform.cpp
   src/lib/plane_segment.cpp
-  src/lib/utilities.cpp
 
   src/lib/fetch_rgbd.h
   src/lib/get_cloud.h
@@ -63,7 +65,6 @@ add_library(${PROJECT_NAME}
   src/lib/z_growing.h
   src/lib/transform.h
   src/lib/plane_segment.h
-  src/lib/utilities.h
 )
 target_link_libraries(${PROJECT_NAME}
   ${catkin_LIBRARIES}

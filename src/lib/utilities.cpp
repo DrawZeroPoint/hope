@@ -145,7 +145,7 @@ void Utilities::msgToCloud(const PointCloud::ConstPtr msg,
   cloud->resize(cloud->height * cloud->width);
   
   size_t i = 0;
-  for (PointCloud::const_iterator pit = msg->begin();
+  for (auto pit = msg->begin();
        pit != msg->end(); ++pit) {
     cloud->points[i].x = pit->x;
     cloud->points[i].y = pit->y;
@@ -494,30 +494,6 @@ void Utilities::planeTo2D(float z, PointCloudMono::Ptr cloud_in,
   }
 }
 
-void Utilities::pointTypeTransfer(PointCloudRGBN::Ptr cloud_in, 
-                                  PointCloudMono::Ptr &cloud_out)
-{
-  cloud_out->resize(cloud_in->size());
-  
-  for (size_t i = 0; i < cloud_in->points.size(); i++) {
-    cloud_out->points[i].x = cloud_in->points[i].x;
-    cloud_out->points[i].y = cloud_in->points[i].y;
-    cloud_out->points[i].z = cloud_in->points[i].z;
-  }
-}
-
-void Utilities::pointTypeTransfer(PointCloud::Ptr cloud_in, 
-                                  PointCloudMono::Ptr &cloud_out)
-{
-  cloud_out->resize(cloud_in->size());
-  
-  for (size_t i = 0; i < cloud_in->points.size(); i++) {
-    cloud_out->points[i].x = cloud_in->points[i].x;
-    cloud_out->points[i].y = cloud_in->points[i].y;
-    cloud_out->points[i].z = cloud_in->points[i].z;
-  }
-}
-
 void Utilities::pointTypeTransfer(PointCloudMono::Ptr cloud_in, 
                                   PointCloud::Ptr &cloud_out,
                                   int r, int g, int b)
@@ -542,7 +518,7 @@ void Utilities::cutCloud(pcl::ModelCoefficients::Ptr coeff_in, float th_distance
       coeff_in->values[2], coeff_in->values[3]);
   
   PointCloudMono::Ptr cloudSourceFiltered_t(new PointCloudMono);
-  pointTypeTransfer(cloud_in, cloudSourceFiltered_t);
+  convertToMonoCloud<PointCloudRGBN::Ptr, PointCloudMono::Ptr>(cloud_in, cloudSourceFiltered_t);
   pcl::SampleConsensusModelPlane<pcl::PointXYZ> scmp(cloudSourceFiltered_t);
   scmp.selectWithinDistance(coeffs, th_distance, inliers_cut);
   scmp.projectPoints(inliers_cut, coeffs, *cloud_out, false);
@@ -707,7 +683,7 @@ void Utilities::getCloudByZ(PointCloud::Ptr cloud_in,
   pass.filter(*cloud_out);
 }
 
-void Utilities::getCloudByInliers(PointCloudMono::Ptr cloud_in, 
+void Utilities::getCloudByInliers(PointCloudMono::Ptr cloud_in,
                                   PointCloudMono::Ptr &cloud_out,
                                   pcl::PointIndices::Ptr inliers,
                                   bool negative, bool organized)
@@ -1449,7 +1425,8 @@ void Utilities::heatmapRGB(float gray, uint8_t &r, uint8_t &g, uint8_t &b)
   }
 }
 
-void Utilities::publishCloud(PointCloud::Ptr cloud, const ros::Publisher& pub, string cloud_frame)
+template <typename T>
+void Utilities::publishCloud(T cloud, const ros::Publisher& pub, string cloud_frame)
 {
   sensor_msgs::PointCloud2 ros_cloud;
   pcl::toROSMsg(*cloud, ros_cloud);
@@ -1458,10 +1435,23 @@ void Utilities::publishCloud(PointCloud::Ptr cloud, const ros::Publisher& pub, s
   pub.publish(ros_cloud);
 }
 
-void Utilities::publishCloud(PointCloudMono::Ptr cloud, const ros::Publisher &pub, std::string cloud_frame) {
-  sensor_msgs::PointCloud2 ros_cloud;
-  pcl::toROSMsg(*cloud, ros_cloud);
-  ros_cloud.header.frame_id = std::move(cloud_frame);
-  ros_cloud.header.stamp = ros::Time(0);
-  pub.publish(ros_cloud);
+template<typename T, typename U>
+void Utilities::convertToMonoCloud(T cloud_in, U &cloud_out) {
+  cloud_out->resize(cloud_in->size());
+
+  for (size_t i = 0; i < cloud_in->points.size(); i++) {
+    cloud_out->points[i].x = cloud_in->points[i].x;
+    cloud_out->points[i].y = cloud_in->points[i].y;
+    cloud_out->points[i].z = cloud_in->points[i].z;
+  }
 }
+
+// declare all templates use case, otherwise undefined symbol error will raise
+// refer: https://raymii.org/s/snippets/Cpp_template_definitions_in_a_cpp_file_instead_of_header.html
+
+template void Utilities::publishCloud<PointCloud::Ptr>(PointCloud::Ptr cloud, const ros::Publisher &pub, string cloud_frame);
+template void Utilities::publishCloud<PointCloudMono::Ptr>(PointCloudMono::Ptr cloud, const ros::Publisher &pub, string cloud_frame);
+
+template void Utilities::convertToMonoCloud<PointCloud::Ptr, PointCloudMono::Ptr>(PointCloud::Ptr cloud_in, PointCloudMono::Ptr &cloud_out);
+template void Utilities::convertToMonoCloud<PointCloudRGBN::Ptr, PointCloudMono::Ptr>(PointCloudRGBN::Ptr cloud_in, PointCloudMono::Ptr &cloud_out);
+
