@@ -1461,10 +1461,7 @@ bool Utilities::isInContour(PointCloudMono::Ptr contour, pcl::PointXY p) {
     Eigen::Vector3f pvj(v_j.x - p.x, v_j.y - p.y, 0);
 
     // This function calculate the included angle between pvi and pvj
-    float c = pvi.cross(pvj).squaredNorm();
-    float d = pvi.dot(pvj);
-    float angle = atan2(c, d);
-    cerr << i << ": " << angle << endl;
+    float angle = atan2(pvi.cross(pvj).norm(), pvi.dot(pvj));
     angle_sum += fabs(angle);
   }
   return fabs(angle_sum - 2 * M_PI) < 0.01;

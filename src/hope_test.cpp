@@ -25,10 +25,20 @@ int main(int argc, char **argv)
   contour->points[3].z = -1;
 
   pcl::PointXY p;
-  p.x = 0;
+  p.x = 0.9;
   p.y = 0;
   bool ok = Utilities::isInContour(contour, p);
-  cerr << "res: " << ok << endl;
+  cerr << "res 1: " << ok << endl;  // should be true
+
+  p.x = 2;
+  p.y = 0;
+  ok = Utilities::isInContour(contour, p);
+  cerr << "res 2: " << ok << endl;  // should be false
+
+  p.x = 1;
+  p.y = 0;
+  ok = Utilities::isInContour(contour, p);
+  cerr << "res 3: " << ok << endl;  // should be false
 
   return 0;
 }

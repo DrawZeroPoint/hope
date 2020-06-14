@@ -5,8 +5,8 @@ project(hope)
 add_compile_options(-std=c++11)
 
 #Comment this if don't want debug
-set(CMAKE_BUILD_TYPE Debug)
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O1")
+#set(CMAKE_BUILD_TYPE Debug)
+#set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O1")
 
 find_package(catkin REQUIRED COMPONENTS
   cv_bridge
