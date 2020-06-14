@@ -93,6 +93,14 @@ We recommend using [CloudCompare](https://www.danielgm.net/cc/) to do that.
 
 ## Customize the parameters in real-time ROS usage
 
+The launch files in `launch/` provides some references for using HoPE in real-time. `hope_ros.launch`
+initialize the hope node and ready for extracting planes from given point cloud with `cloud_topic`.
+Note that this cloud only needs to be a mono one, i.e., no RGB information. To obtain the cloud with devices like 
+RGBD cameras, you can turn to `pub_cloud.launch`.
+
+You can get horizontal planes in a certain height range with the dynamic reconfigure tool. This function is 
+useful when you only needs a tabletop rather than the ground. Note that the height is relative to the base_link
+frame.
 
 ## License
 MIT.

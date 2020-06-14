@@ -20,7 +20,7 @@ int main(int argc, char **argv)
   ros::NodeHandle pnh("~");
 
   string base_frame = "base_link"; // plane reference frame
-  string cloud_topic = "point_cloud";
+  string cloud_topic = "/head/point_cloud";
 
   float xy_resolution = 0.05; // In meter
   float z_resolution = 0.02; // In meter
@@ -34,10 +34,9 @@ int main(int argc, char **argv)
   cout << "Using threshold: xy@" << xy_resolution 
        << " " << "z@" << z_resolution << endl;
 
-  PlaneSegmentRT hope(xy_resolution, z_resolution, base_frame, cloud_topic);
+  PlaneSegmentRT hope(xy_resolution, z_resolution, nh, base_frame, cloud_topic);
 
   while (ros::ok()) {
-    // The src_cloud is actually not used here
     hope.getHorizontalPlanes();
   }
 

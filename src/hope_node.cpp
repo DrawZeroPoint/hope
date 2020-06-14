@@ -38,9 +38,6 @@
 
 using namespace std;
 
-// Publishers
-
-
 
 /// Camera orientation params, only used for benchmarking
 float roll_angle_ = 0.0;

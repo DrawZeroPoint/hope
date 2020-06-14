@@ -104,9 +104,9 @@ public:
                 PointCloudMono::Ptr cloud_in, std::vector<int> &inliers_cut,
                 PointCloudMono::Ptr &cloud_out);
   
-  void downSampling(PointCloudMono::Ptr cloud_in, PointCloudMono::Ptr &cloud_out, float gird_sz, float z_sz );
+  static void downSampling(PointCloudMono::Ptr cloud_in, PointCloudMono::Ptr &cloud_out, float gird_sz, float z_sz );
 
-  void downSampling(PointCloud::Ptr cloud_in, PointCloud::Ptr &cloud_out, float gird_sz, float z_sz);
+  static void downSampling(PointCloud::Ptr cloud_in, PointCloud::Ptr &cloud_out, float gird_sz, float z_sz);
   
   void estimateNorm(PointCloudMono::Ptr cloud_in,
                     PointCloudRGBN::Ptr &cloud_out,

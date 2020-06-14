@@ -831,8 +831,8 @@ pcl::PolygonMesh Utilities::getMesh(const PointCloudMono::Ptr point_cloud,
                                     NormalCloud::Ptr normals)
 {
   //    NormalCloud::Ptr normals(new NormalCloud);
-  //    normals->height = plane_hull_[i]->height;
-  //    normals->width  = plane_hull_[i]->width;
+  //    normals->height = plane_contour_list_[i]->height;
+  //    normals->width  = plane_contour_list_[i]->width;
   //    normals->is_dense = true;
   //    normals->resize(normals->height * normals->width);
   //    for (size_t j = 0; j < normals->size(); ++j) {

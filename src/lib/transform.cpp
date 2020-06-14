@@ -24,13 +24,12 @@ bool Transform::getTransform(string base_frame, string header_frame)
         return true;
       }
       else {
-        ROS_WARN("Transform: Frame %s does not exist.", base_frame.c_str());
+        ROS_WARN("HoPE Transform: Frame %s does not exist.", base_frame.c_str());
       }
       
       // Handle callbacks and sleep for a small amount of time
       // before looping again
       ros::spinOnce();
-      ros::Duration(0.005).sleep();
     }
   }
   // Catch any exceptions that might happen while transforming

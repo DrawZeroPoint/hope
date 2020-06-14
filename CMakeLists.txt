@@ -10,6 +10,7 @@ add_compile_options(-std=c++11)
 
 find_package(catkin REQUIRED COMPONENTS
   cv_bridge
+  dynamic_reconfigure
   geometry_msgs
   image_transport
   pcl_ros
@@ -34,6 +35,9 @@ add_definitions(${PCL_DEFINITIONS})
 
 find_package(OpenCV REQUIRED)
 message("Found OpenCV ${OpenCV_VERSION}")
+
+# Add dynamic reconfigure API
+generate_dynamic_reconfigure_options(cfg/hope.cfg)
 
 catkin_package(
   CATKIN_DEPENDS 
