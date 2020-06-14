@@ -13,7 +13,6 @@
         <param name="cloud_topic" value="$(arg cloud_topic)" />
         <param name="xy_resolution" value="0.05" />
         <param name="z_resolution" value="0.02" />
-        <!-- <param name="camera_optical_frame_id" value="$(arg vision_namespace)_depth_optical_frame" />-->
     </node>
 
 </launch>

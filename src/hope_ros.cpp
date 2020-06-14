@@ -20,7 +20,7 @@ int main(int argc, char **argv)
   ros::NodeHandle pnh("~");
 
   string base_frame = "base_link"; // plane reference frame
-  string cloud_topic = "/head/point_cloud";
+  string cloud_topic = "/point_cloud";
 
   float xy_resolution = 0.05; // In meter
   float z_resolution = 0.02; // In meter

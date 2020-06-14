@@ -91,25 +91,25 @@ std::string Utilities::getName(int count, string pref, int surf)
   return name;
 }
 
-void Utilities::getOccupancyMap(PointCloudMono::Ptr cloud_src, PointCloudMono::Ptr cloud_upper, 
+void Utilities::getOccupancyMap(PointCloudMono::Ptr cloud_src, PointCloudMono::Ptr cloud_upper,
                                 std::vector<int> occupy, PointCloud::Ptr &cloud_out)
 {
   int minv, maxv;
   getMinMax(occupy, minv, maxv);
   cloud_out->resize(cloud_src->size() + cloud_upper->size());
-  
+
   size_t k = 0;
   for (PointCloudMono::const_iterator pit = cloud_src->begin();
        pit != cloud_src->end(); ++pit) {
     float rgb = Utilities::shortRainbowColorMap(occupy[k], minv, maxv);
-    
+
     cloud_out->points[k].x = pit->x;
     cloud_out->points[k].y = pit->y;
     cloud_out->points[k].z = pit->z;
     cloud_out->points[k].rgb = rgb;
     k++;
   }
-  
+
   size_t j = 0;
   for (PointCloudMono::const_iterator pit = cloud_upper->begin();
        pit != cloud_upper->end(); ++pit) {
@@ -143,7 +143,7 @@ void Utilities::msgToCloud(const PointCloud::ConstPtr msg,
   cloud->width  = msg->width;
   cloud->is_dense = false;
   cloud->resize(cloud->height * cloud->width);
-  
+
   size_t i = 0;
   for (auto pit = msg->begin();
        pit != msg->end(); ++pit) {
@@ -359,8 +359,8 @@ void Utilities::calRegionGrowing(PointCloudRGBN::Ptr cloud_in, int minsz, int ma
 {
   pcl::RegionGrowing<pcl::PointXYZRGBNormal, pcl::Normal> reg;
   pcl::search::Search<pcl::PointXYZRGBNormal>::Ptr tree = boost::shared_ptr<pcl::search::Search<pcl::PointXYZRGBNormal> >
-      (new pcl::search::KdTree<pcl::PointXYZRGBNormal>);
-  
+    (new pcl::search::KdTree<pcl::PointXYZRGBNormal>);
+
   reg.setMinClusterSize(minsz);
   reg.setMaxClusterSize(maxsz);
   reg.setSearchMethod(tree);
@@ -368,11 +368,11 @@ void Utilities::calRegionGrowing(PointCloudRGBN::Ptr cloud_in, int minsz, int ma
   reg.setInputCloud(cloud_in);
   reg.setInputNormals(normals);
   reg.setSmoothnessThreshold(smooth / 180.0 * M_PI);
-  
+
   reg.extract(inliers);
 }
 
-void Utilities::estimateNorm(PointCloudMono::Ptr cloud_in, 
+void Utilities::estimateNorm(PointCloudMono::Ptr cloud_in,
                              PointCloudRGBN::Ptr &cloud_out,
                              NormalCloud::Ptr &normals_out,
                              float norm_r)
@@ -381,27 +381,27 @@ void Utilities::estimateNorm(PointCloudMono::Ptr cloud_in,
   // Create the normal estimation class, and pass the input dataset to it
   pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> ne;
   ne.setInputCloud(cloud_in);
-  
+
   // Create an empty kdtree representation, and pass it to the normal estimation object.
   // Its content will be filled inside the object, based on the given input dataset
   // (as no other search surface is given).
   pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>);
   ne.setSearchMethod(tree);
   ne.setRadiusSearch(norm_r); // in meter
-  
+
   // Compute the normals
   ne.compute(*normals_out);
-  
+
   /// Do it in parallel
   //  // Declare PCL objects needed to perform normal estimation
   //  pcl::NormalEstimationOMP<pcl::PointXYZ, pcl::Normal> normal_estimation;
   //  pcl::search::KdTree<pcl::PointXYZ>::Ptr search_tree(new pcl::search::KdTree<pcl::PointXYZ>);
-  
+
   //  // Set input parameters for normal estimation
   //  search_tree->setInputCloud(cloud_in);
   //  normal_estimation.setInputCloud(cloud_in);
   //  normal_estimation.setSearchMethod(search_tree);
-  
+
   //  /*
   //     * When estimating normals, the algorithm looks at the nearest neighbors of every point
   //     * and fits a plane to these points as close as it can. The normal of this plane is
@@ -412,15 +412,15 @@ void Utilities::estimateNorm(PointCloudMono::Ptr cloud_in,
   //     * too low a number will cause problems.
   //     */
   //  normal_estimation.setKSearch(6);
-  
+
   //  // Perform normal estimation algorithm
   //  normal_estimation.compute(*normals_out);
-  
+
   cloud_out->height = cloud_in->height;
   cloud_out->width  = cloud_in->width;
   cloud_out->is_dense = false;
   cloud_out->resize(cloud_out->height * cloud_out->width);
-  
+
   // Generate rgbn cloud
   for (size_t i = 0; i < cloud_out->size(); ++i) {
     cloud_out->points[i].x = cloud_in->points[i].x;
@@ -435,7 +435,7 @@ void Utilities::estimateNorm(PointCloudMono::Ptr cloud_in,
   }
 }
 
-void Utilities::estimateNorm(PointCloudMono::Ptr cloud_in, 
+void Utilities::estimateNorm(PointCloudMono::Ptr cloud_in,
                              NormalCloud::Ptr &normals_out,
                              float norm_r)
 {
@@ -443,19 +443,19 @@ void Utilities::estimateNorm(PointCloudMono::Ptr cloud_in,
   // Create the normal estimation class, and pass the input dataset to it
   pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> ne;
   ne.setInputCloud(cloud_in);
-  
+
   // Create an empty kdtree representation, and pass it to the normal estimation object.
   // Its content will be filled inside the object, based on the given input dataset
   // (as no other search surface is given).
   pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>);
   ne.setSearchMethod(tree);
   ne.setRadiusSearch(norm_r); // in meter
-  
+
   // Compute the normals
   ne.compute(*normals_out);
 }
 
-void Utilities::downSampling(PointCloudMono::Ptr cloud_in, 
+void Utilities::downSampling(PointCloudMono::Ptr cloud_in,
                              PointCloudMono::Ptr &cloud_out,
                              float gird_sz, float z_sz)
 {
@@ -477,13 +477,13 @@ void Utilities::downSampling(PointCloud::Ptr cloud_in,
   vg.filter(*cloud_out);
 }
 
-void Utilities::planeTo2D(float z, PointCloudMono::Ptr cloud_in, 
+void Utilities::planeTo2D(float z, PointCloudMono::Ptr cloud_in,
                           PointCloudMono::Ptr &cloud_out)
 {
   cloud_out->width = cloud_in->width;
   cloud_out->height = cloud_in->height;
   cloud_out->resize(cloud_out->width *cloud_out->height);
-  
+
   size_t k = 0;
   for (PointCloudMono::const_iterator pit = cloud_in->begin();
        pit != cloud_in->end(); ++pit) {
@@ -494,12 +494,12 @@ void Utilities::planeTo2D(float z, PointCloudMono::Ptr cloud_in,
   }
 }
 
-void Utilities::pointTypeTransfer(PointCloudMono::Ptr cloud_in, 
+void Utilities::pointTypeTransfer(PointCloudMono::Ptr cloud_in,
                                   PointCloud::Ptr &cloud_out,
                                   int r, int g, int b)
 {
   cloud_out->resize(cloud_in->size());
-  
+
   for (size_t i = 0; i < cloud_in->points.size(); i++) {
     cloud_out->points[i].x = cloud_in->points[i].x;
     cloud_out->points[i].y = cloud_in->points[i].y;
@@ -515,8 +515,8 @@ void Utilities::cutCloud(pcl::ModelCoefficients::Ptr coeff_in, float th_distance
                          PointCloudMono::Ptr &cloud_out)
 {
   Eigen::Vector4f coeffs(coeff_in->values[0], coeff_in->values[1],
-      coeff_in->values[2], coeff_in->values[3]);
-  
+                         coeff_in->values[2], coeff_in->values[3]);
+
   PointCloudMono::Ptr cloudSourceFiltered_t(new PointCloudMono);
   convertToMonoCloud<PointCloudRGBN::Ptr, PointCloudMono::Ptr>(cloud_in, cloudSourceFiltered_t);
   pcl::SampleConsensusModelPlane<pcl::PointXYZ> scmp(cloudSourceFiltered_t);
@@ -529,21 +529,21 @@ void Utilities::cutCloud(pcl::ModelCoefficients::Ptr coeff_in, float th_distance
                          PointCloudMono::Ptr &cloud_out)
 {
   Eigen::Vector4f coeffs(coeff_in->values[0], coeff_in->values[1],
-      coeff_in->values[2], coeff_in->values[3]);
-  
+                         coeff_in->values[2], coeff_in->values[3]);
+
   pcl::SampleConsensusModelPlane<pcl::PointXYZ> scmp(cloud_in);
   scmp.selectWithinDistance(coeffs, th_distance, inliers_cut);
   scmp.projectPoints(inliers_cut, coeffs, *cloud_out, false);
 }
 
-void Utilities::clusterExtract(PointCloudMono::Ptr cloud_in, 
-                               vector<pcl::PointIndices> &cluster_indices,
-                               float th_cluster, int minsize, int maxsize)
+void Utilities::extractClusters(PointCloudMono::Ptr cloud_in,
+                                vector<pcl::PointIndices> &cluster_indices,
+                                float th_cluster, int minsize, int maxsize)
 {
   pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ>);
   pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
   ec.setClusterTolerance(th_cluster);
-  
+
   // 3 is used for minsize and 640*480 is used for maxsize
   // cause the filter of cluster should be performed somewhere else
   ec.setMinClusterSize(minsize);
@@ -553,7 +553,7 @@ void Utilities::clusterExtract(PointCloudMono::Ptr cloud_in,
   ec.extract(cluster_indices);
 }
 
-void Utilities::projectCloud(pcl::ModelCoefficients::Ptr coeff_in, 
+void Utilities::projectCloud(pcl::ModelCoefficients::Ptr coeff_in,
                              PointCloudMono::Ptr cloud_in,
                              PointCloudMono::Ptr &cloud_out)
 {
@@ -570,25 +570,25 @@ void Utilities::rotateCloudXY(PointCloudRGBN::Ptr cloud_in, PointCloudRGBN::Ptr 
   Eigen::Matrix4f transform_x = Eigen::Matrix4f::Identity();
   Eigen::Matrix4f transform_y = Eigen::Matrix4f::Identity();
   Eigen::Matrix4f transform_ = Eigen::Matrix4f::Identity();
-  
+
   //the math function cos etc. operate angle in radius
   transform_x(1,1) = cos(rx);
   transform_x(2,1) = -sin(rx);
   transform_x(1,2) = sin(rx);
   transform_x(2,2) = cos(rx);
   //		std::cout << "trans x: "<< transform_x << std::endl;
-  
+
   transform_y(0,0) = cos(ry);
   transform_y(0,2) = -sin(ry);
   transform_y(2,0) = sin(ry);
   transform_y(2,2) = cos(ry);
   //		std::cout << "trans y: "<< transform_y << std::endl;
-  
+
   transform_ = transform_y * transform_x;
   //		std::cout << "total trans: "<< transform_ << std::endl;
   transform_inv = transform_.inverse();
   //		std::cout << "trans_inv: "<< transform_inv << std::endl;
-  
+
   // Executing the transformation
   pcl::transformPointCloudWithNormals(*cloud_in, *cloud_out, transform_);
 }
@@ -600,7 +600,7 @@ void Utilities::rotateBack(PointCloudMono::Ptr cloud_in, PointCloudMono::Ptr &cl
   pcl::transformPointCloud(*cloud_in, *cloud_out, transform_inv);
 }
 
-void Utilities::getAverage(PointCloudMono::Ptr cloud_in, 
+void Utilities::getAverage(PointCloudMono::Ptr cloud_in,
                            float &avr, float &deltaz)
 {
   avr = 0.0;
@@ -609,15 +609,15 @@ void Utilities::getAverage(PointCloudMono::Ptr cloud_in,
   for (PointCloudMono::const_iterator pit = cloud_in->begin();
        pit != cloud_in->end(); ++pit)
     avr += pit->z;
-  
+
   avr = avr / sz;
-  
+
   pcl::PointXYZ minPt, maxPt;
   pcl::getMinMax3D(*cloud_in, minPt, maxPt);
   deltaz = maxPt.z - minPt.z;
 }
 
-void Utilities::getCloudByNorm(PointCloudRGBN::Ptr cloud_in, 
+void Utilities::getCloudByNorm(PointCloudRGBN::Ptr cloud_in,
                                pcl::PointIndices::Ptr &inliers,
                                float th_norm)
 {
@@ -634,7 +634,7 @@ void Utilities::getCloudByNorm(PointCloudRGBN::Ptr cloud_in,
   }
 }
 
-void Utilities::getCloudByNorm(NormalCloud::Ptr cloud_in, 
+void Utilities::getCloudByNorm(NormalCloud::Ptr cloud_in,
                                pcl::PointIndices::Ptr &inliers,
                                float th_norm)
 {
@@ -653,7 +653,7 @@ void Utilities::getCloudByNorm(NormalCloud::Ptr cloud_in,
   }
 }
 
-void Utilities::getCloudByZ(PointCloudMono::Ptr cloud_in, 
+void Utilities::getCloudByZ(PointCloudMono::Ptr cloud_in,
                             pcl::PointIndices::Ptr &inliers,
                             PointCloudMono::Ptr &cloud_out,
                             float z_min, float z_max)
@@ -668,7 +668,7 @@ void Utilities::getCloudByZ(PointCloudMono::Ptr cloud_in,
   pass.filter(*cloud_out);
 }
 
-void Utilities::getCloudByZ(PointCloud::Ptr cloud_in, 
+void Utilities::getCloudByZ(PointCloud::Ptr cloud_in,
                             pcl::PointIndices::Ptr &inliers,
                             PointCloud::Ptr &cloud_out,
                             float z_min, float z_max)
@@ -696,7 +696,7 @@ void Utilities::getCloudByInliers(PointCloudMono::Ptr cloud_in,
   extract.filter(*cloud_out);
 }
 
-void Utilities::getCloudByInliers(NormalCloud::Ptr cloud_in, 
+void Utilities::getCloudByInliers(NormalCloud::Ptr cloud_in,
                                   NormalCloud::Ptr &cloud_out,
                                   pcl::PointIndices::Ptr inliers,
                                   bool negative, bool organized)
@@ -709,7 +709,7 @@ void Utilities::getCloudByInliers(NormalCloud::Ptr cloud_in,
   extract.filter(*cloud_out);
 }
 
-void Utilities::getCloudByInliers(PointCloudRGBN::Ptr cloud_in, 
+void Utilities::getCloudByInliers(PointCloudRGBN::Ptr cloud_in,
                                   PointCloudRGBN::Ptr &cloud_out,
                                   pcl::PointIndices::Ptr inliers,
                                   bool negative, bool organized)
@@ -722,27 +722,27 @@ void Utilities::getCloudByInliers(PointCloudRGBN::Ptr cloud_in,
   extract.filter(*cloud_out);
 }
 
-bool Utilities::checkWithIn(pcl::PointIndices::Ptr ref_inliers, 
+bool Utilities::checkWithIn(pcl::PointIndices::Ptr ref_inliers,
                             pcl::PointIndices::Ptr tgt_inliers)
 {
   int size_ref = ref_inliers->indices.size();
   int size_tgt = tgt_inliers->indices.size();
   int half_size = size_tgt * 0.5;
-  
+
   // We take the advantage that all inliers are in order small to large
   // So sort is unnecessary
   //sort(ref_inliers->indices.begin(), ref_inliers->indices.end());
   //sort(tgt_inliers->indices.begin(), tgt_inliers->indices.end());
-  
+
   int within = 0;
-  
+
   if (tgt_inliers->indices[size_tgt - 1] < ref_inliers->indices[0] ||
       tgt_inliers->indices[0] > ref_inliers->indices[size_ref - 1]) {
     return false;
   }
-  
+
   size_t start_pos = 0;
-  
+
   for (size_t e = 0; e < size_tgt; ++e) {
     for (size_t i = start_pos; i < size_ref; ++i) {
       if (tgt_inliers->indices[e] == ref_inliers->indices[i]) {
@@ -827,7 +827,7 @@ void Utilities::getHullCenter(PointCloud::Ptr hull, float &x, float &y)
   y = sumy / hull->points.size();
 }
 
-pcl::PolygonMesh Utilities::getMesh(const PointCloudMono::Ptr point_cloud, 
+pcl::PolygonMesh Utilities::getMesh(const PointCloudMono::Ptr point_cloud,
                                     NormalCloud::Ptr normals)
 {
   //    NormalCloud::Ptr normals(new NormalCloud);
@@ -840,7 +840,7 @@ pcl::PolygonMesh Utilities::getMesh(const PointCloudMono::Ptr point_cloud,
   //      normals->points[j].normal_y = 0;
   //      normals->points[j].normal_z = 1;
   //    }
-  
+
   // Add the normals to the point cloud
   NormalPointCloud::Ptr cloud_with_normals(new NormalPointCloud);
   pcl::concatenateFields(*point_cloud, *normals, *cloud_with_normals);
@@ -848,7 +848,7 @@ pcl::PolygonMesh Utilities::getMesh(const PointCloudMono::Ptr point_cloud,
   tree->setInputCloud(cloud_with_normals);
   pcl::GreedyProjectionTriangulation<pcl::PointNormal> gp3;
   pcl::PolygonMesh triangles;
-  
+
   gp3.setSearchRadius(0.08);
   gp3.setMu(2.5);
   gp3.setMaximumNearestNeighbors (100);
@@ -869,12 +869,12 @@ void Utilities::getMinMax(std::vector<int> vec, int &minv, int &maxv)
   maxv = vec[vec.size() - 1];
 }
 
-void Utilities::shrinkHull(PointCloudMono::Ptr cloud, 
+void Utilities::shrinkHull(PointCloudMono::Ptr cloud,
                            PointCloudMono::Ptr &cloud_sk, float dis)
 {
   pcl::PointXYZ minPt, maxPt;
   pcl::getMinMax3D(*cloud, minPt, maxPt);
-  
+
   size_t i = 0;
   float center_x = (maxPt.x + minPt.x) / 2;
   float center_y = (maxPt.y + minPt.y) / 2;
@@ -895,33 +895,33 @@ void Utilities::shrinkHull(PointCloudMono::Ptr cloud,
       float theta = atan(d_y/d_x);
       if (d_x > 0 && d_y >= 0) {
         cloud_sk->points[i].x = (pit->x - fabs(dis*sin(theta)))>center_x?
-              (pit->x - fabs(dis*sin(theta))):pit->x;
+                                (pit->x - fabs(dis*sin(theta))):pit->x;
         cloud_sk->points[i].y = (pit->y - fabs(dis*cos(theta)))>center_y?
-              (pit->y - fabs(dis*cos(theta))):pit->y;
+                                (pit->y - fabs(dis*cos(theta))):pit->y;
       }
       else if (d_x < 0 && d_y >= 0) {
         cloud_sk->points[i].x = (pit->x + fabs(dis*sin(theta)))<center_x?
-              (pit->x + fabs(dis*sin(theta))):pit->x;
+                                (pit->x + fabs(dis*sin(theta))):pit->x;
         cloud_sk->points[i].y = (pit->y - fabs(dis*cos(theta)))>center_y?
-              (pit->y - fabs(dis*cos(theta))):pit->y;
+                                (pit->y - fabs(dis*cos(theta))):pit->y;
       }
       else if (d_x < 0 && d_y < 0) {
         cloud_sk->points[i].x = (pit->x + fabs(dis*sin(theta)))<center_x?
-              (pit->x + fabs(dis*sin(theta))):pit->x;
+                                (pit->x + fabs(dis*sin(theta))):pit->x;
         cloud_sk->points[i].y = (pit->y + fabs(dis*cos(theta)))<center_y?
-              (pit->y + fabs(dis*cos(theta))):pit->y;
+                                (pit->y + fabs(dis*cos(theta))):pit->y;
       }
       else {
         cloud_sk->points[i].x = (pit->x - fabs(dis*sin(theta)))>center_x?
-              (pit->x - fabs(dis*sin(theta))):pit->x;
+                                (pit->x - fabs(dis*sin(theta))):pit->x;
         cloud_sk->points[i].y = (pit->y + fabs(dis*cos(theta)))<center_y?
-              (pit->y + fabs(dis*cos(theta))):pit->y;
+                                (pit->y + fabs(dis*cos(theta))):pit->y;
       }
     }
   }
 }
 
-bool Utilities::isInHull(PointCloudMono::Ptr hull, pcl::PointXY p_in, 
+bool Utilities::isInHull(PointCloudMono::Ptr hull, pcl::PointXY p_in,
                          pcl::PointXY &offset, pcl::PointXY &p_closest)
 {
   //pcl::isXYPointIn2DXYPolygon(p_in, *hull);
@@ -988,14 +988,14 @@ bool Utilities::isInHull(PointCloudMono::Ptr hull, pcl::PointXY p_in,
     p_c.y = (minPt.y + maxPt.y)/2;
     p_closest.x = p_in.x + 0.1 * (p_c.x - p_in.x);
     p_closest.y = p_in.y + 0.1 * (p_c.y - p_in.y);
-    
+
     offset.x = p_closest.x - p_in.x;
     offset.y = p_closest.y - p_in.y;
     return false;
   }
 }
 
-bool Utilities::tryExpandROI(int &minx, int &miny, int &maxx, int &maxy, 
+bool Utilities::tryExpandROI(int &minx, int &miny, int &maxx, int &maxy,
                              int pad, int width, int height)
 {
   if (minx >= maxx || miny >= maxy) {
@@ -1011,22 +1011,19 @@ bool Utilities::tryExpandROI(int &minx, int &miny, int &maxx, int &maxy,
   if (maxy > height) maxy = height - 1;
 }
 
-bool Utilities::isIntersect(pcl::PointXY p1, pcl::PointXY p2, 
+bool Utilities::isIntersect(pcl::PointXY p1, pcl::PointXY p2,
                             pcl::PointXY p3, pcl::PointXY p4)
-{  
+{
   float delta = determinant(p2.x-p1.x, p3.x-p4.x, p2.y-p1.y, p3.y-p4.y);
   if ( delta<=(1e-6) && delta>=-(1e-6) ) {
     return false;
   }
-  float lameda = determinant(p3.x-p1.x, p3.x-p4.x, p3.y-p1.y, p3.y-p4.y) / delta;
-  if ( lameda > 1 || lameda < 0 ) {
+  float d = determinant(p3.x - p1.x, p3.x - p4.x, p3.y - p1.y, p3.y - p4.y) / delta;
+  if (d > 1 || d < 0 ) {
     return false;
   }
   float miu = determinant(p2.x-p1.x, p3.x-p1.x, p2.y-p1.y, p3.y-p1.y) / delta;
-  if ( miu > 1 || miu < 0 ) {
-    return false;
-  }
-  return true;
+  return !(miu > 1 || miu < 0);
 }
 
 void Utilities::matFill(vector<vector<float> > features, Mat &out)
@@ -1083,7 +1080,7 @@ void Utilities::matNormalize(Mat query_in, Mat train_in,
   }
 }
 
-// Note that the limit restircted the total number of planes being found
+// Note that the limit restricted the total number of planes being found
 void Utilities::searchAvailableID(vector<int> id_used,
                                   vector<int> &id_ava,
                                   size_t limit=1024)
@@ -1112,12 +1109,12 @@ void Utilities::searchAvailableID(vector<int> id_used,
   }
 }
 
-void Utilities::getClosestPoint(pcl::PointXY p1, pcl::PointXY p2, 
+void Utilities::getClosestPoint(pcl::PointXY p1, pcl::PointXY p2,
                                 pcl::PointXY p, pcl::PointXY &pc)
 {
   float A = p1.x - p2.x;
   float B = p1.y - p2.y;
-  
+
   if (A == 0) {
     pc.x = p1.x;
     pc.y = p.y;
@@ -1128,10 +1125,10 @@ void Utilities::getClosestPoint(pcl::PointXY p1, pcl::PointXY p2,
     pc.y = p1.y;
     return;
   }
-  
+
   //pc.x = (A*(A*p.x + B*p.y)/B - A*p1.y + B*p1.x)/(B + A*A/B);
   //pc.y = B*(pc.x - p1.x)/A + p1.y;
-  
+
   pc.y = (p.x - p1.x + A/B*p1.y + B/A*p.y)/(A/B + B/A);
   pc.x = A/B*(pc.y - p1.y) + p1.x;
 }
@@ -1334,42 +1331,42 @@ float Utilities::shortRainbowColorMap(const double &value,
                                       const double &min,
                                       const double &max) {
   uint8_t r, g, b;
-  
+
   // Normalize value to [0, 1]
   double value_normalized = (value - min) / (max - min);
-  
+
   double a = (1.0f - value_normalized) / 0.25f;
   int X = static_cast<int>(floor(a));
   int Y = static_cast<int>(floor(255.0f * (a - X)));
-  
+
   switch (X) {
-  case 0:
-    r = 255;
-    g = Y;
-    b = 0;
-    break;
-  case 1:
-    r = 255 - Y;
-    g = 255;
-    b = 0;
-    break;
-  case 2:
-    r = 0;
-    g = 255;
-    b = Y;
-    break;
-  case 3:
-    r = 0;
-    g = 255-Y;
-    b = 255;
-    break;
-  case 4:
-    r = 0;
-    g = 0;
-    b = 255;
-    break;
+    case 0:
+      r = 255;
+      g = Y;
+      b = 0;
+      break;
+    case 1:
+      r = 255 - Y;
+      g = 255;
+      b = 0;
+      break;
+    case 2:
+      r = 0;
+      g = 255;
+      b = Y;
+      break;
+    case 3:
+      r = 0;
+      g = 255-Y;
+      b = 255;
+      break;
+    case 4:
+      r = 0;
+      g = 0;
+      b = 255;
+      break;
   }
-  
+
   uint32_t rgb = ((uint32_t)r << 16 | (uint32_t)g << 8 | (uint32_t)b);
   return *reinterpret_cast<float*>(&rgb);
 }
@@ -1379,11 +1376,11 @@ float Utilities::pointToSegDist(float x, float y, float x1, float y1, float x2, 
   float cross = (x2 - x1) * (x - x1) + (y2 - y1) * (y - y1);
   if (cross <= 0)
     return sqrt((x - x1) * (x - x1) + (y - y1) * (y - y1));
-  
+
   float d2 = (x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1);
   if (cross >= d2)
     return sqrt((x - x2) * (x - x2) + (y - y2) * (y - y2));
-  
+
   float r = cross / d2;
   float px = x1 + (x2 - x1) * r;
   float py = y1 + (y2 - y1) * r;
@@ -1443,6 +1440,68 @@ void Utilities::convertToMonoCloud(T cloud_in, U &cloud_out) {
     cloud_out->points[i].x = cloud_in->points[i].x;
     cloud_out->points[i].y = cloud_in->points[i].y;
     cloud_out->points[i].z = cloud_in->points[i].z;
+  }
+}
+
+bool Utilities::isInContour(PointCloudMono::Ptr contour, pcl::PointXY p) {
+  float angle_sum = 0;
+  for (size_t i = 0; i < contour->points.size(); i++) {
+    pcl::PointXY v_i;
+    pcl::PointXY v_j;
+    v_i.x = contour->points[i].x;
+    v_i.y = contour->points[i].y;
+    if (i < contour->points.size() - 1) {
+      v_j.x = contour->points[i + 1].x;
+      v_j.y = contour->points[i + 1].y;
+    } else {
+      v_j.x = contour->points[0].x;
+      v_j.y = contour->points[0].y;
+    }
+    Eigen::Vector3f pvi(v_i.x - p.x, v_i.y - p.y, 0);
+    Eigen::Vector3f pvj(v_j.x - p.x, v_j.y - p.y, 0);
+
+    // This function calculate the included angle between pvi and pvj
+    float c = pvi.cross(pvj).squaredNorm();
+    float d = pvi.dot(pvj);
+    float angle = atan2(c, d);
+    cerr << i << ": " << angle << endl;
+    angle_sum += fabs(angle);
+  }
+  return fabs(angle_sum - 2 * M_PI) < 0.01;
+}
+
+//template<typename T>
+void Utilities::getClustersUponPlane(PointCloudMono::Ptr src_cloud, PointCloudMono::Ptr contour,
+  vector<PointCloudMono::Ptr> &clusters) {
+  // Get cloud from src_cloud upon the given contour
+  float z = contour->points[0].z;  // all points in contour should have the same z value
+
+  PointCloudMono::Ptr temp(new PointCloudMono);
+  temp->resize(src_cloud->size());
+  for (size_t i = 0; i < src_cloud->points.size(); i++) {
+    if (src_cloud->points[i].z < z)
+      continue;
+
+    pcl::PointXY p;
+    p.x = src_cloud->points[i].x;
+    p.y = src_cloud->points[i].y;
+
+    if (isInContour(contour, p)) {
+      temp->points[i].x = src_cloud->points[i].x;
+      temp->points[i].y = src_cloud->points[i].y;
+      temp->points[i].z = src_cloud->points[i].z;
+    }
+  }
+
+  vector<pcl::PointIndices> cluster_indices;
+  extractClusters(temp, cluster_indices, 0.05, 5, 240000);
+
+  for (size_t i = 0; i < cluster_indices.size(); ++i) {
+    PointCloudMono::Ptr cluster_temp(new PointCloudMono);
+    pcl::PointIndices::Ptr indices_temp(new pcl::PointIndices);
+    indices_temp->indices = cluster_indices[i].indices;
+    getCloudByInliers(temp, cluster_temp, indices_temp, false, false);
+    clusters.push_back(cluster_temp);
   }
 }
 

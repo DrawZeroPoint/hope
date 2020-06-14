@@ -213,7 +213,7 @@ void PlaneSegment::findAllPlanesRG(int norm_k, int num_n, float s_th, float c_th
     PointCloudMono::Ptr cloud_p (new PointCloudMono);
     pcl::PointIndices::Ptr idx_seed(new pcl::PointIndices);
     idx_seed->indices = clusters[i].indices;
-    utl_->getCloudByInliers(cloud_norm_fit_mono_, cloud_p, idx_seed, false, false);
+    Utilities::getCloudByInliers(cloud_norm_fit_mono_, cloud_p, idx_seed, false, false);
     plane_points_.push_back(cloud_p);
 
     float avr_z, delta_z;
@@ -264,7 +264,7 @@ void PlaneSegment::findAllPlanesRANSAC(bool isOptimize, int maxIter,
       break;
     }
     // Extract the inliers
-    utl_->getCloudByInliers(cloud_norm_fit_mono_, cloud_p, inliers, false, false);
+    Utilities::getCloudByInliers(cloud_norm_fit_mono_, cloud_p, inliers, false, false);
     cout << "PointCloud representing the planar component: " << cloud_p->points.size() << " data points." << endl;
     plane_points_.push_back(cloud_p);
 
@@ -284,7 +284,7 @@ void PlaneSegment::findAllPlanesRANSAC(bool isOptimize, int maxIter,
     //writer.write<pcl::PointXYZ>(ss.str(), *cloud_p, false);
 
     // Create the filtering object
-    utl_->getCloudByInliers(cloud_norm_fit_mono_, cloud_f, inliers, true, false);
+    Utilities::getCloudByInliers(cloud_norm_fit_mono_, cloud_f, inliers, true, false);
     cloud_norm_fit_mono_.swap(cloud_f);
     i++;
   }
@@ -304,11 +304,11 @@ void PlaneSegment::getMeanZofEachCluster(PointCloudMono::Ptr cloud_norm_fit_mono
       
       pcl::PointIndices::Ptr idx_seed(new pcl::PointIndices);
       idx_seed->indices = it->indices;
-      utl_->getCloudByInliers(cloud_norm_fit_mono, cloud_fit_part, idx_seed, false, false);
+      Utilities::getCloudByInliers(cloud_norm_fit_mono, cloud_fit_part, idx_seed, false, false);
       
       if (show_cluster_) {
         string name = utl_->getName(k, "part_", -1);
-        Vec3f c = utl_->getColorWithID(k);
+        Vec3f c = Utilities::getColorWithID(k);
 
         viewer->addPointCloud<pcl::PointXYZ>(cloud_fit_part, name);
         viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 10.0, name);
@@ -367,7 +367,7 @@ void PlaneSegment::getPlane(size_t id, float z_in, PointCloudMono::Ptr &cloud_no
   
   // Extract the plane points indexed by idx_seed
   PointCloudMono::Ptr cluster_near_z(new PointCloudMono);
-  utl_->getCloudByInliers(cloud_norm_fit_mono, cluster_near_z, idx_seed, false, false);
+  Utilities::getCloudByInliers(cloud_norm_fit_mono, cluster_near_z, idx_seed, false, false);
   
   // If the points do not pass the error test, return
   PointCloud::Ptr cluster_2d_rgb(new PointCloud);
@@ -433,7 +433,7 @@ bool PlaneSegment::gaussianImageAnalysis(size_t id)
 
   // Extract the plane points indexed by idx_seed
   NormalCloud::Ptr cluster_normal(new NormalCloud);
-  utl_->getCloudByInliers(cloud_norm_fit_, cluster_normal, idx_seed, false, false);
+  Utilities::getCloudByInliers(cloud_norm_fit_, cluster_normal, idx_seed, false, false);
 
   /// Construct a Pointcloud to store normal points
   if (show_egi_) {
@@ -568,7 +568,7 @@ void PlaneSegment::visualizeResult(bool display_source, bool display_raw,
   
   for (size_t i = 0; i < plane_points_.size(); i++) {
     int id = global_id_temp_[i];
-    Vec3f c = utl_->getColorWithID(id);
+    Vec3f c = Utilities::getColorWithID(id);
     if (display_raw) {
       // Add raw plane points
       name = utl_->getName(i, "plane_", -1);
@@ -704,8 +704,8 @@ void PlaneSegment::computeNormalAndFilter()
 
   if (idx_norm_fit_->indices.empty()) return;
 
-  utl_->getCloudByInliers(src_sp_mono_, cloud_norm_fit_mono_, idx_norm_fit_, false, false);
-  utl_->getCloudByInliers(src_normals_, cloud_norm_fit_, idx_norm_fit_, false, false);
+  Utilities::getCloudByInliers(src_sp_mono_, cloud_norm_fit_mono_, idx_norm_fit_, false, false);
+  Utilities::getCloudByInliers(src_normals_, cloud_norm_fit_, idx_norm_fit_, false, false);
 }
 
 PlaneSegmentRT::PlaneSegmentRT(float th_xy, float th_z, ros::NodeHandle nh, string base_frame, const string &cloud_topic) :
@@ -823,8 +823,8 @@ void PlaneSegmentRT::computeNormalAndFilter()
     return;
   }
 
-  utl_->getCloudByInliers(src_dsp_mono_, cloud_norm_fit_mono_, idx_norm_fit_, false, false);
-  utl_->getCloudByInliers(src_normals_, cloud_norm_fit_, idx_norm_fit_, false, false);
+  Utilities::getCloudByInliers(src_dsp_mono_, cloud_norm_fit_mono_, idx_norm_fit_, false, false);
+  Utilities::getCloudByInliers(src_normals_, cloud_norm_fit_, idx_norm_fit_, false, false);
 }
 
 void PlaneSegmentRT::findAllPlanes()
@@ -863,7 +863,7 @@ void PlaneSegmentRT::getMeanZofEachCluster(PointCloudMono::Ptr cloud_norm_fit_mo
 
       pcl::PointIndices::Ptr idx_seed(new pcl::PointIndices);
       idx_seed->indices = it->indices;
-      utl_->getCloudByInliers(cloud_norm_fit_mono, cloud_fit_part, idx_seed, false, false);
+      Utilities::getCloudByInliers(cloud_norm_fit_mono, cloud_fit_part, idx_seed, false, false);
 
       float part_mean_z = utl_->getCloudMeanZ(cloud_fit_part);
       //cout << "Cluster has " << idx_seed->indices.size() << " points at z: " << part_mean_z << endl;
@@ -895,7 +895,7 @@ void PlaneSegmentRT::getPlane(size_t id, float z_in, PointCloudMono::Ptr &cloud_
 
     // Extract the plane points indexed by idx_seed
     PointCloudMono::Ptr cluster_near_z(new PointCloudMono);
-    utl_->getCloudByInliers(cloud_norm_fit_mono, cluster_near_z, idx_seed, false, false);
+    Utilities::getCloudByInliers(cloud_norm_fit_mono, cluster_near_z, idx_seed, false, false);
 
     // If the points do not pass the error test, return
     if (!gaussianImageAnalysis(id)) return;
@@ -1002,7 +1002,7 @@ bool PlaneSegmentRT::gaussianImageAnalysis(size_t id)
 
   // Extract the plane points indexed by idx_seed
   NormalCloud::Ptr cluster_normal(new NormalCloud);
-  utl_->getCloudByInliers(cloud_norm_fit_, cluster_normal, idx_seed, false, false);
+  Utilities::getCloudByInliers(cloud_norm_fit_, cluster_normal, idx_seed, false, false);
 
   /// Construct a Pointcloud to store normal points
   if (show_egi_) {

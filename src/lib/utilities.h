@@ -5,10 +5,10 @@
 #include <sensor_msgs/PointCloud2.h>
 
 // STL
-#include <iostream> 
+#include <iostream>
 #include <string>
 #include <vector>
-#include <math.h>
+#include <cmath>
 
 // PCL
 #include <pcl/common/common.h>
@@ -66,6 +66,7 @@
 
 //Eigen
 #include <Eigen/Dense>
+#include <Eigen/Geometry>
 #include <Eigen/Eigenvalues>
 
 
@@ -83,7 +84,7 @@ public:
   bool calRANSAC(const PointCloudMono::ConstPtr cloud_3d_in, float dt, float &grad);
   void calRegionGrowing(PointCloudRGBN::Ptr cloud_in, int minsz, int maxsz, int nb, int smooth,
                         pcl::PointCloud<pcl::Normal>::Ptr normals, std::vector<pcl::PointIndices> &inliers);
-  
+
   /**
    * @brief checkWithIn Check if ref_inliers contains elements in tgt_inliers
    * @param ref_inliers
@@ -91,34 +92,34 @@ public:
    * @return rate of containment 0~1
    */
   bool checkWithIn(pcl::PointIndices::Ptr ref_inliers, pcl::PointIndices::Ptr tgt_inliers);
-  
-  void clusterExtract(PointCloudMono::Ptr cloud_in,
-                      std::vector<pcl::PointIndices> &cluster_indices,
-                      float th_cluster, int minsize, int maxsize);
-  
+
+  static void extractClusters(PointCloudMono::Ptr cloud_in,
+                              std::vector<pcl::PointIndices> &cluster_indices,
+                              float th_cluster, int minsize, int maxsize);
+
   void cutCloud(pcl::ModelCoefficients::Ptr coeff_in, float th_distance,
                 PointCloudRGBN::Ptr cloud_in, std::vector<int> &inliers_cut,
                 PointCloudMono::Ptr &cloud_out);
-  
+
   void cutCloud(pcl::ModelCoefficients::Ptr coeff_in, float th_distance,
                 PointCloudMono::Ptr cloud_in, std::vector<int> &inliers_cut,
                 PointCloudMono::Ptr &cloud_out);
-  
+
   static void downSampling(PointCloudMono::Ptr cloud_in, PointCloudMono::Ptr &cloud_out, float gird_sz, float z_sz );
 
   static void downSampling(PointCloud::Ptr cloud_in, PointCloud::Ptr &cloud_out, float gird_sz, float z_sz);
-  
+
   void estimateNorm(PointCloudMono::Ptr cloud_in,
                     PointCloudRGBN::Ptr &cloud_out,
                     NormalCloud::Ptr &normals_out,
                     float norm_r);
-  
+
   void estimateNorm(PointCloudMono::Ptr cloud_in,
                     NormalCloud::Ptr &normals_out,
                     float norm_r);
-  
+
   void getAverage(PointCloudMono::Ptr cloud_in, float &avr, float &deltaz);
-  
+
   /**
    * @brief getClosestPoint
    * Given line segment (p1,p2) and point p, get the closest point p_c of p on (p1,p2)
@@ -131,50 +132,50 @@ public:
    */
   void getClosestPoint(pcl::PointXY p1, pcl::PointXY p2, pcl::PointXY p, pcl::PointXY &pc);
 
-  void getCloudByInliers(PointCloudMono::Ptr cloud_in, PointCloudMono::Ptr &cloud_out,
-                         pcl::PointIndices::Ptr inliers, bool negative, bool organized);
-  
-  void getCloudByInliers(NormalCloud::Ptr cloud_in, NormalCloud::Ptr &cloud_out,
-                         pcl::PointIndices::Ptr inliers, bool negative, bool organized);
-  
+  static void getCloudByInliers(PointCloudMono::Ptr cloud_in, PointCloudMono::Ptr &cloud_out,
+                                pcl::PointIndices::Ptr inliers, bool negative, bool organized);
+
+  static void getCloudByInliers(NormalCloud::Ptr cloud_in, NormalCloud::Ptr &cloud_out,
+                                pcl::PointIndices::Ptr inliers, bool negative, bool organized);
+
   void getCloudByInliers(PointCloudRGBN::Ptr cloud_in,
                          PointCloudRGBN::Ptr &cloud_out,
                          pcl::PointIndices::Ptr inliers, bool negative, bool organized);
-  
+
   void getCloudByNorm(PointCloudRGBN::Ptr cloud_in, pcl::PointIndices::Ptr &inliers,
                       float th_norm);
-  
+
   void getCloudByNorm(NormalCloud::Ptr cloud_in, pcl::PointIndices::Ptr &inliers, float th_norm);
-  
+
   void getCloudByZ(PointCloudMono::Ptr cloud_in, pcl::PointIndices::Ptr &inliers,
                    PointCloudMono::Ptr &cloud_out, float z_min, float z_max);
-  
+
   void getCloudByZ(PointCloud::Ptr cloud_in, pcl::PointIndices::Ptr &inliers,
                    PointCloud::Ptr &cloud_out, float z_min, float z_max);
-  
+
   float getCloudMeanZ(PointCloudMono::Ptr cloud_in);
-  
+
   float getCloudMeanZ(PointCloudRGBN::Ptr cloud_in);
-  
-  cv::Vec3f getColorWithID(int id);
-  
+
+  static cv::Vec3f getColorWithID(int id);
+
   float getDistance(std::vector<float> v1, std::vector<float> v2);
 
   void getHullCenter(PointCloud::Ptr hull, float &x, float &y);
-  
+
   pcl::PolygonMesh getMesh(const PointCloudMono::Ptr point_cloud, NormalCloud::Ptr normals);
-  
+
   void getMinMax(std::vector<int> vec, int &minv, int &maxv);
-  
+
   std::string getName(int count, std::string pref, int surf);
-  
+
   void getOccupancyMap(PointCloudMono::Ptr cloud_src, PointCloudMono::Ptr cloud_upper, std::vector<int> occupy,
                        PointCloud::Ptr &cloud_out);
 
   void getPointByZ(float z, PointCloudMono::Ptr cloud_in, pcl::PointXYZ &pt);
 
   static void heatmapRGB(float gray, uint8_t &r, uint8_t &g, uint8_t &b);
-  
+
   /**
    * @brief isInHull
    * Judge whether a given point p_in is in 2D hull, if so, return true, else return false
@@ -183,9 +184,8 @@ public:
    * @param offset Distance between p_in and its nearest point on hull
    * @return
    */
-  bool isInHull(PointCloudMono::Ptr hull, pcl::PointXY p_in,
-                pcl::PointXY &offset, pcl::PointXY &p_closest);
-  
+  static bool isInHull(PointCloudMono::Ptr hull, pcl::PointXY p_in, pcl::PointXY &offset, pcl::PointXY &p_closest);
+
   bool isInVector(int id, std::vector<int> vec, int &pos);
   bool isInVector(int id, std::vector<int> &vec);
 
@@ -194,14 +194,14 @@ public:
 
   bool mergeOrReplace(size_t g_id, std::vector<int> l_ids, size_t q_id,
                       std::vector<std::vector<float> > global, std::vector<std::vector<float> > local);
-  
+
   void msgToCloud(const PointCloud::ConstPtr msg, PointCloudMono::Ptr cloud);
 
   bool normalAnalysis(NormalCloud::Ptr cloud, float th_angle);
 
   bool pcaAnalysis(pcl::PointXYZ pointMaxZ, pcl::PointXYZ pointMinZ,
                    const PointCloudMono::ConstPtr cloud_3d_in, float &proj, float &grad);
-  
+
   float pointToSegDist(float x, float y, float x1, float y1, float x2, float y2);
 
   void pointTypeTransfer(PointCloudMono::Ptr cloud_in,
@@ -209,22 +209,22 @@ public:
 
   template <typename T, typename U>
   static void convertToMonoCloud(T cloud_in, U &cloud_out);
-  
+
   void planeTo2D(float z, PointCloudMono::Ptr cloud_in,
                  PointCloudMono::Ptr &cloud_out);
-  
+
   void projectCloud(pcl::ModelCoefficients::Ptr coeff_in,
                     PointCloudMono::Ptr cloud_in,
                     PointCloudMono::Ptr &cloud_out);
-  
+
   void rotateCloudXY(PointCloudRGBN::Ptr cloud_in,
                      PointCloudRGBN::Ptr &cloud_out,
                      float rx, float ry, Eigen::Matrix4f &transform_inv);
-  
+
   void rotateBack(PointCloudMono::Ptr cloud_in,
                   PointCloudMono::Ptr &cloud_out,
                   Eigen::Matrix4f transform_inv);
-  
+
   /**
    * @brief shrinkHull Shrink the 2D hull by distance dis according to the center
    * @param cloud Hull cloud in XY plane
@@ -232,8 +232,9 @@ public:
    * @param dis in meter
    */
   void shrinkHull(PointCloudMono::Ptr cloud, PointCloudMono::Ptr &cloud_sk, float dis);
-  
+
   float shortRainbowColorMap(const double &value, const double &min, const double &max);
+
   /**
    * @brief tryExpandROI
    * Expand given ROI by pad in both xy direction
@@ -254,6 +255,22 @@ public:
 
   template <typename T>
   static inline bool isPointCloudValid(T cloud) { return cloud->empty() == 0; }
+
+//  template <typename T>
+  static void getClustersUponPlane(PointCloudMono::Ptr src_cloud, PointCloudMono::Ptr contour, std::vector<PointCloudMono::Ptr> &clusters);
+
+  /**
+   * Determine whether a given point p in XY plane is within a contour C in the same plane.
+   * The idea is, if p in C, then the angles form by <pv_i, pv_i+1> for i in [0, N] should
+   * be equal to 360 degree, where N is the total number of vertexes of C. Otherwise, the
+   * sum of angles should smaller than 360.
+   *
+   * This function do require the contour is ordered clockwise or anti-clockwise.
+   *
+   * @param contour A point cloud of vertexes of a contour
+   * @param p a point in XY plane
+   */
+  static bool isInContour(PointCloudMono::Ptr contour, pcl::PointXY p);
 
 private:
   bool calNormalMean(Eigen::Matrix3Xf data, std::vector<int> part1, std::vector<int> part2,
