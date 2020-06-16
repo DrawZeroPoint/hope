@@ -3,6 +3,8 @@
 
 #include <ros/ros.h>
 #include <sensor_msgs/PointCloud2.h>
+#include <geometry_msgs/Pose.h>
+#include <geometry_msgs/PoseArray.h>
 
 // STL
 #include <iostream>
@@ -81,9 +83,9 @@ class Utilities
 public:
   Utilities();
 
-  bool calRANSAC(const PointCloudMono::ConstPtr cloud_3d_in, float dt, float &grad);
-  void calRegionGrowing(PointCloudRGBN::Ptr cloud_in, int minsz, int maxsz, int nb, int smooth,
-                        pcl::PointCloud<pcl::Normal>::Ptr normals, std::vector<pcl::PointIndices> &inliers);
+  static bool calRANSAC(const PointCloudMono::ConstPtr& cloud_3d_in, float dt, float &grad);
+  static void calRegionGrowing(PointCloudRGBN::Ptr cloud_in, int minsz, int maxsz, int nb, int smooth,
+                               pcl::PointCloud<pcl::Normal>::Ptr normals, std::vector<pcl::PointIndices> &inliers);
 
   /**
    * @brief checkWithIn Check if ref_inliers contains elements in tgt_inliers
@@ -91,34 +93,34 @@ public:
    * @param tgt_inliers
    * @return rate of containment 0~1
    */
-  bool checkWithIn(pcl::PointIndices::Ptr ref_inliers, pcl::PointIndices::Ptr tgt_inliers);
+  static bool checkWithIn(const pcl::PointIndices::Ptr& ref_inliers, const pcl::PointIndices::Ptr& tgt_inliers);
 
   static void extractClusters(PointCloudMono::Ptr cloud_in,
                               std::vector<pcl::PointIndices> &cluster_indices,
                               float th_cluster, int minsize, int maxsize);
 
-  void cutCloud(pcl::ModelCoefficients::Ptr coeff_in, float th_distance,
-                PointCloudRGBN::Ptr cloud_in, std::vector<int> &inliers_cut,
-                PointCloudMono::Ptr &cloud_out);
+  static void cutCloud(pcl::ModelCoefficients::Ptr coeff_in, float th_distance,
+                       PointCloudRGBN::Ptr cloud_in, std::vector<int> &inliers_cut,
+                       PointCloudMono::Ptr &cloud_out);
 
-  void cutCloud(pcl::ModelCoefficients::Ptr coeff_in, float th_distance,
-                PointCloudMono::Ptr cloud_in, std::vector<int> &inliers_cut,
-                PointCloudMono::Ptr &cloud_out);
+  static void cutCloud(pcl::ModelCoefficients::Ptr coeff_in, float th_distance,
+                       PointCloudMono::Ptr cloud_in, std::vector<int> &inliers_cut,
+                       PointCloudMono::Ptr &cloud_out);
 
-  static void downSampling(PointCloudMono::Ptr cloud_in, PointCloudMono::Ptr &cloud_out, float gird_sz, float z_sz );
+  static void downSampling(const PointCloudMono::Ptr& cloud_in, PointCloudMono::Ptr &cloud_out,
+                           float grid_sz = 0, float z_sz = 0);
 
-  static void downSampling(PointCloud::Ptr cloud_in, PointCloud::Ptr &cloud_out, float gird_sz, float z_sz);
+  static void downSampling(const PointCloud::Ptr& cloud_in, PointCloud::Ptr &cloud_out,
+                           float grid_sz = 0, float z_sz = 0);
 
-  void estimateNorm(PointCloudMono::Ptr cloud_in,
-                    PointCloudRGBN::Ptr &cloud_out,
-                    NormalCloud::Ptr &normals_out,
-                    float norm_r);
+  static void estimateNorm(const PointCloudMono::Ptr& cloud_in,
+                           PointCloudRGBN::Ptr &cloud_out,
+                           NormalCloud::Ptr &normals_out,
+                           float norm_r);
 
-  void estimateNorm(PointCloudMono::Ptr cloud_in,
-                    NormalCloud::Ptr &normals_out,
-                    float norm_r);
-
-  void getAverage(PointCloudMono::Ptr cloud_in, float &avr, float &deltaz);
+  static void estimateNorm(const PointCloudMono::Ptr& cloud_in,
+                           NormalCloud::Ptr &normals_out,
+                           float norm_r);
 
   /**
    * @brief getClosestPoint
@@ -130,100 +132,80 @@ public:
    * @param p_c
    * @param acc
    */
-  void getClosestPoint(pcl::PointXY p1, pcl::PointXY p2, pcl::PointXY p, pcl::PointXY &pc);
+  static void getClosestPoint(pcl::PointXY p1, pcl::PointXY p2, pcl::PointXY p, pcl::PointXY &pc);
 
-  static void getCloudByInliers(PointCloudMono::Ptr cloud_in, PointCloudMono::Ptr &cloud_out,
-                                pcl::PointIndices::Ptr inliers, bool negative, bool organized);
+  static void getCloudByInliers(const PointCloudMono::Ptr& cloud_in, PointCloudMono::Ptr &cloud_out,
+                                const pcl::PointIndices::Ptr& inliers, bool negative, bool organized);
 
-  static void getCloudByInliers(NormalCloud::Ptr cloud_in, NormalCloud::Ptr &cloud_out,
-                                pcl::PointIndices::Ptr inliers, bool negative, bool organized);
+  static void getCloudByInliers(const NormalCloud::Ptr& cloud_in, NormalCloud::Ptr &cloud_out,
+                                const pcl::PointIndices::Ptr& inliers, bool negative, bool organized);
 
-  void getCloudByInliers(PointCloudRGBN::Ptr cloud_in,
-                         PointCloudRGBN::Ptr &cloud_out,
-                         pcl::PointIndices::Ptr inliers, bool negative, bool organized);
+  static void getCloudByInliers(const PointCloudRGBN::Ptr& cloud_in,
+                                PointCloudRGBN::Ptr &cloud_out,
+                                const pcl::PointIndices::Ptr& inliers, bool negative, bool organized);
 
-  void getCloudByNorm(PointCloudRGBN::Ptr cloud_in, pcl::PointIndices::Ptr &inliers,
-                      float th_norm);
+  static void getCloudByNorm(const PointCloudRGBN::Ptr& cloud_in, pcl::PointIndices::Ptr &inliers,
+                             float th_norm);
 
-  void getCloudByNorm(NormalCloud::Ptr cloud_in, pcl::PointIndices::Ptr &inliers, float th_norm);
+  static void getCloudByNorm(const NormalCloud::Ptr& cloud_in, pcl::PointIndices::Ptr &inliers, float th_norm);
 
-  void getCloudByZ(PointCloudMono::Ptr cloud_in, pcl::PointIndices::Ptr &inliers,
-                   PointCloudMono::Ptr &cloud_out, float z_min, float z_max);
+  static void getCloudByZ(const PointCloudMono::Ptr& cloud_in, pcl::PointIndices::Ptr &inliers,
+                          PointCloudMono::Ptr &cloud_out, float z_min, float z_max);
 
-  void getCloudByZ(PointCloud::Ptr cloud_in, pcl::PointIndices::Ptr &inliers,
-                   PointCloud::Ptr &cloud_out, float z_min, float z_max);
+  static void getCloudByZ(const PointCloud::Ptr& cloud_in, pcl::PointIndices::Ptr &inliers,
+                          PointCloud::Ptr &cloud_out, float z_min, float z_max);
 
-  float getCloudMeanZ(PointCloudMono::Ptr cloud_in);
-
-  float getCloudMeanZ(PointCloudRGBN::Ptr cloud_in);
+  template <typename T>
+  static void getCloudZInfo(T cloud_in, float &z_mean, float &z_max, float &z_min);
 
   static cv::Vec3f getColorWithID(int id);
 
-  float getDistance(std::vector<float> v1, std::vector<float> v2);
+  static float getDistance(std::vector<float> v1, std::vector<float> v2);
 
-  void getHullCenter(PointCloud::Ptr hull, float &x, float &y);
+  static pcl::PolygonMesh getMesh(PointCloudMono::Ptr point_cloud, NormalCloud::Ptr normals);
 
-  pcl::PolygonMesh getMesh(const PointCloudMono::Ptr point_cloud, NormalCloud::Ptr normals);
+  static void getMinMax(std::vector<int> vec, int &minv, int &maxv);
 
-  void getMinMax(std::vector<int> vec, int &minv, int &maxv);
+  static std::string getName(int count, const std::string& pref, int surf);
 
-  std::string getName(int count, std::string pref, int surf);
+  static void getOccupancyMap(const PointCloudMono::Ptr& cloud_src, PointCloudMono::Ptr cloud_upper, std::vector<int> occupy,
+                              PointCloud::Ptr &cloud_out);
 
-  void getOccupancyMap(PointCloudMono::Ptr cloud_src, PointCloudMono::Ptr cloud_upper, std::vector<int> occupy,
-                       PointCloud::Ptr &cloud_out);
-
-  void getPointByZ(float z, PointCloudMono::Ptr cloud_in, pcl::PointXYZ &pt);
+  static void getPointByZ(float z, const PointCloudMono::Ptr& cloud_in, pcl::PointXYZ &pt);
 
   static void heatmapRGB(float gray, uint8_t &r, uint8_t &g, uint8_t &b);
 
-  /**
-   * @brief isInHull
-   * Judge whether a given point p_in is in 2D hull, if so, return true, else return false
-   * @param hull Hull cloud in XY plane
-   * @param p_in Point to be judged in XY plane
-   * @param offset Distance between p_in and its nearest point on hull
-   * @return
-   */
-  static bool isInHull(PointCloudMono::Ptr hull, pcl::PointXY p_in, pcl::PointXY &offset, pcl::PointXY &p_closest);
+  static bool isInVector(int id, std::vector<int> vec, int &pos);
+  static bool isInVector(int id, std::vector<int> &vec);
 
-  bool isInVector(int id, std::vector<int> vec, int &pos);
-  bool isInVector(int id, std::vector<int> &vec);
+  static void matchID(std::vector<std::vector<float> > global, std::vector<std::vector<float> > local,
+                      std::vector<int> in, std::vector<int> &out, int feature_dim);
 
-  void matchID(std::vector<std::vector<float> > global, std::vector<std::vector<float> > local, std::vector<int> in,
-               std::vector<int> &out, int feature_dim);
+  static bool mergeOrReplace(size_t g_id, std::vector<int> l_ids, size_t q_id,
+                             std::vector<std::vector<float> > global, std::vector<std::vector<float> > local);
 
-  bool mergeOrReplace(size_t g_id, std::vector<int> l_ids, size_t q_id,
-                      std::vector<std::vector<float> > global, std::vector<std::vector<float> > local);
+  static void msgToCloud(const PointCloud::ConstPtr& msg, PointCloudMono::Ptr cloud);
 
-  void msgToCloud(const PointCloud::ConstPtr msg, PointCloudMono::Ptr cloud);
+  static bool normalAnalysis(const NormalCloud::Ptr& cloud, float th_angle);
 
-  bool normalAnalysis(NormalCloud::Ptr cloud, float th_angle);
+  static float pointToSegDist(float x, float y, float x1, float y1, float x2, float y2);
 
-  bool pcaAnalysis(pcl::PointXYZ pointMaxZ, pcl::PointXYZ pointMinZ,
-                   const PointCloudMono::ConstPtr cloud_3d_in, float &proj, float &grad);
-
-  float pointToSegDist(float x, float y, float x1, float y1, float x2, float y2);
-
-  void pointTypeTransfer(PointCloudMono::Ptr cloud_in,
-                         PointCloud::Ptr &cloud_out, int r, int g, int b);
+  static void convertToColorCloud(const PointCloudMono::Ptr& cloud_in,
+                                  PointCloud::Ptr &cloud_out, int r, int g, int b);
 
   template <typename T, typename U>
   static void convertToMonoCloud(T cloud_in, U &cloud_out);
 
-  void planeTo2D(float z, PointCloudMono::Ptr cloud_in,
-                 PointCloudMono::Ptr &cloud_out);
+  static void planeTo2D(float z, PointCloudMono::Ptr cloud_in,
+                        PointCloudMono::Ptr &cloud_out);
 
-  void projectCloud(pcl::ModelCoefficients::Ptr coeff_in,
-                    PointCloudMono::Ptr cloud_in,
-                    PointCloudMono::Ptr &cloud_out);
+  static void projectCloud(const pcl::ModelCoefficients::Ptr& coeff_in,
+                           const PointCloudMono::Ptr& cloud_in,
+                           PointCloudMono::Ptr &cloud_out);
 
-  void rotateCloudXY(PointCloudRGBN::Ptr cloud_in,
-                     PointCloudRGBN::Ptr &cloud_out,
-                     float rx, float ry, Eigen::Matrix4f &transform_inv);
-
-  void rotateBack(PointCloudMono::Ptr cloud_in,
-                  PointCloudMono::Ptr &cloud_out,
-                  Eigen::Matrix4f transform_inv);
+  static void rotateCloudXY(const PointCloudRGBN::Ptr& cloud_in,
+                            PointCloudRGBN::Ptr &cloud_out,
+                            float rx, float ry, Eigen::Matrix4f &transform_inv);
 
   /**
    * @brief shrinkHull Shrink the 2D hull by distance dis according to the center
@@ -231,9 +213,9 @@ public:
    * @param cloud_sk Shrinked cloud in XY plane
    * @param dis in meter
    */
-  void shrinkHull(PointCloudMono::Ptr cloud, PointCloudMono::Ptr &cloud_sk, float dis);
+  static void shrinkHull(const PointCloudMono::Ptr& cloud, PointCloudMono::Ptr &cloud_sk, float dis);
 
-  float shortRainbowColorMap(const double &value, const double &min, const double &max);
+  static float shortRainbowColorMap(const double &value, const double &min, const double &max);
 
   /**
    * @brief tryExpandROI
@@ -247,8 +229,8 @@ public:
    * @param pad Expand value in px, can be negative
    * @return false if the given ROI is abnormal, else return true
    */
-  bool tryExpandROI(int &minx, int &miny, int &maxx, int &maxy, int pad,
-                    int width = 640, int height = 480);
+  static bool tryExpandROI(int &minx, int &miny, int &maxx, int &maxy, int pad,
+                           int width = 640, int height = 480);
 
   template <typename T>
   static void publishCloud(T cloud, const ros::Publisher& pub, std::string cloud_frame);
@@ -257,39 +239,164 @@ public:
   static inline bool isPointCloudValid(T cloud) { return cloud->empty() == 0; }
 
 //  template <typename T>
-  static void getClustersUponPlane(PointCloudMono::Ptr src_cloud, PointCloudMono::Ptr contour, std::vector<PointCloudMono::Ptr> &clusters);
+  static void getClustersUponPlane(const PointCloudMono::Ptr& src_cloud, const PointCloudMono::Ptr& contour, std::vector<PointCloudMono::Ptr> &clusters);
 
   /**
    * Determine whether a given point p in XY plane is within a contour C in the same plane.
-   * The idea is, if p in C, then the angles form by <pv_i, pv_i+1> for i in [0, N] should
-   * be equal to 360 degree, where N is the total number of vertexes of C. Otherwise, the
-   * sum of angles should smaller than 360.
+   * The idea is, if p in C, then the angles form by (pv_i, pv_i+1) for i in [0, N] should
+   * be equal to 2 PI, where N is the total number of vertexes of C. Otherwise, the
+   * sum of angles should smaller than 2 PI.
    *
    * This function do require the contour is ordered clockwise or anti-clockwise.
    *
-   * @param contour A point cloud of vertexes of a contour
-   * @param p a point in XY plane
+   * @param contour A point cloud of vertexes from a contour, all points should have the same z value
+   * @param p a point in Z=z plane
    */
-  static bool isInContour(PointCloudMono::Ptr contour, pcl::PointXY p);
+  static bool isInContour(const PointCloudMono::Ptr& contour, pcl::PointXY p);
+
+  static void cloudsToPoseArray(const std::vector<PointCloudMono::Ptr>& clouds, geometry_msgs::PoseArray &array);
+
+  static void getCloudPose(const PointCloudMono::Ptr& cloud, geometry_msgs::Pose &pose);
+
+  /**
+   * Get the bounding rect of a 2D cloud in XY plane. The rect's edges are aligned with the coordinates.
+   * The rect is represented with its 4 vertexes starting from the left bottom corner anti-clockwise
+   * @param cloud A 2D cloud, like a contour. If 3d cloud is given, only x and y are considered.
+   * @param rect Bounding rectangle
+   * @param center Center point of the rect
+   * @param width Width of the rect
+   * @param height Height of the rect
+   */
+  static void getBoundingRect(const PointCloudMono::Ptr &cloud, std::vector<pcl::PointXY> &rect,
+                              pcl::PointXY &center, float &width, float &height);
 
 private:
-  bool calNormalMean(Eigen::Matrix3Xf data, std::vector<int> part1, std::vector<int> part2,
-                     Eigen::Vector3f &mean_part1, Eigen::Vector3f &mean_part2);
+  static bool calNormalMean(Eigen::Matrix3Xf data, std::vector<int> part1, std::vector<int> part2,
+                            Eigen::Vector3f &mean_part1, Eigen::Vector3f &mean_part2);
 
-  float determinant(float v1, float v2, float v3, float v4);
+  static float determinant(float v1, float v2, float v3, float v4);
 
-  void getFurthestPointsAlongAxis(Eigen::Vector2f axis, Eigen::MatrixXf data,
-                                  std::vector<int> &inlist, int &id_max, int &id_min);
+  static void getFurthestPointsAlongAxis(Eigen::Vector2f axis, Eigen::MatrixXf data,
+                                         std::vector<int> &inlist, int &id_max, int &id_min);
 
-  bool isIntersect(pcl::PointXY p1, pcl::PointXY p2, pcl::PointXY p3, pcl::PointXY p4);
+  static bool isIntersect(pcl::PointXY p1, pcl::PointXY p2, pcl::PointXY p3, pcl::PointXY p4);
 
-  bool isInVector(int id, std::vector<std::vector<int> > vec, int &pos);
+  static bool isInVector(int id, std::vector<std::vector<int> > vec, int &pos);
 
-  void matFill(std::vector<std::vector<float> > features, cv::Mat &out);
+  static void matFill(std::vector<std::vector<float> > features, cv::Mat &out);
 
-  void matNormalize(cv::Mat query_in, cv::Mat train_in, cv::Mat &query_out, cv::Mat &train_out);
+  static void matNormalize(cv::Mat query_in, cv::Mat train_in, cv::Mat &query_out, cv::Mat &train_out);
 
-  void searchAvailableID(std::vector<int> id_used, std::vector<int> &id_ava, size_t limit);
+  static void searchAvailableID(std::vector<int> id_used, std::vector<int> &id_ava, size_t limit);
+
+  // MeshKit
+  //  https://www.mcs.anl.gov/~fathom/meshkit-docs/html/circumcenter_8cpp_source.html
+
+  static void triCircumCenter(const float *a, float *b, float *c, pcl::PointXY &circumcenter)
+  {
+    float xba, yba, xca, yca;
+    float balength, calength;
+    float denominator;
+    float xcirca, ycirca;
+
+    /* Use coordinates relative to point `a' of the triangle. */
+    xba = b[0] - a[0];
+    yba = b[1] - a[1];
+    xca = c[0] - a[0];
+    yca = c[1] - a[1];
+    /* Squares of lengths of the edges incident to `a'. */
+    balength = xba * xba + yba * yba;
+    calength = xca * xca + yca * yca;
+
+    denominator = 0.5 / (xba * yca - yba * xca);
+
+    /* Calculate offset (from `a') of circumcenter. */
+    xcirca = (yca * balength - yba * calength) * denominator;
+    ycirca = (xba * calength - xca * balength) * denominator;
+    circumcenter.x = xcirca;
+    circumcenter.y = ycirca;
+  }
+
+  static void triCircumCenter3d(double *a, double *b, double *c, double *circumcenter,
+                                double *xi, double *eta)
+  {
+    double xba, yba, zba, xca, yca, zca;
+    double balength, calength;
+    double xcrossbc, ycrossbc, zcrossbc;
+    double denominator;
+    double xcirca, ycirca, zcirca;
+
+    /* Use coordinates relative to point `a' of the triangle. */
+    xba = b[0] - a[0];
+    yba = b[1] - a[1];
+    zba = b[2] - a[2];
+    xca = c[0] - a[0];
+    yca = c[1] - a[1];
+    zca = c[2] - a[2];
+    /* Squares of lengths of the edges incident to `a'. */
+    balength = xba * xba + yba * yba + zba * zba;
+    calength = xca * xca + yca * yca + zca * zca;
+
+    /* Take your chances with floating-point roundoff. */
+    xcrossbc = yba * zca - yca * zba;
+    ycrossbc = zba * xca - zca * xba;
+    zcrossbc = xba * yca - xca * yba;
+
+    /* Calculate the denominator of the formulae. */
+    denominator = 0.5 / (xcrossbc * xcrossbc + ycrossbc * ycrossbc +
+                         zcrossbc * zcrossbc);
+
+    /* Calculate offset (from `a') of circumcenter. */
+    xcirca = ((balength * yca - calength * yba) * zcrossbc -
+              (balength * zca - calength * zba) * ycrossbc) * denominator;
+    ycirca = ((balength * zca - calength * zba) * xcrossbc -
+              (balength * xca - calength * xba) * zcrossbc) * denominator;
+    zcirca = ((balength * xca - calength * xba) * ycrossbc -
+              (balength * yca - calength * yba) * xcrossbc) * denominator;
+    circumcenter[0] = xcirca;
+    circumcenter[1] = ycirca;
+    circumcenter[2] = zcirca;
+
+    if (xi != (double *) NULL) {
+      /* To interpolate a linear function at the circumcenter, define a     */
+      /*   coordinate system with a xi-axis directed from `a' to `b' and    */
+      /*   an eta-axis directed from `a' to `c'.  The values for xi and eta */
+      /*   are computed by Cramer's Rule for solving systems of linear      */
+      /*   equations.                                                       */
+
+      /* There are three ways to do this calculation - using xcrossbc, */
+      /*   ycrossbc, or zcrossbc.  Choose whichever has the largest    */
+      /*   magnitude, to improve stability and avoid division by zero. */
+      if (((xcrossbc >= ycrossbc) ^ (-xcrossbc > ycrossbc)) &&
+          ((xcrossbc >= zcrossbc) ^ (-xcrossbc > zcrossbc))) {
+        *xi = (ycirca * zca - zcirca * yca) / xcrossbc;
+        *eta = (zcirca * yba - ycirca * zba) / xcrossbc;
+      } else if ((ycrossbc >= zcrossbc) ^ (-ycrossbc > zcrossbc)) {
+        *xi = (zcirca * xca - xcirca * zca) / ycrossbc;
+        *eta = (xcirca * zba - zcirca * xba) / ycrossbc;
+      } else {
+        *xi = (xcirca * yca - ycirca * xca) / zcrossbc;
+        *eta = (ycirca * xba - xcirca * yba) / zcrossbc;
+      }
+    }
+  }
+
+  static void triCircumCenter2D(float *a, float *b, float *c, pcl::PointXY &result)
+  {
+    triCircumCenter(a, b, c, result);
+
+    result.x += a[0];
+    result.y += a[1];
+  }
+
+  static void triCircumCenter3D(double *a, double *b, double *c, double *result)
+  {
+    double xi, eta;
+    triCircumCenter3d(a, b, c, result, &xi, &eta);
+    result[0] += a[0];
+    result[1] += a[1];
+    result[2] += a[2];
+  }
 };
 
 #endif // UTILITIES_H

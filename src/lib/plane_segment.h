@@ -13,6 +13,7 @@
 #include <sensor_msgs/image_encodings.h>
 #include <sensor_msgs/CameraInfo.h>
 #include <geometry_msgs/PolygonStamped.h>
+#include <geometry_msgs/PoseArray.h>
 
 #include <image_transport/image_transport.h>
 #include <image_transport/subscriber_filter.h>
@@ -195,7 +196,6 @@ private:
   
   /// Tool objects
   Transform *tf_;
-  Utilities *utl_;
   HighResTimer hst_;
   boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer;
 
@@ -285,8 +285,9 @@ private:
   ros::Publisher plane_cloud_puber_;
   ros::Publisher max_plane_puber_;
   ros::Publisher max_contour_puber_;
+  ros::Publisher on_plane_obj_puber_;
 
-  bool getSourceCloud();
+  void getSourceCloud();
 
   /// Intermediate results
   // Source cloud index from raw cloud (contain Nans)
@@ -312,7 +313,7 @@ private:
 
   /// Tool objects
   Transform *tf_;
-  Utilities *utl_;
+  HighResTimer hst_;
 
   void computeNormalAndFilter();
 
@@ -326,9 +327,14 @@ private:
   void zClustering(PointCloudMono::Ptr cloud_norm_fit_mono);
   void getPlane(size_t id, float z_in, PointCloudMono::Ptr &cloud_norm_fit_mono);
   bool gaussianImageAnalysis(size_t id);
-  void setID();
 
   void visualizeResult();
+
+  /**
+   * In the real time mode, we could extract the clusters on top of the max
+   * plane with this function.
+   */
+  void postProcessing();
 
   void setFeatures(float z_in, PointCloudMono::Ptr cluster);
   void computeHull(PointCloudMono::Ptr cluster_2d, PointCloudMono::Ptr &cluster_hull);
