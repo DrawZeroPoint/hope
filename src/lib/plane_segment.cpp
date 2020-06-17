@@ -617,7 +617,7 @@ void PlaneSegment::cloudCallback(const sensor_msgs::PointCloud2ConstPtr &msg)
   pcl::fromPCLPointCloud2(pcl_pc2, *src_temp);
 
   Utilities::getCloudByZ(src_temp, src_z_inliers_, temp,
-                    th_min_depth_, th_max_depth_);
+                         th_min_depth_, th_max_depth_);
 
   tf_->doTransform(temp, src_rgb_cloud_, roll_, pitch_, yaw_);
   Utilities::convertToMonoCloud<PointCloud::Ptr, PointCloudMono::Ptr>(src_rgb_cloud_, src_mono_cloud_);
@@ -735,6 +735,8 @@ PlaneSegmentRT::PlaneSegmentRT(float th_xy, float th_z, ros::NodeHandle nh, stri
   f = boost::bind(&PlaneSegmentRT::configCallback, this, _1, _2);
   server_.setCallback(f);
 
+  extract_on_top_server_ = nh_.advertiseService("extract_object_on_top", &PlaneSegmentRT::extractOnTopCallback, this);
+
   // Detect table surface as an obstacle
   plane_cloud_puber_ = nh_.advertise<sensor_msgs::PointCloud2>("plane_points", 1);
   max_plane_puber_ = nh_.advertise<sensor_msgs::PointCloud2>("max_plane", 1);
@@ -802,6 +804,30 @@ void PlaneSegmentRT::configCallback(hope::hopeConfig &config, uint32_t level) {
   max_height_ = config.max_height_cfg;
 }
 
+bool PlaneSegmentRT::extractOnTopCallback(hope::ExtractObjectOnTop::Request &req,
+                                          hope::ExtractObjectOnTop::Response &res)
+{
+  ROS_INFO("HoPE Service: Received extract on top object %s call.", req.goal_id.id.c_str());
+  if (!on_top_object_poses_.header.stamp.isZero()) {
+    int time_interval = abs(on_top_object_poses_.header.stamp.sec - req.header.stamp.sec);
+    if (req.goal_id.id == "debug") {
+      ROS_WARN("HoPE Service: time_interval %d.", time_interval);
+      res.result_status = res.SUCCEEDED;
+    } else {
+      if (time_interval > 2) {
+        ROS_WARN("HoPE Service: Extract on top object failed due to lagging.");
+        res.result_status = res.FAILED;
+      } else {
+        res.result_status = res.SUCCEEDED;
+      }
+    }
+  } else {
+    ROS_WARN("HoPE Service: Extract on top object failed due to no result.");
+    res.result_status = res.FAILED;
+  }
+  return true;
+}
+
 void PlaneSegmentRT::computeNormalAndFilter()
 {
   Utilities::estimateNorm(src_dsp_mono_, src_normals_, 1.01 * th_grid_rsl_);
@@ -849,12 +875,11 @@ void PlaneSegmentRT::getMeanZofEachCluster(PointCloudMono::Ptr cloud_norm_fit_mo
   else {
     size_t k = 0;
     // Traverse each part to determine its mean Z value
-    for (vector<pcl::PointIndices>::const_iterator it = seed_clusters_indices_.begin();
-         it != seed_clusters_indices_.end(); ++it) {
+    for (const auto & seed_clusters_indice : seed_clusters_indices_) {
       PointCloudMono::Ptr cloud_fit_part(new PointCloudMono);
 
       pcl::PointIndices::Ptr idx_seed(new pcl::PointIndices);
-      idx_seed->indices = it->indices;
+      idx_seed->indices = seed_clusters_indice.indices;
       Utilities::getCloudByInliers(cloud_norm_fit_mono, cloud_fit_part, idx_seed, false, false);
 
       float z_mean, z_max, z_min;
@@ -872,9 +897,8 @@ void PlaneSegmentRT::getMeanZofEachCluster(PointCloudMono::Ptr cloud_norm_fit_mo
 void PlaneSegmentRT::extractPlaneForEachZ(PointCloudMono::Ptr cloud_norm_fit)
 {
   size_t id = 0;
-  for (auto cit = plane_z_values_.begin();
-       cit != plane_z_values_.end(); cit++) {
-    getPlane(id, *cit, cloud_norm_fit);
+  for (float & plane_z_value : plane_z_values_) {
+    getPlane(id, plane_z_value, cloud_norm_fit);
     id++;
   }
 }
@@ -912,7 +936,7 @@ void PlaneSegmentRT::getPlane(size_t id, float z_in, PointCloudMono::Ptr &cloud_
   }
 }
 
-void PlaneSegmentRT::zClustering(PointCloudMono::Ptr cloud_norm_fit_mono)
+void PlaneSegmentRT::zClustering(const PointCloudMono::Ptr& cloud_norm_fit_mono)
 {
   ZGrowing zg;
   pcl::search::Search<pcl::PointXYZ>::Ptr tree = boost::shared_ptr<pcl::search::Search<pcl::PointXYZ> >
@@ -1038,16 +1062,13 @@ bool PlaneSegmentRT::gaussianImageAnalysis(size_t id)
 
 void PlaneSegmentRT::postProcessing() {
   if (Utilities::isPointCloudValid(max_contour_)) {
-    hst_.start();
     vector<PointCloudMono::Ptr> clusters;
     Utilities::getClustersUponPlane(src_mono_cloud_, max_contour_, clusters);
-    ROS_INFO("Object cluster on plane #: %d", int(clusters.size()));
-    hst_.stop();
-    hst_.print();
-    geometry_msgs::PoseArray array;
-    array.header.stamp = ros::Time(0);
-    array.header.frame_id = base_frame_;
-    Utilities::cloudsToPoseArray(clusters, array);
-    on_plane_obj_puber_.publish(array);
+    ROS_INFO("HoPE: Object clusters on plane #: %d", int(clusters.size()));
+
+    on_top_object_poses_.header.stamp = ros::Time::now();
+    on_top_object_poses_.header.frame_id = base_frame_;
+    Utilities::cloudsToPoseArray(clusters, on_top_object_poses_);
+    on_plane_obj_puber_.publish(on_top_object_poses_);
   }
 }

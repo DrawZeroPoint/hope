@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
   cv_bridge
   dynamic_reconfigure
   geometry_msgs
+  actionlib_msgs
   image_transport
   pcl_ros
   rospy
@@ -36,6 +37,19 @@ add_definitions(${PCL_DEFINITIONS})
 
 find_package(OpenCV REQUIRED)
 message("Found OpenCV ${OpenCV_VERSION}")
+
+add_service_files(
+  FILES
+  ExtractObjectOnTop.srv
+)
+
+generate_messages(
+  DEPENDENCIES
+  actionlib_msgs
+  geometry_msgs
+  sensor_msgs
+  std_msgs
+)
 
 # Add dynamic reconfigure API
 generate_dynamic_reconfigure_options(cfg/hope.cfg)

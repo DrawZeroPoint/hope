@@ -1301,7 +1301,7 @@ void Utilities::publishCloud(T cloud, const ros::Publisher& pub, string cloud_fr
   sensor_msgs::PointCloud2 ros_cloud;
   pcl::toROSMsg(*cloud, ros_cloud);
   ros_cloud.header.frame_id = std::move(cloud_frame);
-  ros_cloud.header.stamp = ros::Time(0);
+  ros_cloud.header.stamp = ros::Time::now();
   pub.publish(ros_cloud);
 }
 
@@ -1388,6 +1388,7 @@ void Utilities::getClustersUponPlane(const PointCloudMono::Ptr& src_cloud, const
 }
 
 void Utilities::cloudsToPoseArray(const std::vector<PointCloudMono::Ptr>& clouds, geometry_msgs::PoseArray &array) {
+  array.poses.clear();
   for (auto & cloud : clouds) {
     geometry_msgs::Pose pose;
     getCloudPose(cloud, pose);

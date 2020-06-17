@@ -5,9 +5,6 @@
 #include <ros/ros.h>
 #include <nodelet/nodelet.h>
 
-#include <dynamic_reconfigure/server.h>
-#include <hope/hopeConfig.h>
-
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/image_encodings.h>
@@ -25,6 +22,10 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <cv_bridge/cv_bridge.h>
 #include <pcl_conversions/pcl_conversions.h>
+
+#include <dynamic_reconfigure/server.h>
+#include <hope/hopeConfig.h>
+#include <hope/ExtractObjectOnTop.h>
 
 // PCL
 #include <pcl/common/common.h>
@@ -252,6 +253,8 @@ public:
   PlaneSegmentRT(float th_xy, float th_z, ros::NodeHandle nh,
     string base_frame = "", const string& cloud_topic = "");
 
+  ~PlaneSegmentRT() = default;
+
   void getHorizontalPlanes();
 
   /// Container for storing final results
@@ -263,6 +266,9 @@ public:
   PointCloudMono::Ptr max_cloud_;
   PointCloudMono::Ptr max_contour_;
   float max_z_;
+
+  // Extracted objects' pose
+  geometry_msgs::PoseArray on_top_object_poses_;
 
 private:
   string base_frame_;
@@ -277,10 +283,13 @@ private:
   /// ROS stuff
   ros::NodeHandle nh_;
   dynamic_reconfigure::Server<hope::hopeConfig> server_;
+  ros::ServiceServer extract_on_top_server_;
 
   ros::Subscriber source_suber;
   void cloudCallback(const sensor_msgs::PointCloud2ConstPtr &cloud_msg);
   void configCallback(hope::hopeConfig &config, uint32_t level);
+  bool extractOnTopCallback(hope::ExtractObjectOnTop::Request &req,
+                            hope::ExtractObjectOnTop::Response &res);
 
   ros::Publisher plane_cloud_puber_;
   ros::Publisher max_plane_puber_;
@@ -324,7 +333,7 @@ private:
   void reset();
   void getMeanZofEachCluster(PointCloudMono::Ptr cloud_norm_fit_mono);
   void extractPlaneForEachZ(PointCloudMono::Ptr cloud_norm_fit);
-  void zClustering(PointCloudMono::Ptr cloud_norm_fit_mono);
+  void zClustering(const PointCloudMono::Ptr& cloud_norm_fit_mono);
   void getPlane(size_t id, float z_in, PointCloudMono::Ptr &cloud_norm_fit_mono);
   bool gaussianImageAnalysis(size_t id);
 
