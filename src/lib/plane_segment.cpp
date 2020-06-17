@@ -815,14 +815,15 @@ bool PlaneSegmentRT::extractOnTopCallback(hope::ExtractObjectOnTop::Request &req
       res.result_status = res.SUCCEEDED;
     } else {
       if (time_interval > 2) {
-        ROS_WARN("HoPE Service: Extract on top object failed due to lagging.");
+        ROS_WARN("HoPE Service: Extract on top object failed due to lagging %d.", time_interval);
         res.result_status = res.FAILED;
       } else {
+        ROS_INFO("HoPE Service: Extract on top object succeeded.");
         res.result_status = res.SUCCEEDED;
       }
     }
   } else {
-    ROS_WARN("HoPE Service: Extract on top object failed due to no result.");
+    ROS_WARN("HoPE Service: Extract on top object failed due to no %s.", req.goal_id.id.c_str());
     res.result_status = res.FAILED;
   }
   return true;
