@@ -70,6 +70,8 @@ include_directories(
 add_library(${PROJECT_NAME}
   src/lib/utilities.cpp
   src/lib/utilities.h
+  src/lib/pose_estimation.cpp
+  src/lib/pose_estimation.h
 
   src/lib/fetch_rgbd.cpp
   src/lib/get_cloud.cpp

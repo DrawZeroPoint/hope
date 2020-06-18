@@ -70,8 +70,7 @@ Vec3b pascal_map[] = {
   Vec3b(192,192,192)
 };
 
-Utilities::Utilities()
-= default;
+Utilities::Utilities() = default;
 
 float Utilities::determinant(float v1, float v2, float v3, float v4)
 {
@@ -149,7 +148,7 @@ void Utilities::msgToCloud(const PointCloud::ConstPtr& msg, PointCloudMono::Ptr 
   }
 }
 
-bool Utilities::normalAnalysis(const NormalCloud::Ptr& cloud, float th_angle)
+bool Utilities::normalAnalysis(const CloudN::Ptr& cloud, float th_angle)
 {
   size_t sz = cloud->points.size();
   if (sz <= 2) return false;
@@ -365,7 +364,7 @@ void Utilities::calRegionGrowing(PointCloudRGBN::Ptr cloud_in, int minsz, int ma
 
 void Utilities::estimateNorm(const PointCloudMono::Ptr& cloud_in,
                              PointCloudRGBN::Ptr &cloud_out,
-                             NormalCloud::Ptr &normals_out,
+                             CloudN::Ptr &normals_out,
                              float norm_r)
 {
   /// Basic method
@@ -427,7 +426,7 @@ void Utilities::estimateNorm(const PointCloudMono::Ptr& cloud_in,
 }
 
 void Utilities::estimateNorm(const PointCloudMono::Ptr& cloud_in,
-                             NormalCloud::Ptr &normals_out,
+                             CloudN::Ptr &normals_out,
                              float norm_r)
 {
   /// Basic method
@@ -444,6 +443,13 @@ void Utilities::estimateNorm(const PointCloudMono::Ptr& cloud_in,
 
   // Compute the normals
   ne.compute(*normals_out);
+}
+
+void Utilities::estimateNormals(const PointCloudN::Ptr &cloud_in, PointCloudN::Ptr &cloud_out, float norm_r) {
+  pcl::NormalEstimationOMP<PointN, PointN> nest;
+  nest.setRadiusSearch(norm_r);
+  nest.setInputCloud(cloud_in);
+  nest.compute(*cloud_out);
 }
 
 void Utilities::downSampling(const PointCloudMono::Ptr& cloud_in,
@@ -468,6 +474,21 @@ void Utilities::downSampling(const PointCloud::Ptr& cloud_in,
   if (grid_sz > 0 && z_sz > 0) {
     // Create the filtering object
     pcl::VoxelGrid<pcl::PointXYZRGB> vg;
+    vg.setInputCloud(cloud_in);
+    vg.setLeafSize(grid_sz, grid_sz, z_sz);
+    vg.filter(*cloud_out);
+  } else {
+    cloud_out = cloud_in;
+  }
+}
+
+void Utilities::downSampling(const PointCloudN::Ptr &cloud_in,
+                             PointCloudN::Ptr &cloud_out,
+                             float grid_sz, float z_sz)
+{
+  if (grid_sz > 0 && z_sz > 0) {
+    // Create the filtering object
+    pcl::VoxelGrid<PointN> vg;
     vg.setInputCloud(cloud_in);
     vg.setLeafSize(grid_sz, grid_sz, z_sz);
     vg.filter(*cloud_out);
@@ -517,7 +538,7 @@ void Utilities::cutCloud(pcl::ModelCoefficients::Ptr coeff_in, float th_distance
                          coeff_in->values[2], coeff_in->values[3]);
 
   PointCloudMono::Ptr cloudSourceFiltered_t(new PointCloudMono);
-  convertToMonoCloud<PointCloudRGBN::Ptr, PointCloudMono::Ptr>(cloud_in, cloudSourceFiltered_t);
+  convertCloudType<PointCloudRGBN::Ptr, PointCloudMono::Ptr>(cloud_in, cloudSourceFiltered_t);
   pcl::SampleConsensusModelPlane<pcl::PointXYZ> scmp(cloudSourceFiltered_t);
   scmp.selectWithinDistance(coeffs, th_distance, inliers_cut);
   scmp.projectPoints(inliers_cut, coeffs, *cloud_out, false);
@@ -608,7 +629,7 @@ void Utilities::getCloudByNorm(const PointCloudRGBN::Ptr& cloud_in,
   }
 }
 
-void Utilities::getCloudByNorm(const NormalCloud::Ptr& cloud_in,
+void Utilities::getCloudByNorm(const CloudN::Ptr& cloud_in,
                                pcl::PointIndices::Ptr &inliers,
                                float th_norm)
 {
@@ -669,8 +690,8 @@ void Utilities::getCloudByInliers(const PointCloudMono::Ptr& cloud_in,
   extract.filter(*cloud_out);
 }
 
-void Utilities::getCloudByInliers(const NormalCloud::Ptr& cloud_in,
-                                  NormalCloud::Ptr &cloud_out,
+void Utilities::getCloudByInliers(const CloudN::Ptr& cloud_in,
+                                  CloudN::Ptr &cloud_out,
                                   const pcl::PointIndices::Ptr& inliers,
                                   bool negative, bool organized)
 {
@@ -775,9 +796,9 @@ float Utilities::getDistance(vector<float> v1, vector<float> v2)
 }
 
 pcl::PolygonMesh Utilities::getMesh(const PointCloudMono::Ptr point_cloud,
-                                    NormalCloud::Ptr normals)
+                                    CloudN::Ptr normals)
 {
-  //    NormalCloud::Ptr normals(new NormalCloud);
+  //    CloudN::Ptr normals(new CloudN);
   //    normals->height = plane_contour_list_[i]->height;
   //    normals->width  = plane_contour_list_[i]->width;
   //    normals->is_dense = true;
@@ -789,7 +810,7 @@ pcl::PolygonMesh Utilities::getMesh(const PointCloudMono::Ptr point_cloud,
   //    }
 
   // Add the normals to the point cloud
-  NormalPointCloud::Ptr cloud_with_normals(new NormalPointCloud);
+  PointCloudN::Ptr cloud_with_normals(new PointCloudN);
   pcl::concatenateFields(*point_cloud, *normals, *cloud_with_normals);
   pcl::search::KdTree<pcl::PointNormal>::Ptr tree(new pcl::search::KdTree<pcl::PointNormal>);
   tree->setInputCloud(cloud_with_normals);
@@ -1306,7 +1327,7 @@ void Utilities::publishCloud(T cloud, const ros::Publisher& pub, string cloud_fr
 }
 
 template<typename T, typename U>
-void Utilities::convertToMonoCloud(T cloud_in, U &cloud_out) {
+void Utilities::convertCloudType(T cloud_in, U &cloud_out) {
   cloud_out->resize(cloud_in->size());
 
   for (size_t i = 0; i < cloud_in->points.size(); i++) {
@@ -1398,6 +1419,22 @@ void Utilities::cloudsToPoseArray(const std::vector<PointCloudMono::Ptr>& clouds
   }
 }
 
+void Utilities::matrixToPoseArray(const Eigen::Matrix4f &mat, geometry_msgs::PoseArray &array) {
+  array.poses.clear();
+  Eigen::Quaternion<float> q;
+  quaternionFromMatrix(mat, q);
+
+  geometry_msgs::Pose pose;
+  pose.position.x = mat(0, 3);
+  pose.position.y = mat(1, 3);
+  pose.position.z = mat(2, 3);
+  pose.orientation.x = q.x();
+  pose.orientation.y = q.y();
+  pose.orientation.z = q.z();
+  pose.orientation.w = q.w();
+  array.poses.push_back(pose);
+}
+
 void Utilities::getCloudPose(const PointCloudMono::Ptr& cloud, geometry_msgs::Pose &pose) {
   float z_mean, z_max, z_min;
   getCloudZInfo(cloud, z_mean, z_max, z_min);
@@ -1465,14 +1502,91 @@ void Utilities::getBoundingRect(const PointCloudMono::Ptr &cloud, std::vector<pc
   height = max_y - min_y;
 }
 
+void Utilities::estimateFPFH(PointCloudN::Ptr cloud_in, PointCloudFPFH::Ptr &features_out, float r) {
+  FeatureEstimationFPFH fest;
+  fest.setRadiusSearch(r);
+  fest.setInputCloud(cloud_in);
+  fest.setInputNormals(cloud_in);
+  fest.compute(*features_out);
+}
+
+bool Utilities::alignmentWithFPFH(PointCloudN::Ptr src_cloud, PointCloudFPFH::Ptr src_features,
+                                  PointCloudN::Ptr tgt_cloud, PointCloudFPFH::Ptr tgt_features,
+                                  Eigen::Matrix4f &transformation, float leaf) {
+  pcl::SampleConsensusPrerejective<PointN, PointN, FeatureFPFH> align;
+  align.setInputSource(src_cloud);
+  align.setSourceFeatures(src_features);
+  align.setInputTarget(tgt_cloud);
+  align.setTargetFeatures(tgt_features);
+  align.setMaximumIterations(50000); // Number of RANSAC iterations
+  align.setNumberOfSamples(3); // Number of points to sample for generating/prerejecting a pose
+  align.setCorrespondenceRandomness(5); // Number of nearest features to use
+  align.setSimilarityThreshold(0.9f); // Polygonal edge length similarity threshold
+  align.setMaxCorrespondenceDistance(2.5f * leaf); // Inlier threshold
+  align.setInlierFraction(0.25f); // Required inlier fraction for accepting a pose hypothesis
+
+  if (align.hasConverged()) {
+    transformation = align.getFinalTransformation();
+    pcl::console::print_info("Inliers: %i/%i\n", align.getInliers().size(), src_cloud->size());
+    return true;
+  } else {
+    return false;
+  }
+}
+
+void Utilities::quaternionFromMatrix(Eigen::Matrix4f mat, Eigen::Quaternion<float> &q) {
+  auto t = mat.trace();
+  if (t > mat(3, 3)) {
+    q.w() = t;
+    q.z() = mat(1, 0) - mat(0, 1);
+    q.y() = mat(0, 2) - mat(2, 0);
+    q.x() = mat(2, 1) - mat(1, 2);
+  } else {
+    int i = 0;
+    int j = 1;
+    int k = 2;
+    if (mat(1, 1) > mat(0, 0)) {
+      i = 1;
+      j = 2;
+      k = 0;
+    }
+    if (mat(2, 2) > mat(i, i)) {
+      i = 2;
+      j = 0;
+      k = 1;
+    }
+    t = mat(i, i) - (mat(j, j) + mat(k, k)) + mat(3, 3);
+    if (i == 0) q.x() = t;
+    else if (i == 1) q.y() = t;
+    else q.z() = t;
+
+    if (j == 0) q.x() = mat(i, j) + mat(j, i);
+    else if (j == 1) q.y() = mat(i, j) + mat(j, i);
+    else q.z() = mat(i, j) + mat(j, i);
+
+    if (k == 0) q.x() = mat(k, i) + mat(i, k);
+    else if (k == 1) q.y() = mat(k, i) + mat(i, k);
+    else q.z() = mat(k, i) + mat(i, k);
+    q.w() = mat(k, j) - mat(j, k);
+  }
+  auto d = 0.5 / sqrt(t * mat(3, 3));
+  q.x() *= d;
+  q.y() *= d;
+  q.z() *= d;
+  q.w() *= d;
+}
+
+
+
 // declare all templates use case, otherwise undefined symbol error will raise
 // refer: https://raymii.org/s/snippets/Cpp_template_definitions_in_a_cpp_file_instead_of_header.html
 
 template void Utilities::publishCloud<PointCloud::Ptr>(PointCloud::Ptr cloud, const ros::Publisher &pub, string cloud_frame);
 template void Utilities::publishCloud<PointCloudMono::Ptr>(PointCloudMono::Ptr cloud, const ros::Publisher &pub, string cloud_frame);
 
-template void Utilities::convertToMonoCloud<PointCloud::Ptr, PointCloudMono::Ptr>(PointCloud::Ptr cloud_in, PointCloudMono::Ptr &cloud_out);
-template void Utilities::convertToMonoCloud<PointCloudRGBN::Ptr, PointCloudMono::Ptr>(PointCloudRGBN::Ptr cloud_in, PointCloudMono::Ptr &cloud_out);
+template void Utilities::convertCloudType<PointCloud::Ptr, PointCloudMono::Ptr>(PointCloud::Ptr cloud_in, PointCloudMono::Ptr &cloud_out);
+template void Utilities::convertCloudType<PointCloudRGBN::Ptr, PointCloudMono::Ptr>(PointCloudRGBN::Ptr cloud_in, PointCloudMono::Ptr &cloud_out);
+template void Utilities::convertCloudType<PointCloudMono::Ptr, PointCloudN::Ptr>(PointCloudMono::Ptr cloud_in, PointCloudN::Ptr &cloud_out);
 
 template void Utilities::getCloudZInfo<PointCloudMono::Ptr>(PointCloudMono::Ptr cloud_in, float &z_mean, float &z_max, float &z_min);
 template void Utilities::getCloudZInfo<PointCloudRGBN::Ptr>(PointCloudRGBN::Ptr cloud_in, float &z_mean, float &z_max, float &z_min);

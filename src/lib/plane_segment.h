@@ -83,6 +83,8 @@
 #include "z_growing.h"
 #include "transform.h"
 #include "utilities.h"
+#include "pose_estimation.h"
+
 
 enum data_type{REAL, SYN, POINT_CLOUD, TUM_SINGLE, TUM_LIST};
 
@@ -185,11 +187,11 @@ private:
   PointCloud::Ptr src_sp_rgb_;
 
   // Normals of down sampling cloud
-  NormalCloud::Ptr src_normals_;
+  CloudN::Ptr src_normals_;
   // Normal filtered cloud index and corresponding cloud
   pcl::PointIndices::Ptr idx_norm_fit_;
   PointCloudMono::Ptr cloud_norm_fit_mono_;
-  NormalCloud::Ptr cloud_norm_fit_;
+  CloudN::Ptr cloud_norm_fit_;
   // Clustered points
   vector<float> plane_z_values_;
   vector<PointCloudRGBN::Ptr> cloud_fit_parts_;
@@ -227,8 +229,8 @@ private:
   void visualizeResult(bool display_source, bool display_raw, bool display_err, bool display_hull);
   
   // Reconstruct mesh from point cloud
-  void poisson_reconstruction(NormalPointCloud::Ptr point_cloud, pcl::PolygonMesh &mesh);
-  pcl::PolygonMesh mesh(const PointCloudMono::Ptr point_cloud, NormalCloud::Ptr normals);
+  void poisson_reconstruction(PointCloudN::Ptr point_cloud, pcl::PolygonMesh &mesh);
+  pcl::PolygonMesh mesh(const PointCloudMono::Ptr point_cloud, CloudN::Ptr normals);
   
   void visualizeProcess(PointCloud::Ptr cloud);
   void setFeatures(float z_in, PointCloudMono::Ptr cluster);
@@ -309,12 +311,12 @@ private:
   PointCloudMono::Ptr src_dsp_mono_;
 
   // Normals of down sampling cloud
-  NormalCloud::Ptr src_normals_;
+  CloudN::Ptr src_normals_;
 
   // Normal filtered cloud index and corresponding cloud
   pcl::PointIndices::Ptr idx_norm_fit_;
   PointCloudMono::Ptr cloud_norm_fit_mono_;
-  NormalCloud::Ptr cloud_norm_fit_;
+  CloudN::Ptr cloud_norm_fit_;
 
   // Clustered points
   vector<float> plane_z_values_;
@@ -323,6 +325,7 @@ private:
   /// Tool objects
   Transform *tf_;
   HighResTimer hst_;
+  PoseEstimation *pe_;
 
   void computeNormalAndFilter();
 

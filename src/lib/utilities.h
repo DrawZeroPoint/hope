@@ -17,16 +17,20 @@
 #include <pcl/common/transforms.h>
 #include <pcl/common/centroid.h>
 #include <pcl/common/eigen.h>
+#include <pcl/common/time.h>
 
 #include <pcl/console/parse.h>
 #include <pcl/console/time.h>
+#include <pcl/console/print.h>
 
 #include <pcl/io/pcd_io.h>
 
 #include <pcl/features/normal_3d.h>
 #include <pcl/features/normal_3d_omp.h>
+#include <pcl/features/fpfh_omp.h>
 #include <pcl/features/principal_curvatures.h>
 
+#include <pcl/filters/filter.h>
 #include <pcl/filters/conditional_removal.h>
 #include <pcl/filters/extract_indices.h>
 #include <pcl/filters/passthrough.h>
@@ -37,7 +41,6 @@
 #include <pcl/kdtree/kdtree_flann.h>
 
 #include <pcl/point_cloud.h>
-
 #include <pcl/point_types.h>
 
 #include <pcl/ModelCoefficients.h>
@@ -58,6 +61,9 @@
 
 #include <pcl_conversions/pcl_conversions.h>
 
+#include <pcl/registration/icp.h>
+#include <pcl/registration/sample_consensus_prerejective.h>
+
 // OpenCV
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/opencv.hpp>
@@ -67,16 +73,22 @@
 #include <opencv2/highgui/highgui.hpp>
 
 //Eigen
+#include <Eigen/Core>
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
 #include <Eigen/Eigenvalues>
 
 
+typedef pcl::PointNormal PointN;
+typedef pcl::FPFHSignature33 FeatureFPFH;
+typedef pcl::FPFHEstimationOMP<PointN, PointN, FeatureFPFH> FeatureEstimationFPFH;
+typedef pcl::PointCloud<FeatureFPFH> PointCloudFPFH;
+
 typedef pcl::PointCloud<pcl::PointXYZRGB> PointCloud;
 typedef pcl::PointCloud<pcl::PointXYZ> PointCloudMono;
 typedef pcl::PointCloud<pcl::PointXYZRGBNormal> PointCloudRGBN;
-typedef pcl::PointCloud<pcl::Normal> NormalCloud;
-typedef pcl::PointCloud<pcl::PointNormal> NormalPointCloud;
+typedef pcl::PointCloud<pcl::Normal> CloudN;
+typedef pcl::PointCloud<pcl::PointNormal> PointCloudN;
 
 class Utilities
 {
@@ -113,14 +125,25 @@ public:
   static void downSampling(const PointCloud::Ptr& cloud_in, PointCloud::Ptr &cloud_out,
                            float grid_sz = 0, float z_sz = 0);
 
+  static void downSampling(const PointCloudN::Ptr &cloud_in, PointCloudN::Ptr &cloud_out,
+                           float grid_sz = 0, float z_sz = 0);
+
   static void estimateNorm(const PointCloudMono::Ptr& cloud_in,
                            PointCloudRGBN::Ptr &cloud_out,
-                           NormalCloud::Ptr &normals_out,
+                           CloudN::Ptr &normals_out,
                            float norm_r);
 
   static void estimateNorm(const PointCloudMono::Ptr& cloud_in,
-                           NormalCloud::Ptr &normals_out,
+                           CloudN::Ptr &normals_out,
                            float norm_r);
+
+  static void estimateNormals(const PointCloudN::Ptr &cloud_in, PointCloudN::Ptr &cloud_out, float norm_r = 0.01f);
+
+  static void estimateFPFH(PointCloudN::Ptr cloud_in, PointCloudFPFH::Ptr &features_out, float r = 0.025f);
+
+  static bool alignmentWithFPFH(PointCloudN::Ptr src_cloud, PointCloudFPFH::Ptr src_features,
+                                PointCloudN::Ptr tgt_cloud, PointCloudFPFH::Ptr tgt_features,
+                                Eigen::Matrix4f &transformation, float leaf = 0.005f);
 
   /**
    * @brief getClosestPoint
@@ -137,7 +160,7 @@ public:
   static void getCloudByInliers(const PointCloudMono::Ptr& cloud_in, PointCloudMono::Ptr &cloud_out,
                                 const pcl::PointIndices::Ptr& inliers, bool negative, bool organized);
 
-  static void getCloudByInliers(const NormalCloud::Ptr& cloud_in, NormalCloud::Ptr &cloud_out,
+  static void getCloudByInliers(const CloudN::Ptr& cloud_in, CloudN::Ptr &cloud_out,
                                 const pcl::PointIndices::Ptr& inliers, bool negative, bool organized);
 
   static void getCloudByInliers(const PointCloudRGBN::Ptr& cloud_in,
@@ -147,7 +170,7 @@ public:
   static void getCloudByNorm(const PointCloudRGBN::Ptr& cloud_in, pcl::PointIndices::Ptr &inliers,
                              float th_norm);
 
-  static void getCloudByNorm(const NormalCloud::Ptr& cloud_in, pcl::PointIndices::Ptr &inliers, float th_norm);
+  static void getCloudByNorm(const CloudN::Ptr& cloud_in, pcl::PointIndices::Ptr &inliers, float th_norm);
 
   static void getCloudByZ(const PointCloudMono::Ptr& cloud_in, pcl::PointIndices::Ptr &inliers,
                           PointCloudMono::Ptr &cloud_out, float z_min, float z_max);
@@ -162,7 +185,7 @@ public:
 
   static float getDistance(std::vector<float> v1, std::vector<float> v2);
 
-  static pcl::PolygonMesh getMesh(PointCloudMono::Ptr point_cloud, NormalCloud::Ptr normals);
+  static pcl::PolygonMesh getMesh(PointCloudMono::Ptr point_cloud, CloudN::Ptr normals);
 
   static void getMinMax(std::vector<int> vec, int &minv, int &maxv);
 
@@ -186,7 +209,7 @@ public:
 
   static void msgToCloud(const PointCloud::ConstPtr& msg, PointCloudMono::Ptr cloud);
 
-  static bool normalAnalysis(const NormalCloud::Ptr& cloud, float th_angle);
+  static bool normalAnalysis(const CloudN::Ptr& cloud, float th_angle);
 
   static float pointToSegDist(float x, float y, float x1, float y1, float x2, float y2);
 
@@ -194,7 +217,7 @@ public:
                                   PointCloud::Ptr &cloud_out, int r, int g, int b);
 
   template <typename T, typename U>
-  static void convertToMonoCloud(T cloud_in, U &cloud_out);
+  static void convertCloudType(T cloud_in, U &cloud_out);
 
   static void planeTo2D(float z, PointCloudMono::Ptr cloud_in,
                         PointCloudMono::Ptr &cloud_out);
@@ -255,6 +278,8 @@ public:
 
   static void cloudsToPoseArray(const std::vector<PointCloudMono::Ptr>& clouds, geometry_msgs::PoseArray &array);
 
+  static void matrixToPoseArray(const Eigen::Matrix4f &mat, geometry_msgs::PoseArray &array);
+
   static void getCloudPose(const PointCloudMono::Ptr& cloud, geometry_msgs::Pose &pose);
 
   /**
@@ -288,9 +313,10 @@ private:
 
   static void searchAvailableID(std::vector<int> id_used, std::vector<int> &id_ava, size_t limit);
 
+  static void quaternionFromMatrix(Eigen::Matrix4f mat, Eigen::Quaternion<float> &q);
+
   // MeshKit
   //  https://www.mcs.anl.gov/~fathom/meshkit-docs/html/circumcenter_8cpp_source.html
-
   static void triCircumCenter(const float *a, float *b, float *c, pcl::PointXY &circumcenter)
   {
     float xba, yba, xca, yca;

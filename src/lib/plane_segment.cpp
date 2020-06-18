@@ -32,10 +32,10 @@ PlaneSegment::PlaneSegment(data_type mode, float th_xy, float th_z, string base_
   src_mono_cloud_(new PointCloudMono),
   src_rgb_cloud_(new PointCloud),
   cloud_norm_fit_mono_(new PointCloudMono),
-  cloud_norm_fit_(new NormalCloud),
+  cloud_norm_fit_(new CloudN),
   src_sp_mono_(new PointCloudMono),
   src_sp_rgb_(new PointCloud),
-  src_normals_(new NormalCloud),
+  src_normals_(new CloudN),
   idx_norm_fit_(new pcl::PointIndices),
   src_z_inliers_(new pcl::PointIndices),
   tf_(new Transform),
@@ -131,7 +131,7 @@ void PlaneSegment::getHorizontalPlanes(PointCloud::Ptr cloud)
       tf_->doTransform(temp, src_rgb_cloud_, roll_, pitch_, yaw_);
     }
   }
-  Utilities::convertToMonoCloud<PointCloud::Ptr, PointCloudMono::Ptr>(src_rgb_cloud_, src_mono_cloud_);
+  Utilities::convertCloudType<PointCloud::Ptr, PointCloudMono::Ptr>(src_rgb_cloud_, src_mono_cloud_);
 
   //visualizeProcess(src_rgb_cloud_);
   //pcl::io::savePCDFile("~/src.pcd", *src_rgb_cloud_);
@@ -428,7 +428,7 @@ bool PlaneSegment::gaussianImageAnalysis(size_t id)
   idx_seed->indices = seed_clusters_indices_[id].indices;
 
   // Extract the plane points indexed by idx_seed
-  NormalCloud::Ptr cluster_normal(new NormalCloud);
+  CloudN::Ptr cluster_normal(new CloudN);
   Utilities::getCloudByInliers(cloud_norm_fit_, cluster_normal, idx_seed, false, false);
 
   /// Construct a Pointcloud to store normal points
@@ -620,10 +620,10 @@ void PlaneSegment::cloudCallback(const sensor_msgs::PointCloud2ConstPtr &msg)
                          th_min_depth_, th_max_depth_);
 
   tf_->doTransform(temp, src_rgb_cloud_, roll_, pitch_, yaw_);
-  Utilities::convertToMonoCloud<PointCloud::Ptr, PointCloudMono::Ptr>(src_rgb_cloud_, src_mono_cloud_);
+  Utilities::convertCloudType<PointCloud::Ptr, PointCloudMono::Ptr>(src_rgb_cloud_, src_mono_cloud_);
 }
 
-void PlaneSegment::poisson_reconstruction(NormalPointCloud::Ptr point_cloud,
+void PlaneSegment::poisson_reconstruction(PointCloudN::Ptr point_cloud,
                                           pcl::PolygonMesh& mesh)
 {
   // Initialize poisson reconstruction
@@ -648,10 +648,10 @@ void PlaneSegment::poisson_reconstruction(NormalPointCloud::Ptr point_cloud,
  * @return Returns a reconstructed mesh
  */
 pcl::PolygonMesh PlaneSegment::mesh(const PointCloudMono::Ptr point_cloud,
-                                    NormalCloud::Ptr normals)
+                                    CloudN::Ptr normals)
 {
   // Add the normals to the point cloud
-  NormalPointCloud::Ptr cloud_with_normals(new NormalPointCloud);
+  PointCloudN::Ptr cloud_with_normals(new PointCloudN);
   pcl::concatenateFields(*point_cloud, *normals, *cloud_with_normals);
 
   // Point cloud to mesh reconstruction
@@ -707,13 +707,14 @@ PlaneSegmentRT::PlaneSegmentRT(float th_xy, float th_z, ros::NodeHandle nh, stri
   nh_(nh),
   src_mono_cloud_(new PointCloudMono),
   cloud_norm_fit_mono_(new PointCloudMono),
-  cloud_norm_fit_(new NormalCloud),
+  cloud_norm_fit_(new CloudN),
   src_dsp_mono_(new PointCloudMono),
-  src_normals_(new NormalCloud),
+  src_normals_(new CloudN),
   idx_norm_fit_(new pcl::PointIndices),
   src_z_inliers_(new pcl::PointIndices),
   tf_(new Transform),
   hst_("total"),
+  pe_(new PoseEstimation),
   base_frame_(std::move(base_frame))
 {
   th_grid_rsl_ = th_xy;
@@ -1013,7 +1014,7 @@ bool PlaneSegmentRT::gaussianImageAnalysis(size_t id)
   idx_seed->indices = seed_clusters_indices_[id].indices;
 
   // Extract the plane points indexed by idx_seed
-  NormalCloud::Ptr cluster_normal(new NormalCloud);
+  CloudN::Ptr cluster_normal(new CloudN);
   Utilities::getCloudByInliers(cloud_norm_fit_, cluster_normal, idx_seed, false, false);
 
   /// Construct a Pointcloud to store normal points
@@ -1100,6 +1101,12 @@ bool PlaneSegmentRT::postProcessing(bool do_cluster, string type) {
 
     if (type != "mesh") {
       Utilities::cloudsToPoseArray(clusters, on_top_object_poses_);
+    } else {
+      PointCloudN::Ptr scene_cloud(new PointCloudN);
+      Utilities::convertCloudType(clusters[0], scene_cloud);
+      Eigen::Matrix4f trans;
+      pe_->estimate(scene_cloud, trans);
+      Utilities::matrixToPoseArray(trans, on_top_object_poses_);
     }
 
     on_top_object_poses_.header.stamp = ros::Time::now();
