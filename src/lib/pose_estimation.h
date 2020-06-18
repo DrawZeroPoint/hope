@@ -7,11 +7,13 @@
 class PoseEstimation
 {
 public:
-  PoseEstimation();
+  PoseEstimation(float dsp_th = 0.005f);
 
   bool estimate(PointCloudN::Ptr scene, Eigen::Matrix4f &trans);
 
 private:
+  float dsp_th_;
+
   bool has_object_model_;
   std::string object_model_path_;
 

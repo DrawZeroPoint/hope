@@ -137,9 +137,9 @@ public:
                            CloudN::Ptr &normals_out,
                            float norm_r);
 
-  static void estimateNormals(const PointCloudN::Ptr &cloud_in, PointCloudN::Ptr &cloud_out, float norm_r = 0.01f);
+  static void estimateNormals(const PointCloudN::Ptr &cloud_in, PointCloudN::Ptr &cloud_out, float dsp_th);
 
-  static void estimateFPFH(PointCloudN::Ptr cloud_in, PointCloudFPFH::Ptr &features_out, float r = 0.025f);
+  static void estimateFPFH(PointCloudN::Ptr cloud_in, PointCloudFPFH::Ptr &features_out, float dsp_th);
 
   static bool alignmentWithFPFH(PointCloudN::Ptr src_cloud, PointCloudFPFH::Ptr src_features,
                                 PointCloudN::Ptr tgt_cloud, PointCloudFPFH::Ptr tgt_features,
@@ -294,6 +294,8 @@ public:
   static void getBoundingRect(const PointCloudMono::Ptr &cloud, std::vector<pcl::PointXY> &rect,
                               pcl::PointXY &center, float &width, float &height);
 
+  static void quaternionFromMatrix(Eigen::Matrix4f mat, Eigen::Quaternion<float> &q);
+
 private:
   static bool calNormalMean(Eigen::Matrix3Xf data, std::vector<int> part1, std::vector<int> part2,
                             Eigen::Vector3f &mean_part1, Eigen::Vector3f &mean_part2);
@@ -312,8 +314,6 @@ private:
   static void matNormalize(cv::Mat query_in, cv::Mat train_in, cv::Mat &query_out, cv::Mat &train_out);
 
   static void searchAvailableID(std::vector<int> id_used, std::vector<int> &id_ava, size_t limit);
-
-  static void quaternionFromMatrix(Eigen::Matrix4f mat, Eigen::Quaternion<float> &q);
 
   // MeshKit
   //  https://www.mcs.anl.gov/~fathom/meshkit-docs/html/circumcenter_8cpp_source.html

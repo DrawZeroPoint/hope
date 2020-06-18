@@ -714,7 +714,7 @@ PlaneSegmentRT::PlaneSegmentRT(float th_xy, float th_z, ros::NodeHandle nh, stri
   src_z_inliers_(new pcl::PointIndices),
   tf_(new Transform),
   hst_("total"),
-  pe_(new PoseEstimation),
+  pe_(new PoseEstimation(th_grid_rsl_)),
   base_frame_(std::move(base_frame))
 {
   th_grid_rsl_ = th_xy;
@@ -1091,7 +1091,8 @@ bool PlaneSegmentRT::postProcessing(bool do_cluster, string type) {
     } else {
       pcl::PointIndices::Ptr indices(new pcl::PointIndices);
       PointCloudMono::Ptr upper_cloud(new PointCloudMono);
-      Utilities::getCloudByZ(src_mono_cloud_, indices, upper_cloud, max_z_, 100);
+      Utilities::getCloudByZ(src_mono_cloud_, indices, upper_cloud, max_z_ + 0.05f, 10);
+      cerr << max_z_ << " ---- " << src_mono_cloud_->size() << " ---- " << upper_cloud->size() << endl;
       if (!Utilities::isPointCloudValid(upper_cloud)) {
         ROS_WARN("HoPE: No point cloud on the max plane.");
         return false;
@@ -1108,10 +1109,10 @@ bool PlaneSegmentRT::postProcessing(bool do_cluster, string type) {
       pe_->estimate(scene_cloud, trans);
       Utilities::matrixToPoseArray(trans, on_top_object_poses_);
     }
-
+    cerr << on_top_object_poses_ << endl;
     on_top_object_poses_.header.stamp = ros::Time::now();
     on_top_object_poses_.header.frame_id = base_frame_;
-    on_plane_obj_puber_.publish(on_top_object_poses_);
+    //on_plane_obj_puber_.publish(on_top_object_poses_);
     return true;
   } else {
     ROS_WARN("HoPE: No valid plane for extracting objects on top.");

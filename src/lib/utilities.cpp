@@ -445,9 +445,9 @@ void Utilities::estimateNorm(const PointCloudMono::Ptr& cloud_in,
   ne.compute(*normals_out);
 }
 
-void Utilities::estimateNormals(const PointCloudN::Ptr &cloud_in, PointCloudN::Ptr &cloud_out, float norm_r) {
+void Utilities::estimateNormals(const PointCloudN::Ptr &cloud_in, PointCloudN::Ptr &cloud_out, float dsp_th) {
   pcl::NormalEstimationOMP<PointN, PointN> nest;
-  nest.setRadiusSearch(norm_r);
+  nest.setRadiusSearch(dsp_th * 2);
   nest.setInputCloud(cloud_in);
   nest.compute(*cloud_out);
 }
@@ -1502,9 +1502,9 @@ void Utilities::getBoundingRect(const PointCloudMono::Ptr &cloud, std::vector<pc
   height = max_y - min_y;
 }
 
-void Utilities::estimateFPFH(PointCloudN::Ptr cloud_in, PointCloudFPFH::Ptr &features_out, float r) {
+void Utilities::estimateFPFH(PointCloudN::Ptr cloud_in, PointCloudFPFH::Ptr &features_out, float dsp_th) {
   FeatureEstimationFPFH fest;
-  fest.setRadiusSearch(r);
+  fest.setRadiusSearch(dsp_th * 5);
   fest.setInputCloud(cloud_in);
   fest.setInputNormals(cloud_in);
   fest.compute(*features_out);
@@ -1513,6 +1513,7 @@ void Utilities::estimateFPFH(PointCloudN::Ptr cloud_in, PointCloudFPFH::Ptr &fea
 bool Utilities::alignmentWithFPFH(PointCloudN::Ptr src_cloud, PointCloudFPFH::Ptr src_features,
                                   PointCloudN::Ptr tgt_cloud, PointCloudFPFH::Ptr tgt_features,
                                   Eigen::Matrix4f &transformation, float leaf) {
+  PointCloudN::Ptr object_aligned(new PointCloudN);
   pcl::SampleConsensusPrerejective<PointN, PointN, FeatureFPFH> align;
   align.setInputSource(src_cloud);
   align.setSourceFeatures(src_features);
@@ -1524,10 +1525,10 @@ bool Utilities::alignmentWithFPFH(PointCloudN::Ptr src_cloud, PointCloudFPFH::Pt
   align.setSimilarityThreshold(0.9f); // Polygonal edge length similarity threshold
   align.setMaxCorrespondenceDistance(2.5f * leaf); // Inlier threshold
   align.setInlierFraction(0.25f); // Required inlier fraction for accepting a pose hypothesis
+  align.align(*object_aligned);
 
   if (align.hasConverged()) {
     transformation = align.getFinalTransformation();
-    pcl::console::print_info("Inliers: %i/%i\n", align.getInliers().size(), src_cloud->size());
     return true;
   } else {
     return false;
