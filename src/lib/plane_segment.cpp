@@ -741,7 +741,7 @@ PlaneSegmentRT::PlaneSegmentRT(float th_xy, float th_z, ros::NodeHandle nh, stri
   plane_cloud_puber_ = nh_.advertise<sensor_msgs::PointCloud2>("plane_points", 1);
   max_plane_puber_ = nh_.advertise<sensor_msgs::PointCloud2>("max_plane", 1);
   max_contour_puber_ = nh_.advertise<sensor_msgs::PointCloud2>("max_contour", 1);
-  on_plane_obj_puber_ = nh_.advertise<geometry_msgs::PoseArray>("obj_poses", 1);
+  on_plane_obj_puber_ = nh_.advertise<geometry_msgs::PoseArray>("obj_poses", 1, true);
 }
 
 void PlaneSegmentRT::getHorizontalPlanes() {
@@ -762,7 +762,6 @@ void PlaneSegmentRT::getHorizontalPlanes() {
   computeNormalAndFilter();
   findAllPlanes();
   visualizeResult();
-  postProcessing();
 }
 
 void PlaneSegmentRT::getSourceCloud()
@@ -808,22 +807,42 @@ bool PlaneSegmentRT::extractOnTopCallback(hope::ExtractObjectOnTop::Request &req
                                           hope::ExtractObjectOnTop::Response &res)
 {
   ROS_INFO("HoPE Service: Received extract on top object %s call.", req.goal_id.id.c_str());
-  if (!on_top_object_poses_.header.stamp.isZero()) {
-    int time_interval = abs(on_top_object_poses_.header.stamp.sec - req.header.stamp.sec);
-    if (req.goal_id.id == "debug") {
-      ROS_WARN("HoPE Service: time_interval %d.", time_interval);
-      res.result_status = res.SUCCEEDED;
+  string object_type = req.goal_id.id;
+  bool do_cluster;
+  if (req.goal_id.id == "cylinder") {
+    object_type = "cylinder";
+    do_cluster = true;
+  } else if (req.goal_id.id == "mesh") {
+    object_type = "mesh";
+    do_cluster = false;
+  } else if (req.goal_id.id == "box") {
+    object_type = "box";
+    do_cluster = true;
+  } else if (req.goal_id.id == "debug") {
+    object_type = "cylinder";
+    do_cluster = true;
+    req.header.stamp = ros::Time::now();
+  }
+  else {
+    ROS_ERROR("HoPE: Unknown object type given in goal_id.id: %s", object_type.c_str());
+    res.result_status = res.FAILED;
+    return true;
+  }
+
+  bool ok = postProcessing(do_cluster, object_type);
+  if (ok) {
+    int time_interval = on_top_object_poses_.header.stamp.sec - req.header.stamp.sec;
+    if (time_interval > 2) {
+      ROS_WARN("HoPE Service: Extract on top object failed due to lagging %d.", time_interval);
+      res.result_status = res.FAILED;
+    } else if (time_interval < 0) {
+      ROS_WARN("HoPE service: Extract on top object failed due to looking into past %d.", time_interval);
+      res.result_status = res.FAILED;
     } else {
-      if (time_interval > 2) {
-        ROS_WARN("HoPE Service: Extract on top object failed due to lagging %d.", time_interval);
-        res.result_status = res.FAILED;
-      } else {
-        ROS_INFO("HoPE Service: Extract on top object succeeded.");
-        res.result_status = res.SUCCEEDED;
-      }
+      ROS_INFO("HoPE Service: Extract on top object succeeded.");
+      res.result_status = res.SUCCEEDED;
     }
   } else {
-    ROS_WARN("HoPE Service: Extract on top object failed due to no %s.", req.goal_id.id.c_str());
     res.result_status = res.FAILED;
   }
   return true;
@@ -1061,15 +1080,34 @@ bool PlaneSegmentRT::gaussianImageAnalysis(size_t id)
   return Utilities::normalAnalysis(cluster_normal, th_angle_);
 }
 
-void PlaneSegmentRT::postProcessing() {
+bool PlaneSegmentRT::postProcessing(bool do_cluster, string type) {
   if (Utilities::isPointCloudValid(max_contour_)) {
     vector<PointCloudMono::Ptr> clusters;
-    Utilities::getClustersUponPlane(src_mono_cloud_, max_contour_, clusters);
-    ROS_INFO("HoPE: Object clusters on plane #: %d", int(clusters.size()));
+    if (do_cluster) {
+      bool ok = Utilities::getClustersUponPlane(src_mono_cloud_, max_contour_, clusters);
+      ROS_INFO("HoPE: Object clusters on plane #: %d", int(clusters.size()));
+      if (!ok) return false;
+    } else {
+      pcl::PointIndices::Ptr indices(new pcl::PointIndices);
+      PointCloudMono::Ptr upper_cloud(new PointCloudMono);
+      Utilities::getCloudByZ(src_mono_cloud_, indices, upper_cloud, max_z_, 100);
+      if (!Utilities::isPointCloudValid(upper_cloud)) {
+        ROS_WARN("HoPE: No point cloud on the max plane.");
+        return false;
+      }
+      clusters.push_back(upper_cloud);
+    }
+
+    if (type != "mesh") {
+      Utilities::cloudsToPoseArray(clusters, on_top_object_poses_);
+    }
 
     on_top_object_poses_.header.stamp = ros::Time::now();
     on_top_object_poses_.header.frame_id = base_frame_;
-    Utilities::cloudsToPoseArray(clusters, on_top_object_poses_);
     on_plane_obj_puber_.publish(on_top_object_poses_);
+    return true;
+  } else {
+    ROS_WARN("HoPE: No valid plane for extracting objects on top.");
+    return false;
   }
 }

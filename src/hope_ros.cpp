@@ -19,11 +19,10 @@ int main(int argc, char **argv)
   ros::NodeHandle nh;
   ros::NodeHandle pnh("~");
 
-  string base_frame = "base_link"; // plane reference frame
-  string cloud_topic = "/point_cloud";
-
   float xy_resolution = 0.05; // In meter
   float z_resolution = 0.02; // In meter
+  string base_frame = "base_link"; // plane reference frame
+  string cloud_topic = "/point_cloud";
 
   // Servo's max angle to rotate
   pnh.getParam("base_frame", base_frame);

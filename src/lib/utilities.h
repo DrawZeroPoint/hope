@@ -238,8 +238,7 @@ public:
   template <typename T>
   static inline bool isPointCloudValid(T cloud) { return cloud->empty() == 0; }
 
-//  template <typename T>
-  static void getClustersUponPlane(const PointCloudMono::Ptr& src_cloud, const PointCloudMono::Ptr& contour, std::vector<PointCloudMono::Ptr> &clusters);
+  static bool getClustersUponPlane(const PointCloudMono::Ptr& src_cloud, const PointCloudMono::Ptr& contour, std::vector<PointCloudMono::Ptr> &clusters);
 
   /**
    * Determine whether a given point p in XY plane is within a contour C in the same plane.

@@ -1342,7 +1342,7 @@ bool Utilities::isInContour(const PointCloudMono::Ptr& contour, pcl::PointXY p) 
 }
 
 //template<typename T>
-void Utilities::getClustersUponPlane(const PointCloudMono::Ptr& src_cloud, const PointCloudMono::Ptr& contour,
+bool Utilities::getClustersUponPlane(const PointCloudMono::Ptr& src_cloud, const PointCloudMono::Ptr& contour,
                                      vector<PointCloudMono::Ptr> &clusters) {
   // Get cloud upon the given contour from src_cloud
   float z_mean, z_max, z_min;
@@ -1383,8 +1383,10 @@ void Utilities::getClustersUponPlane(const PointCloudMono::Ptr& src_cloud, const
     pcl::PointIndices::Ptr indices_temp(new pcl::PointIndices);
     indices_temp->indices = i.indices;
     getCloudByInliers(temp, cluster_temp, indices_temp, false, false);
+    if (!isPointCloudValid(cluster_temp)) continue;
     clusters.push_back(cluster_temp);
   }
+  return !clusters.empty();
 }
 
 void Utilities::cloudsToPoseArray(const std::vector<PointCloudMono::Ptr>& clouds, geometry_msgs::PoseArray &array) {

@@ -342,8 +342,10 @@ private:
   /**
    * In the real time mode, we could extract the clusters on top of the max
    * plane with this function.
+   * @param type Geometric type of the object, could be cylinder; box; mesh.
+   * @param do_cluster Whether divide upper cloud into clusters.
    */
-  void postProcessing();
+  bool postProcessing(bool do_cluster, string type);
 
   void setFeatures(float z_in, PointCloudMono::Ptr cluster);
   void computeHull(PointCloudMono::Ptr cluster_2d, PointCloudMono::Ptr &cluster_hull);
