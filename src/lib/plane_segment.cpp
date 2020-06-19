@@ -1049,11 +1049,9 @@ bool PlaneSegmentRT::gaussianImageAnalysis(size_t id)
     uint32_t rgb = 0;
     float tmp_theta = 0.0;
     float tmp_phi = 0.0;
-    for (size_t i = 0; i < 2 * bandwidth; i++)
-    {
+    for (size_t i = 0; i < 2 * bandwidth; i++) {
       tmp_theta = (2 * i + 1) * M_PI / 4 / bandwidth;
-      for (size_t j = 0; j < 2 * bandwidth; j++)
-      {
+      for (size_t j = 0; j < 2 * bandwidth; j++) {
         tmp_phi = M_PI * j / bandwidth;
         sphere->points[i * 2 * bandwidth + j].x = cos (tmp_phi) * sin (tmp_theta);
         sphere->points[i * 2 * bandwidth + j].y = sin (tmp_phi) * sin (tmp_theta);
@@ -1121,7 +1119,7 @@ bool PlaneSegmentRT::postProcessing(bool do_cluster, string type) {
     }
     on_top_object_poses_.header.stamp = ros::Time::now();
     on_top_object_poses_.header.frame_id = base_frame_;
-    //on_plane_obj_puber_.publish(on_top_object_poses_);
+    on_plane_obj_puber_.publish(on_top_object_poses_);
     return true;
   } else {
     ROS_WARN("HoPE: No valid plane for extracting objects on top.");

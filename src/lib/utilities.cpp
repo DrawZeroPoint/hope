@@ -549,6 +549,7 @@ void Utilities::sliceCloudWithPlane(pcl::ModelCoefficients::Ptr coeff_in, float 
     else th_distance += 0.001;
     slice_count--;
   }
+  assert(!inliers.empty());
   scmp.projectPoints(inliers, coeff, *cloud_out, false);
 }
 
@@ -1458,23 +1459,26 @@ void Utilities::getBoxPose(const PointCloudMono::Ptr& cloud, geometry_msgs::Pose
 
   vector<pcl::PointXY> rect;
   pcl::PointXY center{};
-  pcl::PointXY surface_center{};
+  pcl::PointXY edge_center{};
   float width, height, rotation;
-  getRotatedRect2D(slice_2d, rect, center, surface_center, width, height, rotation);
+  getRotatedRect2D(slice_2d, rect, center, edge_center, width, height, rotation);
 
-  pose.position.x = surface_center.x;
-  pose.position.y = surface_center.y;
+  Eigen::Quaternion<float> q;
+  quaternionFromPlanarRotation(rotation, q);
+  pose.position.x = edge_center.x;
+  pose.position.y = edge_center.y;
   pose.position.z = z_origin;
+  pose.orientation.x = q.x();
+  pose.orientation.y = q.y();
+  pose.orientation.z = q.z();
+  pose.orientation.w = q.w();
 }
 
 void Utilities::computeHull(PointCloudMono::Ptr cloud_2d, PointCloudMono::Ptr &cloud_hull)
 {
-  PointCloudMono::Ptr cluster_hull(new PointCloudMono);
   pcl::ConvexHull<pcl::PointXYZ> hull;
-
   hull.setInputCloud(cloud_2d);
-  hull.setComputeAreaVolume(true);
-  hull.reconstruct(*cluster_hull);
+  hull.reconstruct(*cloud_hull);
 }
 
 void Utilities::getStraightRect2D(const PointCloudMono::Ptr &cloud, vector<pcl::PointXY> &rect,
@@ -1502,7 +1506,7 @@ void Utilities::getStraightRect2D(const PointCloudMono::Ptr &cloud, vector<pcl::
 }
 
 void Utilities::getRotatedRect2D(const PointCloudMono::Ptr &cloud_2d, std::vector<pcl::PointXY> &rect,
-                                 pcl::PointXY &center, pcl::PointXY &surface_center,
+                                 pcl::PointXY &center, pcl::PointXY &edge_center,
                                  float &width, float &height, float &rotation)
 {
   PointCloudMono::Ptr hull(new PointCloudMono);
@@ -1523,19 +1527,22 @@ void Utilities::getRotatedRect2D(const PointCloudMono::Ptr &cloud_2d, std::vecto
   width = rr.size.width;
   height = rr.size.height;
 
-  pcl::PointXY origin{0, 0};
   float dist_01 = pcl::squaredEuclideanDistance(rect[0], rect[1]);
   float dist_12 = pcl::squaredEuclideanDistance(rect[1], rect[2]);
+  // the +x axis points along the observing direction and +y axis to the left
   if (dist_01 > dist_12) {
     pcl::PointXY mid_01{(rect[0].x + rect[1].x) / 2.0f, (rect[0].y + rect[1].y) / 2.0f};
     pcl::PointXY mid_23{(rect[2].x + rect[3].x) / 2.0f, (rect[2].y + rect[3].y) / 2.0f};
-    pcl::squaredEuclideanDistance(origin, mid_01) > pcl::squaredEuclideanDistance(origin, mid_23) ? surface_center = mid_23 : surface_center = mid_01;
+    mid_01.x > mid_23.x ? edge_center = mid_23 : edge_center = mid_01;
   } else {
     pcl::PointXY mid_12{(rect[1].x + rect[2].x) / 2.0f, (rect[1].y + rect[2].y) / 2.0f};
     pcl::PointXY mid_30{(rect[3].x + rect[0].x) / 2.0f, (rect[3].y + rect[0].y) / 2.0f};
-    pcl::squaredEuclideanDistance(origin, mid_12) > pcl::squaredEuclideanDistance(origin, mid_30) ? surface_center = mid_30 : surface_center = mid_12;
+    mid_12.x > mid_30.x ? edge_center = mid_30 : edge_center = mid_12;
   }
-  rotation = rr.angle / 180.0f * M_PI;  // The rotation angle in a clockwise direction
+  // The rr.angle is positive in clockwise direction, here we transfer that to positive
+  // in anticlockwise direction. see cite for details.
+  rotation = (90.0f - fabs(rr.angle)) / 180.0f * M_PI;
+  cerr<< rr.angle << " rotation "<<rotation<<endl;
 }
 
 void Utilities::estimateFPFH(PointCloudN::Ptr cloud_in, PointCloudFPFH::Ptr &features_out, float dsp_th) {

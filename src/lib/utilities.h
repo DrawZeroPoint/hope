@@ -305,6 +305,13 @@ public:
    */
   static void getCylinderPose(const PointCloudMono::Ptr& cloud, geometry_msgs::Pose &pose, float z = 0);
 
+  /**
+   * Given a isolated box type object (isolated means that the object is not adjacent with the wall),
+   * or the object cloud be
+   * @param cloud Box cloud
+   * @param pose Pose of the box, the origin is located at half height, center of the confronting face
+   * @param z See getCylinderPose
+   */
   static void getBoxPose(const PointCloudMono::Ptr& cloud, geometry_msgs::Pose &pose, float z = 0);
 
   /**
@@ -319,8 +326,23 @@ public:
   static void getStraightRect2D(const PointCloudMono::Ptr &cloud, std::vector<pcl::PointXY> &rect,
                                 pcl::PointXY &center, float &width, float &height);
 
+  /**
+   * Given a point cloud in 2D X-Y plane, compute its hull and then using OpenCV to calculate the
+   * minimum rectangle around the hull.
+   * @param cloud_2d 2D point cloud
+   * @param rect Rectangle vertices
+   * @param center Rectangle mass center
+   * @param edge_center The center of the width edge that adjacent to the observer
+   * @param width Rectangle width
+   * @param height Rectangle height
+   * @param rotation anticlockwise rotation of the rectangle, in radius
+   *
+   * @attention This function has the limitation that the observer mush roughly face
+   *            the box face that is used as reference (where the edge_center locates)
+   * @cite https://namkeenman.wordpress.com/tag/rotatedrect/
+   */
   static void getRotatedRect2D(const PointCloudMono::Ptr &cloud_2d, std::vector<pcl::PointXY> &rect,
-                               pcl::PointXY &center, pcl::PointXY &surface_center, float &width, float &height, float &rotation);
+                               pcl::PointXY &center, pcl::PointXY &edge_center, float &width, float &height, float &rotation);
 
   static void computeHull(PointCloudMono::Ptr cloud_2d, PointCloudMono::Ptr &cloud_hull);
 
