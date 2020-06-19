@@ -9,7 +9,7 @@ class PoseEstimation
 public:
   PoseEstimation(float dsp_th = 0.005f);
 
-  bool estimate(PointCloudN::Ptr scene, Eigen::Matrix4f &trans);
+  bool estimate(PointCloudN::Ptr scene, Eigen::Matrix4f &trans, bool verbose = false);
 
 private:
   float dsp_th_;

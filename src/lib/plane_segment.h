@@ -270,6 +270,7 @@ public:
   float max_z_;
 
   // Extracted objects' pose
+  float object_half_height_;
   geometry_msgs::PoseArray on_top_object_poses_;
 
 private:

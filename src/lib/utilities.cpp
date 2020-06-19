@@ -530,30 +530,26 @@ void Utilities::convertToColorCloud(const PointCloudMono::Ptr& cloud_in,
   }
 }
 
-void Utilities::cutCloud(pcl::ModelCoefficients::Ptr coeff_in, float th_distance,
-                         PointCloudRGBN::Ptr cloud_in, vector<int> &inliers_cut,
-                         PointCloudMono::Ptr &cloud_out)
+template <typename T, typename U>
+void Utilities::sliceCloudWithPlane(pcl::ModelCoefficients::Ptr coeff_in, float th_distance,
+                                    T cloud_in, U &cloud_out)
 {
-  Eigen::Vector4f coeffs(coeff_in->values[0], coeff_in->values[1],
-                         coeff_in->values[2], coeff_in->values[3]);
+  Eigen::Vector4f coeff(coeff_in->values[0], coeff_in->values[1],
+                        coeff_in->values[2], coeff_in->values[3]);
 
-  PointCloudMono::Ptr cloudSourceFiltered_t(new PointCloudMono);
-  convertCloudType<PointCloudRGBN::Ptr, PointCloudMono::Ptr>(cloud_in, cloudSourceFiltered_t);
-  pcl::SampleConsensusModelPlane<pcl::PointXYZ> scmp(cloudSourceFiltered_t);
-  scmp.selectWithinDistance(coeffs, th_distance, inliers_cut);
-  scmp.projectPoints(inliers_cut, coeffs, *cloud_out, false);
-}
-
-void Utilities::cutCloud(pcl::ModelCoefficients::Ptr coeff_in, float th_distance,
-                         PointCloudMono::Ptr cloud_in, vector<int> &inliers_cut,
-                         PointCloudMono::Ptr &cloud_out)
-{
-  Eigen::Vector4f coeffs(coeff_in->values[0], coeff_in->values[1],
-                         coeff_in->values[2], coeff_in->values[3]);
-
-  pcl::SampleConsensusModelPlane<pcl::PointXYZ> scmp(cloud_in);
-  scmp.selectWithinDistance(coeffs, th_distance, inliers_cut);
-  scmp.projectPoints(inliers_cut, coeffs, *cloud_out, false);
+  PointCloudMono::Ptr cloud_in_mono(new PointCloudMono);
+  std::vector<int> inliers;
+  convertCloudType(cloud_in, cloud_in_mono);
+  pcl::SampleConsensusModelPlane<pcl::PointXYZ> scmp(cloud_in_mono);
+  int slice_count = 5;
+  while(slice_count) {
+    inliers.clear();
+    scmp.selectWithinDistance(coeff, th_distance, inliers);
+    if (inliers.size() >= 4) break;
+    else th_distance += 0.001;
+    slice_count--;
+  }
+  scmp.projectPoints(inliers, coeff, *cloud_out, false);
 }
 
 void Utilities::extractClusters(PointCloudMono::Ptr cloud_in,
@@ -573,9 +569,9 @@ void Utilities::extractClusters(PointCloudMono::Ptr cloud_in,
   ec.extract(cluster_indices);
 }
 
-void Utilities::projectCloud(const pcl::ModelCoefficients::Ptr& coeff_in,
-                             const PointCloudMono::Ptr& cloud_in,
-                             PointCloudMono::Ptr &cloud_out)
+void Utilities::projectCloudTo2D(const pcl::ModelCoefficients::Ptr& coeff_in,
+                                 const PointCloudMono::Ptr& cloud_in,
+                                 PointCloudMono::Ptr &cloud_out)
 {
   pcl::ProjectInliers<pcl::PointXYZ> proj;
   proj.setModelType(pcl::SACMODEL_PLANE);
@@ -752,9 +748,8 @@ bool Utilities::checkWithIn(const pcl::PointIndices::Ptr& ref_inliers,
 }
 
 template <typename T>
-void Utilities::getCloudZInfo(T cloud_in, float &z_mean, float &z_max, float &z_min)
+void Utilities::getCloudZInfo(T cloud_in, float &z_mean, float &z_max, float &z_min, float &z_mid)
 {
-  // A simple yet easy to understand method
   z_max = -1000;
   z_min = 1000;
   float mid = 0.0;
@@ -769,6 +764,7 @@ void Utilities::getCloudZInfo(T cloud_in, float &z_mean, float &z_max, float &z_
     }
   }
   z_mean = mid / ct;
+  z_mid = (z_max + z_min) / 2.0f;
 }
 
 Vec3f Utilities::getColorWithID(int id)
@@ -1366,8 +1362,8 @@ bool Utilities::isInContour(const PointCloudMono::Ptr& contour, pcl::PointXY p) 
 bool Utilities::getClustersUponPlane(const PointCloudMono::Ptr& src_cloud, const PointCloudMono::Ptr& contour,
                                      vector<PointCloudMono::Ptr> &clusters) {
   // Get cloud upon the given contour from src_cloud
-  float z_mean, z_max, z_min;
-  getCloudZInfo<PointCloudMono::Ptr>(contour, z_mean, z_max, z_min);
+  float z_mean, z_max, z_min, z_mid;
+  getCloudZInfo<PointCloudMono::Ptr>(contour, z_mean, z_max, z_min, z_mid);
 
   PointCloudMono::Ptr temp(new PointCloudMono);
   pcl::PointIndices::Ptr inliers(new pcl::PointIndices);
@@ -1375,7 +1371,7 @@ bool Utilities::getClustersUponPlane(const PointCloudMono::Ptr& src_cloud, const
   vector<pcl::PointXY> rect;
   pcl::PointXY center{};
   float width, height;
-  getBoundingRect(contour, rect, center, width, height);
+  getStraightRect2D(contour, rect, center, width, height);
 
   for (size_t i = 0; i < src_cloud->points.size(); i++) {
     if (src_cloud->points[i].z < z_max + 0.01)
@@ -1410,17 +1406,8 @@ bool Utilities::getClustersUponPlane(const PointCloudMono::Ptr& src_cloud, const
   return !clusters.empty();
 }
 
-void Utilities::cloudsToPoseArray(const std::vector<PointCloudMono::Ptr>& clouds, geometry_msgs::PoseArray &array) {
-  array.poses.clear();
-  for (auto & cloud : clouds) {
-    geometry_msgs::Pose pose;
-    getCloudPose(cloud, pose);
-    array.poses.push_back(pose);
-  }
-}
-
 void Utilities::matrixToPoseArray(const Eigen::Matrix4f &mat, geometry_msgs::PoseArray &array) {
-  array.poses.clear();
+  // make sure the array.poses is clear when input
   Eigen::Quaternion<float> q;
   quaternionFromMatrix(mat, q);
 
@@ -1435,51 +1422,63 @@ void Utilities::matrixToPoseArray(const Eigen::Matrix4f &mat, geometry_msgs::Pos
   array.poses.push_back(pose);
 }
 
-void Utilities::getCloudPose(const PointCloudMono::Ptr& cloud, geometry_msgs::Pose &pose) {
-  float z_mean, z_max, z_min;
-  getCloudZInfo(cloud, z_mean, z_max, z_min);
-  float z_avr = (z_max + z_min) / 2.0f;
-  pose.position.z = z_avr;
+void Utilities::getCylinderPose(const PointCloudMono::Ptr& cloud, geometry_msgs::Pose &pose, float z) {
+  float z_mean, z_max, z_min, z_mid, z_origin;
+  getCloudZInfo(cloud, z_mean, z_max, z_min, z_mid);
+  (z == 0) ? (z_origin = z_mid) : (z_origin = z);
 
-  pcl::ModelCoefficients::Ptr coeff(new pcl::ModelCoefficients);
-  pcl::PointIndices::Ptr inliers(new pcl::PointIndices);
-  PointCloudMono::Ptr temp(new PointCloudMono);
+  pcl::ModelCoefficients::Ptr coeff = getPlaneCoeff(z_mid);
+  PointCloudMono::Ptr slice_2d(new PointCloudMono);
+  sliceCloudWithPlane(coeff, 0.001, cloud, slice_2d);
 
-  float thickness = 0.001;
-  while(true) {
-    inliers.reset(new pcl::PointIndices);
-    temp.reset(new PointCloudMono);
-    getCloudByZ(cloud, inliers, temp, z_avr - thickness, z_avr + thickness);
-    if (temp->points.size() >= 4) break;
-    else thickness += 0.001;
-  }
-
-  // Plane function: ax + by + cz + d = 0, here coeff[3] = d = -cz
-  coeff->values.push_back(0.0);
-  coeff->values.push_back(0.0);
-  coeff->values.push_back(1.0);
-  coeff->values.push_back(-z_avr);
-
-  PointCloudMono::Ptr temp_proj(new PointCloudMono);
-  projectCloud(coeff, temp, temp_proj);
-
-  int sz = temp_proj->points.size();
+  int sz = slice_2d->points.size();
   int half_sz = sz / 2;
-  float a[] = {temp_proj->points[0].x, temp_proj->points[0].y, temp_proj->points[0].z};
-  float b[] = {temp_proj->points[half_sz].x, temp_proj->points[half_sz].y, temp_proj->points[half_sz].z};
-  float c[] = {temp_proj->points[sz-1].x, temp_proj->points[sz-1].y, temp_proj->points[sz-1].z};
+  float a[] = {slice_2d->points[0].x, slice_2d->points[0].y, slice_2d->points[0].z};
+  float b[] = {slice_2d->points[half_sz].x, slice_2d->points[half_sz].y, slice_2d->points[half_sz].z};
+  float c[] = {slice_2d->points[sz-1].x, slice_2d->points[sz-1].y, slice_2d->points[sz-1].z};
   pcl::PointXY res{};
   triCircumCenter2D(a, b, c, res);
   pose.position.x = res.x;
   pose.position.y = res.y;
+  pose.position.z = z_origin;
   pose.orientation.x = 0;
   pose.orientation.y = 0;
   pose.orientation.z = 0;
   pose.orientation.w = 1;
 }
 
-void Utilities::getBoundingRect(const PointCloudMono::Ptr &cloud, std::vector<pcl::PointXY> &rect,
-                                pcl::PointXY &center, float &width, float &height) {
+void Utilities::getBoxPose(const PointCloudMono::Ptr& cloud, geometry_msgs::Pose &pose, float z) {
+  float z_mean, z_max, z_min, z_mid, z_origin;
+  getCloudZInfo(cloud, z_mean, z_max, z_min, z_mid);
+  (z == 0) ? (z_origin = z_mid) : (z_origin = z);
+
+  pcl::ModelCoefficients::Ptr coeff = getPlaneCoeff(z_mid);
+  PointCloudMono::Ptr slice_2d(new PointCloudMono);
+  sliceCloudWithPlane(coeff, 0.001, cloud, slice_2d);
+
+  vector<pcl::PointXY> rect;
+  pcl::PointXY center{};
+  pcl::PointXY surface_center{};
+  float width, height, rotation;
+  getRotatedRect2D(slice_2d, rect, center, surface_center, width, height, rotation);
+
+  pose.position.x = surface_center.x;
+  pose.position.y = surface_center.y;
+  pose.position.z = z_origin;
+}
+
+void Utilities::computeHull(PointCloudMono::Ptr cloud_2d, PointCloudMono::Ptr &cloud_hull)
+{
+  PointCloudMono::Ptr cluster_hull(new PointCloudMono);
+  pcl::ConvexHull<pcl::PointXYZ> hull;
+
+  hull.setInputCloud(cloud_2d);
+  hull.setComputeAreaVolume(true);
+  hull.reconstruct(*cluster_hull);
+}
+
+void Utilities::getStraightRect2D(const PointCloudMono::Ptr &cloud, vector<pcl::PointXY> &rect,
+                                  pcl::PointXY &center, float &width, float &height) {
 
   pcl::PointXYZ min_pt{};
   pcl::PointXYZ max_pt{};
@@ -1502,6 +1501,43 @@ void Utilities::getBoundingRect(const PointCloudMono::Ptr &cloud, std::vector<pc
   height = max_y - min_y;
 }
 
+void Utilities::getRotatedRect2D(const PointCloudMono::Ptr &cloud_2d, std::vector<pcl::PointXY> &rect,
+                                 pcl::PointXY &center, pcl::PointXY &surface_center,
+                                 float &width, float &height, float &rotation)
+{
+  PointCloudMono::Ptr hull(new PointCloudMono);
+  computeHull(cloud_2d, hull);
+  vector<cv::Point2f> points = cloudToCVPoints(hull);
+  cv::RotatedRect rr = cv::minAreaRect(points);
+
+  cv::Point2f vertices[4];
+  rr.points(vertices);
+  for (size_t i = 0; i < 4; ++i) {
+    pcl::PointXY p;
+    p.y = vertices[i].x;  // swap back xy
+    p.x = vertices[i].y;
+    rect.push_back(p);
+  }
+  center.y = rr.center.x;
+  center.x = rr.center.y;
+  width = rr.size.width;
+  height = rr.size.height;
+
+  pcl::PointXY origin{0, 0};
+  float dist_01 = pcl::squaredEuclideanDistance(rect[0], rect[1]);
+  float dist_12 = pcl::squaredEuclideanDistance(rect[1], rect[2]);
+  if (dist_01 > dist_12) {
+    pcl::PointXY mid_01{(rect[0].x + rect[1].x) / 2.0f, (rect[0].y + rect[1].y) / 2.0f};
+    pcl::PointXY mid_23{(rect[2].x + rect[3].x) / 2.0f, (rect[2].y + rect[3].y) / 2.0f};
+    pcl::squaredEuclideanDistance(origin, mid_01) > pcl::squaredEuclideanDistance(origin, mid_23) ? surface_center = mid_23 : surface_center = mid_01;
+  } else {
+    pcl::PointXY mid_12{(rect[1].x + rect[2].x) / 2.0f, (rect[1].y + rect[2].y) / 2.0f};
+    pcl::PointXY mid_30{(rect[3].x + rect[0].x) / 2.0f, (rect[3].y + rect[0].y) / 2.0f};
+    pcl::squaredEuclideanDistance(origin, mid_12) > pcl::squaredEuclideanDistance(origin, mid_30) ? surface_center = mid_30 : surface_center = mid_12;
+  }
+  rotation = rr.angle / 180.0f * M_PI;  // The rotation angle in a clockwise direction
+}
+
 void Utilities::estimateFPFH(PointCloudN::Ptr cloud_in, PointCloudFPFH::Ptr &features_out, float dsp_th) {
   FeatureEstimationFPFH fest;
   fest.setRadiusSearch(dsp_th * 5);
@@ -1512,8 +1548,7 @@ void Utilities::estimateFPFH(PointCloudN::Ptr cloud_in, PointCloudFPFH::Ptr &fea
 
 bool Utilities::alignmentWithFPFH(PointCloudN::Ptr src_cloud, PointCloudFPFH::Ptr src_features,
                                   PointCloudN::Ptr tgt_cloud, PointCloudFPFH::Ptr tgt_features,
-                                  Eigen::Matrix4f &transformation, float leaf) {
-  PointCloudN::Ptr object_aligned(new PointCloudN);
+                                  Eigen::Matrix4f &transformation, PointCloudN::Ptr &src_aligned, float leaf) {
   pcl::SampleConsensusPrerejective<PointN, PointN, FeatureFPFH> align;
   align.setInputSource(src_cloud);
   align.setSourceFeatures(src_features);
@@ -1525,7 +1560,7 @@ bool Utilities::alignmentWithFPFH(PointCloudN::Ptr src_cloud, PointCloudFPFH::Pt
   align.setSimilarityThreshold(0.9f); // Polygonal edge length similarity threshold
   align.setMaxCorrespondenceDistance(2.5f * leaf); // Inlier threshold
   align.setInlierFraction(0.25f); // Required inlier fraction for accepting a pose hypothesis
-  align.align(*object_aligned);
+  align.align(*src_aligned);
 
   if (align.hasConverged()) {
     transformation = align.getFinalTransformation();
@@ -1577,6 +1612,37 @@ void Utilities::quaternionFromMatrix(Eigen::Matrix4f mat, Eigen::Quaternion<floa
   q.w() *= d;
 }
 
+pcl::ModelCoefficients::Ptr Utilities::getPlaneCoeff(float z) {
+  // Plane function: ax + by + cz + d = 0, here coeff[3] = d = -cz
+  pcl::ModelCoefficients::Ptr coeff(new pcl::ModelCoefficients);
+  coeff->values.push_back(0.0);
+  coeff->values.push_back(0.0);
+  coeff->values.push_back(1.0);
+  coeff->values.push_back(-z);
+  return coeff;
+}
+
+std::vector<cv::Point2f> Utilities::cloudToCVPoints(PointCloudMono::Ptr cloud_hull) {
+  std::vector<cv::Point2f> points;
+  for (std::size_t i = 0; i < cloud_hull->size(); ++i) {
+    cv::Point2f p;
+    p.y = cloud_hull->points[i].x;  // swap x y
+    p.x = cloud_hull->points[i].y;
+    points.push_back(p);
+  }
+  return points;
+}
+
+void Utilities::quaternionFromPlanarRotation(float rotation, Eigen::Quaternion<float> &q) {
+  float cos_r = cos(rotation);
+  float sin_r = sin(rotation);
+  Eigen::Matrix4f mat = Eigen::Matrix<float, 4, 4>::Identity();
+  mat(0, 0) = cos_r;
+  mat(0, 1) = -sin_r;
+  mat(1, 0) = sin_r;
+  mat(1, 1) = cos_r;
+  quaternionFromMatrix(mat, q);
+}
 
 
 // declare all templates use case, otherwise undefined symbol error will raise
@@ -1589,6 +1655,10 @@ template void Utilities::convertCloudType<PointCloud::Ptr, PointCloudMono::Ptr>(
 template void Utilities::convertCloudType<PointCloudRGBN::Ptr, PointCloudMono::Ptr>(PointCloudRGBN::Ptr cloud_in, PointCloudMono::Ptr &cloud_out);
 template void Utilities::convertCloudType<PointCloudMono::Ptr, PointCloudN::Ptr>(PointCloudMono::Ptr cloud_in, PointCloudN::Ptr &cloud_out);
 
-template void Utilities::getCloudZInfo<PointCloudMono::Ptr>(PointCloudMono::Ptr cloud_in, float &z_mean, float &z_max, float &z_min);
-template void Utilities::getCloudZInfo<PointCloudRGBN::Ptr>(PointCloudRGBN::Ptr cloud_in, float &z_mean, float &z_max, float &z_min);
+template void Utilities::getCloudZInfo<PointCloudMono::Ptr>(PointCloudMono::Ptr cloud_in, float &z_mean, float &z_max, float &z_min, float &z_mid);
+template void Utilities::getCloudZInfo<PointCloudRGBN::Ptr>(PointCloudRGBN::Ptr cloud_in, float &z_mean, float &z_max, float &z_min, float &z_mid);
+
+template void Utilities::sliceCloudWithPlane<PointCloudMono::Ptr, PointCloudMono::Ptr>(pcl::ModelCoefficients::Ptr coeff_in,
+                                                                                       float th_distance, PointCloudMono::Ptr cloud_in,
+                                                                                       PointCloudMono::Ptr &cloud_out);
 

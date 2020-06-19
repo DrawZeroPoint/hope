@@ -58,12 +58,12 @@ int main(int argc, char **argv)
 
   float dsp_th = 0.005f;
   PoseEstimation *pe = new PoseEstimation(dsp_th);
-  std::string scene_path = "/home/dzp/rs1.pcd";
+  std::string scene_path = "/home/dzp/scene.pcd";
   PointCloudN::Ptr scene_cloud(new PointCloudN);
   pcl::io::loadPCDFile<PointN>(scene_path, *scene_cloud);
 
   Eigen::Matrix4f trans;
-  pe->estimate(scene_cloud, trans);
+  pe->estimate(scene_cloud, trans, true);
 
 
   return 0;

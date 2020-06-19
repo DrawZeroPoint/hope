@@ -209,8 +209,8 @@ void PlaneSegment::findAllPlanesRG(int norm_k, int num_n, float s_th, float c_th
     Utilities::getCloudByInliers(cloud_norm_fit_mono_, cloud_p, idx_seed, false, false);
     plane_points_.push_back(cloud_p);
 
-    float z_mean, z_max, z_min;
-    Utilities::getCloudZInfo(cloud_p, z_mean, z_max, z_min);
+    float z_mean, z_max, z_min, z_mid;
+    Utilities::getCloudZInfo(cloud_p, z_mean, z_max, z_min, z_mid);
     setFeatures(z_mean, cloud_p);
   }
 }
@@ -265,7 +265,7 @@ void PlaneSegment::findAllPlanesRANSAC(bool isOptimize, int maxIter,
       PointCloud::Ptr cloud_2d_rgb(new PointCloud);
       PointCloudMono::Ptr cloud_proj(new PointCloudMono);
 
-      Utilities::projectCloud(coefficients, cloud_p, cloud_proj);
+      Utilities::projectCloudTo2D(coefficients, cloud_p, cloud_proj);
       Utilities::convertToColorCloud(cloud_proj, cloud_2d_rgb, 100, 100, 100);
       computeHull(cloud_2d_rgb);
     }
@@ -308,10 +308,8 @@ void PlaneSegment::getMeanZofEachCluster(PointCloudMono::Ptr cloud_norm_fit_mono
         viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0, 0.7, 0, name);
       }
 
-      float z_mean;
-      float z_max;
-      float z_min;
-      Utilities::getCloudZInfo<PointCloudMono::Ptr>(cloud_fit_part, z_mean, z_max, z_min);
+      float z_mean, z_max, z_min, z_mid;
+      Utilities::getCloudZInfo<PointCloudMono::Ptr>(cloud_fit_part, z_mean, z_max, z_min, z_mid);
       //cout << "Cluster has " << idx_seed->indices.size() << " points at z: " << z_mean << endl;
       plane_z_values_.push_back(z_mean);
       k++;
@@ -903,8 +901,8 @@ void PlaneSegmentRT::getMeanZofEachCluster(PointCloudMono::Ptr cloud_norm_fit_mo
       idx_seed->indices = seed_clusters_indice.indices;
       Utilities::getCloudByInliers(cloud_norm_fit_mono, cloud_fit_part, idx_seed, false, false);
 
-      float z_mean, z_max, z_min;
-      Utilities::getCloudZInfo<PointCloudMono::Ptr>(cloud_fit_part, z_mean, z_max, z_min);
+      float z_mean, z_max, z_min, z_mid;
+      Utilities::getCloudZInfo<PointCloudMono::Ptr>(cloud_fit_part, z_mean, z_max, z_min, z_mid);
       plane_z_values_.push_back(z_mean);
       k++;
     }
@@ -1100,8 +1098,20 @@ bool PlaneSegmentRT::postProcessing(bool do_cluster, string type) {
       clusters.push_back(upper_cloud);
     }
 
+    on_top_object_poses_.poses.clear();
     if (type != "mesh") {
-      Utilities::cloudsToPoseArray(clusters, on_top_object_poses_);
+      for (auto & cloud : clusters) {
+        geometry_msgs::Pose pose;
+        if (type == "cylinder")
+          Utilities::getCylinderPose(cloud, pose);
+        else if (type == "box")
+          Utilities::getBoxPose(cloud, pose);
+        else {
+          ROS_WARN("HoPE: Unknown object type %s", type.c_str());
+          return false;
+        }
+        on_top_object_poses_.poses.push_back(pose);
+      }
     } else {
       PointCloudN::Ptr scene_cloud(new PointCloudN);
       Utilities::convertCloudType(clusters[0], scene_cloud);
@@ -1109,7 +1119,6 @@ bool PlaneSegmentRT::postProcessing(bool do_cluster, string type) {
       pe_->estimate(scene_cloud, trans);
       Utilities::matrixToPoseArray(trans, on_top_object_poses_);
     }
-    cerr << on_top_object_poses_ << endl;
     on_top_object_poses_.header.stamp = ros::Time::now();
     on_top_object_poses_.header.frame_id = base_frame_;
     //on_plane_obj_puber_.publish(on_top_object_poses_);

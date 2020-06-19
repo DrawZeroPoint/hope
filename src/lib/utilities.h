@@ -64,6 +64,8 @@
 #include <pcl/registration/icp.h>
 #include <pcl/registration/sample_consensus_prerejective.h>
 
+#include <pcl/visualization/pcl_visualizer.h>
+
 // OpenCV
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/opencv.hpp>
@@ -89,6 +91,8 @@ typedef pcl::PointCloud<pcl::PointXYZ> PointCloudMono;
 typedef pcl::PointCloud<pcl::PointXYZRGBNormal> PointCloudRGBN;
 typedef pcl::PointCloud<pcl::Normal> CloudN;
 typedef pcl::PointCloud<pcl::PointNormal> PointCloudN;
+typedef pcl::visualization::PointCloudColorHandlerCustom<PointN> ColorHandler;
+
 
 class Utilities
 {
@@ -107,17 +111,21 @@ public:
    */
   static bool checkWithIn(const pcl::PointIndices::Ptr& ref_inliers, const pcl::PointIndices::Ptr& tgt_inliers);
 
+  /**
+   * Extract clusters from given point cloud with EuclideanClusterExtraction
+   * @param cloud_in Mono point cloud
+   * @param cluster_indices Vector of PointIndices
+   * @param th_cluster ClusterTolerance
+   * @param minsize MinClusterSize
+   * @param maxsize MaxClusterSize
+   */
   static void extractClusters(PointCloudMono::Ptr cloud_in,
                               std::vector<pcl::PointIndices> &cluster_indices,
                               float th_cluster, int minsize, int maxsize);
 
-  static void cutCloud(pcl::ModelCoefficients::Ptr coeff_in, float th_distance,
-                       PointCloudRGBN::Ptr cloud_in, std::vector<int> &inliers_cut,
-                       PointCloudMono::Ptr &cloud_out);
-
-  static void cutCloud(pcl::ModelCoefficients::Ptr coeff_in, float th_distance,
-                       PointCloudMono::Ptr cloud_in, std::vector<int> &inliers_cut,
-                       PointCloudMono::Ptr &cloud_out);
+  template <typename T, typename U>
+  static void sliceCloudWithPlane(pcl::ModelCoefficients::Ptr coeff_in, float th_distance,
+                                  T cloud_in, U &cloud_out);
 
   static void downSampling(const PointCloudMono::Ptr& cloud_in, PointCloudMono::Ptr &cloud_out,
                            float grid_sz = 0, float z_sz = 0);
@@ -143,7 +151,7 @@ public:
 
   static bool alignmentWithFPFH(PointCloudN::Ptr src_cloud, PointCloudFPFH::Ptr src_features,
                                 PointCloudN::Ptr tgt_cloud, PointCloudFPFH::Ptr tgt_features,
-                                Eigen::Matrix4f &transformation, float leaf = 0.005f);
+                                Eigen::Matrix4f &transformation, PointCloudN::Ptr &src_aligned, float leaf = 0.005f);
 
   /**
    * @brief getClosestPoint
@@ -178,8 +186,17 @@ public:
   static void getCloudByZ(const PointCloud::Ptr& cloud_in, pcl::PointIndices::Ptr &inliers,
                           PointCloud::Ptr &cloud_out, float z_min, float z_max);
 
+  /**
+   * Given a cloud, get its average, maximum, minimum, and middle z values.
+   * @tparam T Cloud type, could be Mono or Colored
+   * @param cloud_in
+   * @param z_mean
+   * @param z_max
+   * @param z_min
+   * @param z_mid
+   */
   template <typename T>
-  static void getCloudZInfo(T cloud_in, float &z_mean, float &z_max, float &z_min);
+  static void getCloudZInfo(T cloud_in, float &z_mean, float &z_max, float &z_min, float &z_mid);
 
   static cv::Vec3f getColorWithID(int id);
 
@@ -222,9 +239,9 @@ public:
   static void planeTo2D(float z, PointCloudMono::Ptr cloud_in,
                         PointCloudMono::Ptr &cloud_out);
 
-  static void projectCloud(const pcl::ModelCoefficients::Ptr& coeff_in,
-                           const PointCloudMono::Ptr& cloud_in,
-                           PointCloudMono::Ptr &cloud_out);
+  static void projectCloudTo2D(const pcl::ModelCoefficients::Ptr& coeff_in,
+                               const PointCloudMono::Ptr& cloud_in,
+                               PointCloudMono::Ptr &cloud_out);
 
   static void rotateCloudXY(const PointCloudRGBN::Ptr& cloud_in,
                             PointCloudRGBN::Ptr &cloud_out,
@@ -276,11 +293,19 @@ public:
    */
   static bool isInContour(const PointCloudMono::Ptr& contour, pcl::PointXY p);
 
-  static void cloudsToPoseArray(const std::vector<PointCloudMono::Ptr>& clouds, geometry_msgs::PoseArray &array);
-
   static void matrixToPoseArray(const Eigen::Matrix4f &mat, geometry_msgs::PoseArray &array);
 
-  static void getCloudPose(const PointCloudMono::Ptr& cloud, geometry_msgs::Pose &pose);
+  /**
+   * Given a point cloud of a standing cylinder, get its pose in the scene.
+   * @param cloud Cylinder cloud
+   * @param pose Pose of the cylinder
+   * @param z A manually given origin z value of the cylinder, if =0, calculate it with cloud,
+   *          otherwise use this z for the origin. This is useful when the cylinder exceeds the
+   *          sensing range of the camera.
+   */
+  static void getCylinderPose(const PointCloudMono::Ptr& cloud, geometry_msgs::Pose &pose, float z = 0);
+
+  static void getBoxPose(const PointCloudMono::Ptr& cloud, geometry_msgs::Pose &pose, float z = 0);
 
   /**
    * Get the bounding rect of a 2D cloud in XY plane. The rect's edges are aligned with the coordinates.
@@ -291,10 +316,17 @@ public:
    * @param width Width of the rect
    * @param height Height of the rect
    */
-  static void getBoundingRect(const PointCloudMono::Ptr &cloud, std::vector<pcl::PointXY> &rect,
-                              pcl::PointXY &center, float &width, float &height);
+  static void getStraightRect2D(const PointCloudMono::Ptr &cloud, std::vector<pcl::PointXY> &rect,
+                                pcl::PointXY &center, float &width, float &height);
+
+  static void getRotatedRect2D(const PointCloudMono::Ptr &cloud_2d, std::vector<pcl::PointXY> &rect,
+                               pcl::PointXY &center, pcl::PointXY &surface_center, float &width, float &height, float &rotation);
+
+  static void computeHull(PointCloudMono::Ptr cloud_2d, PointCloudMono::Ptr &cloud_hull);
 
   static void quaternionFromMatrix(Eigen::Matrix4f mat, Eigen::Quaternion<float> &q);
+
+  static void quaternionFromPlanarRotation(float rotation, Eigen::Quaternion<float> &q);
 
 private:
   static bool calNormalMean(Eigen::Matrix3Xf data, std::vector<int> part1, std::vector<int> part2,
@@ -314,6 +346,10 @@ private:
   static void matNormalize(cv::Mat query_in, cv::Mat train_in, cv::Mat &query_out, cv::Mat &train_out);
 
   static void searchAvailableID(std::vector<int> id_used, std::vector<int> &id_ava, size_t limit);
+
+  static pcl::ModelCoefficients::Ptr getPlaneCoeff(float z);
+
+  static std::vector<cv::Point2f> cloudToCVPoints(PointCloudMono::Ptr cloud_hull);
 
   // MeshKit
   //  https://www.mcs.anl.gov/~fathom/meshkit-docs/html/circumcenter_8cpp_source.html
