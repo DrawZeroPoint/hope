@@ -236,7 +236,7 @@ ZGrowing::applySmoothRegionGrowingAlgorithm ()
   std::pair<float, int> pair;
   point_residual.resize (num_of_pts, pair);
   
-  if (normal_flag_ == true)
+  if (normal_flag_)
   {
     for (int i_point = 0; i_point < num_of_pts; i_point++)
     {

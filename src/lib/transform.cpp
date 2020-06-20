@@ -22,23 +22,19 @@ bool Transform::getTransform(string base_frame, string header_frame)
         // Get the transform
         tf_handle_ = tf_buffer_.lookupTransform(base_frame, header_frame, ros::Time(0));
         return true;
+      } else {
+        ROS_WARN("HoPE: Transform from '%s' to '%s' does not exist.", base_frame.c_str(), header_frame.c_str());
       }
-      else {
-        ROS_WARN("HoPE Transform: Frame %s does not exist.", base_frame.c_str());
-      }
-      
-      // Handle callbacks and sleep for a small amount of time
-      // before looping again
       ros::spinOnce();
     }
   }
   // Catch any exceptions that might happen while transforming
-  catch (tf2::TransformException& ex)
-  {
+  catch (tf2::TransformException& ex) {
     ROS_ERROR("Exception transforming %s to %s: %s",
               base_frame.c_str(),
               header_frame.c_str(),
               ex.what());
+    return false;
   }
 }
 

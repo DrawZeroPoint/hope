@@ -380,11 +380,11 @@ void PlaneSegment::getPlane(size_t id, float z_in, PointCloudMono::Ptr &cloud_no
   setFeatures(z_in, cluster_near_z);
 
   // Update the data of the max plane detected
-  //  if (cluster_2d_rgb->points.size() > global_size_temp_) {
+  //  if (cluster_2d_rgb->points.size() > max_plane_points_num_) {
   //    plane_max_result_ = cluster_2d_rgb;
-  //    max_cloud_ = cluster_near_z;
+  //    max_plane_cloud_ = cluster_near_z;
   //    max_coeff_ = feature;
-  //    global_size_temp_ = cluster_2d_rgb->points.size();
+  //    max_plane_points_num_ = cluster_2d_rgb->points.size();
   //  }
 }
 
@@ -536,7 +536,7 @@ void PlaneSegment::visualizeResult(bool display_source, bool display_raw,
 {
   // For visualizing in RViz
   //publishCloud(src_rgb_cloud_, plane_cloud_puber_);
-  //publishCloud(max_cloud_, max_plane_puber_);
+  //publishCloud(max_plane_cloud_, max_plane_puber_);
 
   // Clear temps
   viewer->removeAllPointClouds();
@@ -713,7 +713,10 @@ PlaneSegmentRT::PlaneSegmentRT(float th_xy, float th_z, ros::NodeHandle nh, stri
   tf_(new Transform),
   hst_("total"),
   pe_(new PoseEstimation(th_grid_rsl_)),
-  base_frame_(std::move(base_frame))
+  base_frame_(std::move(base_frame)),
+  max_plane_z_(-1000.0f),
+  origin_height_(0.0f),
+  aggressive_merge_(true)
 {
   th_grid_rsl_ = th_xy;
   th_z_rsl_ = th_z;
@@ -722,7 +725,7 @@ PlaneSegmentRT::PlaneSegmentRT(float th_xy, float th_z, ros::NodeHandle nh, stri
   th_norm_ = sqrt(1 / (1 + 2 * pow(th_theta_, 2)));
 
   // For storing max hull id and area
-  global_size_temp_ = 0;
+  max_plane_points_num_ = 0;
 
   // Register the callback if using real point cloud data
   source_suber = nh_.subscribe<sensor_msgs::PointCloud2>(cloud_topic, 1,
@@ -747,13 +750,12 @@ void PlaneSegmentRT::getHorizontalPlanes() {
   // If using real data, the transform from camera frame to base frame
   // need to be provided
   getSourceCloud();
-  assert(Utilities::isPointCloudValid(src_mono_cloud_));
 
   // Down sampling
   Utilities::downSampling(src_mono_cloud_, src_dsp_mono_, th_grid_rsl_, th_z_rsl_);
 
-  if (src_dsp_mono_->points.empty()) {
-    ROS_ERROR("PlaneSegment: Source cloud is empty.");
+  if (!Utilities::isPointCloudValid(src_dsp_mono_)) {
+    ROS_ERROR("HoPE: Down sampled source cloud is empty.");
     return;
   }
 
@@ -767,11 +769,8 @@ void PlaneSegmentRT::getSourceCloud()
 {
   src_mono_cloud_.reset(new PointCloudMono);
   while (ros::ok()) {
-    if (!src_mono_cloud_->points.empty())
+    if (Utilities::isPointCloudValid(src_mono_cloud_))
       return;
-
-    // Handle callbacks and sleep for a small amount of time
-    // before looping again
     ros::spinOnce();
   }
 }
@@ -779,22 +778,21 @@ void PlaneSegmentRT::getSourceCloud()
 void PlaneSegmentRT::cloudCallback(const sensor_msgs::PointCloud2ConstPtr &msg)
 {
   if (msg->data.empty()) {
-    cerr << "HoPE: source point cloud is empty." << endl;
+    ROS_WARN("HoPE: Source point cloud is empty.");
     return;
   }
   PointCloudMono::Ptr src_temp(new PointCloudMono);
-  PointCloudMono::Ptr temp(new PointCloudMono);
+  PointCloudMono::Ptr src_clamped(new PointCloudMono);
 
   pcl::PCLPointCloud2 pcl_pc2;
   pcl_conversions::toPCL(*msg, pcl_pc2);
   pcl::fromPCLPointCloud2(pcl_pc2, *src_temp);
 
-  Utilities::getCloudByZ(src_temp, src_z_inliers_, temp,
+  Utilities::getCloudByZ(src_temp, src_z_inliers_, src_clamped,
                          th_min_depth_, th_max_depth_);
 
-  tf_->getTransform(base_frame_, msg->header.frame_id);
-  tf_->doTransform(temp, src_mono_cloud_);
-  assert(Utilities::isPointCloudValid(src_mono_cloud_));
+  if (!tf_->getTransform(base_frame_, msg->header.frame_id)) return;
+  tf_->doTransform(src_clamped, src_mono_cloud_);
 }
 
 void PlaneSegmentRT::configCallback(hope::hopeConfig &config, uint32_t level) {
@@ -813,6 +811,7 @@ bool PlaneSegmentRT::extractOnTopCallback(hope::ExtractObjectOnTop::Request &req
     do_cluster = true;
   } else if (req.goal_id.id == "mesh") {
     object_type = "mesh";
+    object_model_path_ = req.mesh_path;
     do_cluster = false;
   } else if (req.goal_id.id == "box") {
     object_type = "box";
@@ -827,6 +826,9 @@ bool PlaneSegmentRT::extractOnTopCallback(hope::ExtractObjectOnTop::Request &req
     res.result_status = res.FAILED;
     return true;
   }
+
+  origin_height_ = req.origin_height;
+  aggressive_merge_ = req.aggressive_merge;
 
   bool ok = postProcessing(do_cluster, object_type);
   if (ok) {
@@ -851,12 +853,10 @@ void PlaneSegmentRT::computeNormalAndFilter()
 {
   Utilities::estimateNorm(src_dsp_mono_, src_normals_, 1.01 * th_grid_rsl_);
   Utilities::getCloudByNorm(src_normals_, idx_norm_fit_, th_norm_);
-
   if (idx_norm_fit_->indices.empty()) {
-    cerr << "No point fits the normal criteria" << endl;
+    ROS_WARN("HoPE: No point fits the normal criteria");
     return;
   }
-
   Utilities::getCloudByInliers(src_dsp_mono_, cloud_norm_fit_mono_, idx_norm_fit_, false, false);
   Utilities::getCloudByInliers(src_normals_, cloud_norm_fit_, idx_norm_fit_, false, false);
 }
@@ -870,26 +870,20 @@ void PlaneSegmentRT::findAllPlanes()
 
 void PlaneSegmentRT::reset()
 {
-  // Clear temp
-  plane_cloud_list_.clear();
-  plane_coeff_list_.clear();
-  plane_contour_list_.clear();
-
-  max_cloud_.reset(new PointCloudMono);
-  max_contour_.reset(new PointCloudMono);
+  max_plane_cloud_.reset(new PointCloudMono);
+  max_plane_contour_.reset(new PointCloudMono);
 
   plane_z_values_.clear();
   seed_clusters_indices_.clear();
 
-  global_size_temp_ = 0;
-  // Reset timer
-  hst_.reset();
+  max_plane_points_num_ = 0;
+  //hst_.reset();
 }
 
 void PlaneSegmentRT::getMeanZofEachCluster(PointCloudMono::Ptr cloud_norm_fit_mono)
 {
   if (seed_clusters_indices_.empty())
-    ROS_WARN("PlaneSegment: Region growing get nothing.");
+    ROS_WARN("PlaneSegment: Z growing got nothing.");
 
   else {
     size_t k = 0;
@@ -929,28 +923,29 @@ void PlaneSegmentRT::getPlane(size_t id, float z_in, PointCloudMono::Ptr &cloud_
     idx_seed->indices = seed_clusters_indices_[id].indices;
 
     // Extract the plane points indexed by idx_seed
-    PointCloudMono::Ptr cluster_near_z(new PointCloudMono);
-    Utilities::getCloudByInliers(cloud_norm_fit_mono, cluster_near_z, idx_seed, false, false);
+    PointCloudMono::Ptr cloud_z(new PointCloudMono);
+    Utilities::getCloudByInliers(cloud_norm_fit_mono, cloud_z, idx_seed, false, false);
 
     // If the points do not pass the error test, return
     if (!gaussianImageAnalysis(id)) return;
 
-    // If the cluster of points pass the check,
-    // push it and corresponding projected points into resulting vectors
-    plane_cloud_list_.push_back(cluster_near_z);
-
-    // Use convex hull to represent the plane patch
-    PointCloudMono::Ptr cluster_hull(new PointCloudMono);
-    computeHull(cluster_near_z, cluster_hull);
-
-    setFeatures(z_in, cluster_near_z);
+    if (aggressive_merge_) {
+      if (Utilities::isPointCloudValid(max_plane_cloud_)) {
+        if (fabs(max_plane_z_ - z_in) <= th_z_rsl_) {
+          PointCloudMono::Ptr cloud_combined(new PointCloudMono);
+          Utilities::combineCloud(cloud_z, max_plane_cloud_, cloud_combined);
+          cloud_z = cloud_combined;
+        }
+      }
+    }
 
     // Update the data of the max plane detected
-    if (cluster_near_z->points.size() > global_size_temp_) {
-      max_cloud_ = cluster_near_z;
-      max_contour_ = cluster_hull;
-      max_z_ = z_in;
-      global_size_temp_ = cluster_near_z->points.size();
+    if (cloud_z->points.size() > max_plane_points_num_) {
+      max_plane_cloud_ = cloud_z;
+      // Use convex hull to represent the plane patch
+      Utilities::computeHull(max_plane_cloud_, max_plane_contour_);
+      max_plane_z_ = z_in;
+      max_plane_points_num_ = cloud_z->points.size();
     }
   }
 }
@@ -974,35 +969,13 @@ void PlaneSegmentRT::zClustering(const PointCloudMono::Ptr& cloud_norm_fit_mono)
 void PlaneSegmentRT::visualizeResult()
 {
   // For visualizing in RViz
-  if (Utilities::isPointCloudValid(max_cloud_)) {
-    Utilities::publishCloud(max_cloud_, max_plane_puber_, base_frame_);
-    Utilities::publishCloud(max_contour_, max_contour_puber_, base_frame_);
-    ROS_INFO("Max plane z=%f detected in height range %f, %f", max_z_, min_height_, max_height_);
+  if (Utilities::isPointCloudValid(max_plane_cloud_)) {
+    Utilities::publishCloud(max_plane_cloud_, max_plane_puber_, base_frame_);
+    Utilities::publishCloud(max_plane_contour_, max_contour_puber_, base_frame_);
+    ROS_INFO("Max plane z=%.3f detected in height range %.3f, %.3f", max_plane_z_, min_height_, max_height_);
   } else {
-    ROS_WARN("No plane detected in height range %f, %f", min_height_, max_height_);
+    ROS_WARN("No plane detected in height range %.3f, %.3f", min_height_, max_height_);
   }
-}
-
-void PlaneSegmentRT::setFeatures(float z_in, PointCloudMono::Ptr cluster)
-{
-  // Prepare the feature vector for each plane to identify its id
-  vector<float> feature;
-  feature.push_back(z_in); // z value
-  pcl::PointXYZ minPt, maxPt;
-  pcl::getMinMax3D(*cluster, minPt, maxPt);
-  feature.push_back(minPt.x); // cluster min x
-  feature.push_back(minPt.y); // cluster min y
-  feature.push_back(maxPt.x); // cluster max x
-  feature.push_back(maxPt.y); // cluster max y
-  plane_coeff_list_.push_back(feature);
-}
-
-void PlaneSegmentRT::computeHull(PointCloudMono::Ptr cluster_2d, PointCloudMono::Ptr &cluster_hull) {
-  pcl::ConvexHull<pcl::PointXYZ> hull;
-  hull.setInputCloud(cluster_2d);
-  hull.setComputeAreaVolume(true);
-  hull.reconstruct(*cluster_hull);
-  //hull.reconstruct(cluster_mesh);
 }
 
 bool PlaneSegmentRT::gaussianImageAnalysis(size_t id)
@@ -1078,17 +1051,16 @@ bool PlaneSegmentRT::gaussianImageAnalysis(size_t id)
 }
 
 bool PlaneSegmentRT::postProcessing(bool do_cluster, string type) {
-  if (Utilities::isPointCloudValid(max_contour_)) {
+  if (Utilities::isPointCloudValid(max_plane_contour_)) {
     vector<PointCloudMono::Ptr> clusters;
     if (do_cluster) {
-      bool ok = Utilities::getClustersUponPlane(src_mono_cloud_, max_contour_, clusters);
+      bool ok = Utilities::getClustersUponPlane(src_mono_cloud_, max_plane_contour_, clusters);
       ROS_INFO("HoPE: Object clusters on plane #: %d", int(clusters.size()));
       if (!ok) return false;
     } else {
       pcl::PointIndices::Ptr indices(new pcl::PointIndices);
       PointCloudMono::Ptr upper_cloud(new PointCloudMono);
-      Utilities::getCloudByZ(src_mono_cloud_, indices, upper_cloud, max_z_ + 0.05f, 10);
-      cerr << max_z_ << " ---- " << src_mono_cloud_->size() << " ---- " << upper_cloud->size() << endl;
+      Utilities::getCloudByZ(src_mono_cloud_, indices, upper_cloud, max_plane_z_ + 0.05f, 1000.0f);
       if (!Utilities::isPointCloudValid(upper_cloud)) {
         ROS_WARN("HoPE: No point cloud on the max plane.");
         return false;
@@ -1101,9 +1073,9 @@ bool PlaneSegmentRT::postProcessing(bool do_cluster, string type) {
       for (auto & cloud : clusters) {
         geometry_msgs::Pose pose;
         if (type == "cylinder")
-          Utilities::getCylinderPose(cloud, pose);
+          Utilities::getCylinderPose(cloud, pose, origin_height_);
         else if (type == "box")
-          Utilities::getBoxPose(cloud, pose);
+          Utilities::getBoxPose(cloud, pose, origin_height_);
         else {
           ROS_WARN("HoPE: Unknown object type %s", type.c_str());
           return false;

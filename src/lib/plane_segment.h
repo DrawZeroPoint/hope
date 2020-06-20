@@ -86,7 +86,7 @@
 #include "pose_estimation.h"
 
 
-enum data_type{REAL, SYN, POINT_CLOUD, TUM_SINGLE, TUM_LIST};
+enum data_type{SYN, POINT_CLOUD, TUM_SINGLE, TUM_LIST};
 
 class HopeResult
 {
@@ -257,30 +257,29 @@ public:
 
   ~PlaneSegmentRT() = default;
 
+  // If aggressively merge all planes with same height to one
+  bool aggressive_merge_;
   void getHorizontalPlanes();
 
-  /// Container for storing final results
-  vector<PointCloudMono::Ptr> plane_cloud_list_;
-  vector<PointCloudMono::Ptr> plane_contour_list_;
-  vector< vector<float> > plane_coeff_list_;
-
   /// Container for storing the largest plane
-  PointCloudMono::Ptr max_cloud_;
-  PointCloudMono::Ptr max_contour_;
-  float max_z_;
+  PointCloudMono::Ptr max_plane_cloud_;
+  PointCloudMono::Ptr max_plane_contour_;
+  float max_plane_z_;
 
+  // The height of the object origin w.r.t. the base. This origin may not coincide
+  // with the mass centroid of the object, only used to infer its pose or ease
+  // the manipulation as it should be fixed with the object body.
+  float origin_height_;
   // Extracted objects' pose
-  float object_half_height_;
   geometry_msgs::PoseArray on_top_object_poses_;
 
 private:
   string base_frame_;
 
   /// Supporting surface point number threshold
-  int global_size_temp_;
+  int max_plane_points_num_;
   float min_height_;
   float max_height_;
-  vector<vector<float> > global_coeff_temp_;
   vector<int> global_id_temp_;
 
   /// ROS stuff
@@ -328,6 +327,9 @@ private:
   HighResTimer hst_;
   PoseEstimation *pe_;
 
+  // object pcd file path, used when detect mesh type object
+  string object_model_path_;
+
   void computeNormalAndFilter();
 
   /// Core process for finding planes
@@ -350,8 +352,6 @@ private:
    * @param do_cluster Whether divide upper cloud into clusters.
    */
   bool postProcessing(bool do_cluster, string type);
-
-  void setFeatures(float z_in, PointCloudMono::Ptr cluster);
   void computeHull(PointCloudMono::Ptr cluster_2d, PointCloudMono::Ptr &cluster_hull);
 };
 

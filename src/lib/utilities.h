@@ -349,6 +349,8 @@ public:
 
   static void quaternionFromPlanarRotation(float rotation, Eigen::Quaternion<float> &q);
 
+  static void combineCloud(PointCloudMono::Ptr cloud_a, PointCloudMono::Ptr cloud_b, PointCloudMono::Ptr &cloud_out);
+
 private:
   static bool calNormalMean(Eigen::Matrix3Xf data, std::vector<int> part1, std::vector<int> part2,
                             Eigen::Vector3f &mean_part1, Eigen::Vector3f &mean_part2);
