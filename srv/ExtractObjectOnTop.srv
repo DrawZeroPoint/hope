@@ -13,6 +13,10 @@ float32 origin_height
 # Path to the .pcd file of the object,
 # Only used when goal_id.id = mesh
 string mesh_path
+
+# If aggressively merge planes of same height to one plane
+# default is true in algorithm
+bool aggressive_merge
 ---
 uint8 SUCCEEDED=0
 uint8 FAILED=1

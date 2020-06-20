@@ -1539,10 +1539,20 @@ void Utilities::getRotatedRect2D(const PointCloudMono::Ptr &cloud_2d, std::vecto
     pcl::PointXY mid_30{(rect[3].x + rect[0].x) / 2.0f, (rect[3].y + rect[0].y) / 2.0f};
     mid_12.x > mid_30.x ? edge_center = mid_30 : edge_center = mid_12;
   }
-  // The rr.angle is positive in clockwise direction, here we transfer that to positive
-  // in anticlockwise direction. see cite for details.
-  rotation = (90.0f - fabs(rr.angle)) / 180.0f * M_PI;
-  cerr<< rr.angle << " rotation "<<rotation<<endl;
+//  float angle_deg;
+//  if (rr.size.width < rr.size.height) {
+//    angle_deg = 90 - rr.angle;
+//  } else {
+//    angle_deg = -rr.angle;
+//  }
+//  // The rr.angle is positive in clockwise direction, here we transfer that to positive
+//  // in anticlockwise direction. see cite for details.
+//  rotation = (90.0f - angle_deg) / 180.0f * M_PI;
+
+  rotation = atan2(edge_center.y - center.y, edge_center.x - center.x);
+  (rotation >= 0) ? (rotation -= M_PI) : (rotation += M_PI);
+  cerr << center << " " << edge_center << endl;
+  cerr << " rotation in deg "<< rotation / M_PI * 180 << endl;
 }
 
 void Utilities::estimateFPFH(PointCloudN::Ptr cloud_in, PointCloudFPFH::Ptr &features_out, float dsp_th) {

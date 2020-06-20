@@ -339,7 +339,6 @@ public:
    *
    * @attention This function has the limitation that the observer mush roughly face
    *            the box face that is used as reference (where the edge_center locates)
-   * @cite https://namkeenman.wordpress.com/tag/rotatedrect/
    */
   static void getRotatedRect2D(const PointCloudMono::Ptr &cloud_2d, std::vector<pcl::PointXY> &rect,
                                pcl::PointXY &center, pcl::PointXY &edge_center, float &width, float &height, float &rotation);
