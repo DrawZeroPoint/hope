@@ -471,9 +471,9 @@ void PlaneSegment::setFeatures(float z_in, PointCloudMono::Ptr cluster)
 {
   // Prepare the feature vector for each plane to identify its id
   vector<float> feature;
+  pose_array_.data.clear();
   feature.push_back(z_in); // z value
   pose_array_.data.push_back(z_in);
-  pose_array_.data.clear();
   pcl::PointXYZ minPt, maxPt;
   pcl::getMinMax3D(*cluster, minPt, maxPt);
   feature.push_back(minPt.x); // cluster min x
