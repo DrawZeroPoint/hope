@@ -58,8 +58,8 @@ using namespace std;
 
 /// Transform frame, only used with real time data
 /// You may change the name based on your robot configuration
-string base_frame_ = "base_link"; // world frame
-string camera_optical_frame_ = "vision_depth_optical_frame";
+string base_frame_ = "mobile_base_link"; // world frame
+string camera_optical_frame_ = "/oil/perception/head_camera/voxel_cloud";
 
 int main(int argc, char **argv)
 {
@@ -80,13 +80,14 @@ int main(int argc, char **argv)
   cout << "Using threshold: xy@" << xy_resolution 
        << " " << "z@" << z_resolution << endl;
 
-  PlaneSegment hope(base_frame_, xy_resolution, z_resolution);
+  PlaneSegment hope(base_frame_, xy_resolution, z_resolution, nh);
   PointCloud::Ptr src_cloud(new PointCloud); // Cloud input for all pipelines
 
   hope.setMode(type);
   while (ros::ok()) {
     // The src_cloud is actually not used here
     hope.getHorizontalPlanes(src_cloud);
+    ros::spin();
   }
 
   return 0;

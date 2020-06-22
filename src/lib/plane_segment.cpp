@@ -2,6 +2,8 @@
 
 #include <tf2/LinearMath/Quaternion.h>
 
+#include "std_msgs/Float32MultiArray.h"
+
 using namespace std;
 using namespace cv;
 
@@ -52,9 +54,57 @@ PlaneSegment::PlaneSegment(string base_frame, float th_xy, float th_z) :
   
   // For store max hull id and area
   global_size_temp_ = 0;
+
+  pose_pub_ = nh_.advertise<std_msgs::Float32MultiArray>("pose_array", 100);
   
   // Register the callback if using real point cloud data
   sub_pointcloud_ = nh_.subscribe<sensor_msgs::PointCloud2>("/camera/depth/points", 1,
+                                                            &PlaneSegment::cloudCallback, this);
+  
+  // Detect table obstacle
+  pub_max_plane_ = nh_.advertise<sensor_msgs::PointCloud2>("/vision/max_plane", 1, true);
+  pub_cloud_ = nh_.advertise<sensor_msgs::PointCloud2>("/vision/points", 1, true);
+  pub_max_mesh_ = nh_.advertise<geometry_msgs::PolygonStamped>("/vision/max_mesh",1, true);
+  
+  viewer->setBackgroundColor(0.8, 0.83, 0.86);
+  viewer->initCameraParameters();
+  viewer->setCameraPosition(1,0,2,0,0,1);
+  viewer->addCoordinateSystem(0.1);
+}
+
+PlaneSegment::PlaneSegment(string base_frame, float th_xy, float th_z, ros::NodeHandle nh) :
+  fi_(new FetchRGBD),
+  type_(REAL),
+  nh_(nh),
+  pub_it_(nh_),
+  src_mono_cloud_(new PointCloudMono),
+  src_rgb_cloud_(new PointCloud),
+  cloud_norm_fit_mono_(new PointCloudMono),
+  cloud_norm_fit_(new NormalCloud),
+  src_sp_mono_(new PointCloudMono),
+  src_sp_rgb_(new PointCloud),
+  src_normals_(new NormalCloud),
+  idx_norm_fit_(new pcl::PointIndices),
+  src_z_inliers_(new pcl::PointIndices),
+  tf_(new Transform),
+  utl_(new Utilities),
+  base_frame_(base_frame),
+  viewer(new pcl::visualization::PCLVisualizer("HOPE Result")),
+  hst_("total")
+{
+  th_grid_rsl_ = th_xy;
+  th_z_rsl_ = th_z;
+  th_theta_ = th_z_rsl_ / th_grid_rsl_;
+  th_angle_ = atan(th_theta_);
+  th_norm_ = sqrt(1 / (1 + 2 * pow(th_theta_, 2)));
+  
+  // For store max hull id and area
+  global_size_temp_ = 0;
+
+  pose_pub_ = nh_.advertise<std_msgs::Float32MultiArray>("pose_array", 100);
+  
+  // Register the callback if using real point cloud data
+  sub_pointcloud_ = nh_.subscribe<sensor_msgs::PointCloud2>("/oil/perception/head_camera/voxel_cloud", 1,
                                                             &PlaneSegment::cloudCallback, this);
   
   // Detect table obstacle
@@ -422,12 +472,19 @@ void PlaneSegment::setFeatures(float z_in, PointCloudMono::Ptr cluster)
   // Prepare the feature vector for each plane to identify its id
   vector<float> feature;
   feature.push_back(z_in); // z value
+  pose_array_.data.push_back(z_in);
+  pose_array_.data.clear();
   pcl::PointXYZ minPt, maxPt;
   pcl::getMinMax3D(*cluster, minPt, maxPt);
   feature.push_back(minPt.x); // cluster min x
+  pose_array_.data.push_back(minPt.x);
   feature.push_back(minPt.y); // cluster min y
+  pose_array_.data.push_back(minPt.y);
   feature.push_back(maxPt.x); // cluster max x
+  pose_array_.data.push_back(maxPt.x);
   feature.push_back(maxPt.y); // cluster max y
+  pose_array_.data.push_back(maxPt.y);
+  pose_pub_.publish(pose_array_);
   plane_coeff_.push_back(feature);
 }
 

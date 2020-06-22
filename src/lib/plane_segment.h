@@ -19,6 +19,7 @@
 #include <message_filters/sync_policies/approximate_time.h>
 
 #include <geometry_msgs/PoseStamped.h>
+#include "std_msgs/Float32MultiArray.h"
 #include <cv_bridge/cv_bridge.h>
 #include <pcl_conversions/pcl_conversions.h>
 
@@ -109,6 +110,7 @@ class PlaneSegment
 {
 public:
   PlaneSegment(string base_frame, float th_xy, float th_z);
+  PlaneSegment(string base_frame, float th_xy, float th_z, ros::NodeHandle nh);
 
   inline void setMode(data_type type) {type_ = type;}
 
@@ -154,6 +156,8 @@ private:
   int global_size_temp_;
   vector<vector<float> > global_coeff_temp_;
   vector<int> global_id_temp_;
+
+  std_msgs::Float32MultiArray pose_array_;
   
   /// ROS stuff
   ros::NodeHandle nh_;
@@ -164,6 +168,7 @@ private:
   ros::Publisher pub_max_plane_;
   ros::Publisher pub_cloud_;
   ros::Publisher pub_max_mesh_;
+  ros::Publisher pose_pub_;
   template <typename PointTPtr>
   void publishCloud(PointTPtr cloud, ros::Publisher pub);
   bool getSourceCloud();
