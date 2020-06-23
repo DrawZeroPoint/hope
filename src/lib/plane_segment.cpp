@@ -1,8 +1,7 @@
 ﻿#include "plane_segment.h"
 
 #include <tf2/LinearMath/Quaternion.h>
-
-#include "hope/Pose.h"
+#include <geometry_msgs/PolygonStamped.h>
 
 using namespace std;
 using namespace cv;
@@ -55,7 +54,7 @@ PlaneSegment::PlaneSegment(string base_frame, float th_xy, float th_z) :
   // For store max hull id and area
   global_size_temp_ = 0;
 
-  pose_pub_ = nh_.advertise<hope::Pose>("pose_array", 100);
+  pose_pub_ = nh_.advertise<geometry_msgs::PolygonStamped>("pose_array", 100);
   
   // Register the callback if using real point cloud data
   sub_pointcloud_ = nh_.subscribe<sensor_msgs::PointCloud2>("/camera/depth/points", 1,
@@ -101,7 +100,7 @@ PlaneSegment::PlaneSegment(string base_frame, float th_xy, float th_z, ros::Node
   // For store max hull id and area
   global_size_temp_ = 0;
 
-  pose_pub_ = nh_.advertise<hope::Pose>("pose_array", 100);
+  pose_pub_ = nh_.advertise<geometry_msgs::PolygonStamped>("pose_array", 100);
   
   // Register the callback if using real point cloud data
   sub_pointcloud_ = nh_.subscribe<sensor_msgs::PointCloud2>("/oil/perception/head_camera/voxel_cloud", 1,
@@ -471,23 +470,28 @@ void PlaneSegment::setFeatures(float z_in, PointCloudMono::Ptr cluster)
 {
   // Prepare the feature vector for each plane to identify its id
   vector<float> feature;
-  pose_array_.data.clear();
   feature.push_back(z_in); // z value
-  pose_array_.data.push_back(z_in);
   pcl::PointXYZ minPt, maxPt;
   pcl::getMinMax3D(*cluster, minPt, maxPt);
   feature.push_back(minPt.x); // cluster min x
-  pose_array_.data.push_back(minPt.x);
   feature.push_back(minPt.y); // cluster min y
-  pose_array_.data.push_back(minPt.y);
   feature.push_back(maxPt.x); // cluster max x
-  pose_array_.data.push_back(maxPt.x);
   feature.push_back(maxPt.y); // cluster max y
-  pose_array_.data.push_back(maxPt.y);
+  plane_coeff_.push_back(feature);
+  geometry_msgs::Polygon polygon_points;
+  geometry_msgs::Point32 min_pts, max_pts;
+  min_pts.x = minPt.x;
+  min_pts.y = minPt.y;
+  min_pts.z = minPt.z;
+  max_pts.x = maxPt.x;
+  max_pts.y = maxPt.y;
+  max_pts.z = maxPt.z;
+  polygon_points.points.push_back(min_pts);
+  polygon_points.points.push_back(max_pts);
   pose_array_.header.frame_id = base_frame_;
+  pose_array_.polygon = polygon_points;
   pose_array_.header.stamp = ros::Time::now();
   pose_pub_.publish(pose_array_);
-  plane_coeff_.push_back(feature);
 }
 
 bool PlaneSegment::gaussianImageAnalysis(size_t id)
