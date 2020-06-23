@@ -21,3 +21,4 @@ bool aggressive_merge
 uint8 SUCCEEDED=0
 uint8 FAILED=1
 uint8 result_status
+geometry_msgs/PoseArray obj_poses

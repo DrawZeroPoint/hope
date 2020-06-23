@@ -842,6 +842,7 @@ bool PlaneSegmentRT::extractOnTopCallback(hope::ExtractObjectOnTop::Request &req
     } else {
       ROS_INFO("HoPE Service: Extract on top object succeeded.");
       res.result_status = res.SUCCEEDED;
+      res.obj_poses = on_top_object_poses_;
     }
   } else {
     res.result_status = res.FAILED;
