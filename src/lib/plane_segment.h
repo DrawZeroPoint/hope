@@ -4,6 +4,7 @@
 // ROS
 #include <ros/ros.h>
 #include <nodelet/nodelet.h>
+#include "hope/Pose.h"
 
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/Image.h>
@@ -19,7 +20,6 @@
 #include <message_filters/sync_policies/approximate_time.h>
 
 #include <geometry_msgs/PoseStamped.h>
-#include "std_msgs/Float32MultiArray.h"
 #include <cv_bridge/cv_bridge.h>
 #include <pcl_conversions/pcl_conversions.h>
 
@@ -156,12 +156,11 @@ private:
   int global_size_temp_;
   vector<vector<float> > global_coeff_temp_;
   vector<int> global_id_temp_;
-
-  std_msgs::Float32MultiArray pose_array_;
   
   /// ROS stuff
   ros::NodeHandle nh_;
   image_transport::ImageTransport pub_it_;
+  hope::Pose pose_array_;
   // ROS pub-sub
   ros::Subscriber sub_pointcloud_;
   void cloudCallback(const sensor_msgs::PointCloud2ConstPtr &cloud_msg);

@@ -2,7 +2,7 @@
 
 #include <tf2/LinearMath/Quaternion.h>
 
-#include "std_msgs/Float32MultiArray.h"
+#include "hope/Pose.h"
 
 using namespace std;
 using namespace cv;
@@ -55,7 +55,7 @@ PlaneSegment::PlaneSegment(string base_frame, float th_xy, float th_z) :
   // For store max hull id and area
   global_size_temp_ = 0;
 
-  pose_pub_ = nh_.advertise<std_msgs::Float32MultiArray>("pose_array", 100);
+  pose_pub_ = nh_.advertise<hope::Pose>("pose_array", 100);
   
   // Register the callback if using real point cloud data
   sub_pointcloud_ = nh_.subscribe<sensor_msgs::PointCloud2>("/camera/depth/points", 1,
@@ -101,7 +101,7 @@ PlaneSegment::PlaneSegment(string base_frame, float th_xy, float th_z, ros::Node
   // For store max hull id and area
   global_size_temp_ = 0;
 
-  pose_pub_ = nh_.advertise<std_msgs::Float32MultiArray>("pose_array", 100);
+  pose_pub_ = nh_.advertise<hope::Pose>("pose_array", 100);
   
   // Register the callback if using real point cloud data
   sub_pointcloud_ = nh_.subscribe<sensor_msgs::PointCloud2>("/oil/perception/head_camera/voxel_cloud", 1,
@@ -484,6 +484,8 @@ void PlaneSegment::setFeatures(float z_in, PointCloudMono::Ptr cluster)
   pose_array_.data.push_back(maxPt.x);
   feature.push_back(maxPt.y); // cluster max y
   pose_array_.data.push_back(maxPt.y);
+  pose_array_.header.frame_id = base_frame_;
+  pose_array_.header.stamp = ros::Time::now();
   pose_pub_.publish(pose_array_);
   plane_coeff_.push_back(feature);
 }

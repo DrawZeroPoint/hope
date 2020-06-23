@@ -87,7 +87,6 @@ int main(int argc, char **argv)
   while (ros::ok()) {
     // The src_cloud is actually not used here
     hope.getHorizontalPlanes(src_cloud);
-    ros::spin();
   }
 
   return 0;

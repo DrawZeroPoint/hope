@@ -9,6 +9,7 @@ add_compile_options(-std=c++11)
 #set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O1")
 
 find_package(catkin REQUIRED COMPONENTS
+  message_generation
   cv_bridge
   geometry_msgs
   image_transport
@@ -35,8 +36,19 @@ add_definitions(${PCL_DEFINITIONS})
 find_package(OpenCV REQUIRED)
 message("Found OpenCV ${OpenCV_VERSION}")
 
+add_message_files(
+  FILES
+  Pose.msg
+)
+
+generate_messages(
+   DEPENDENCIES
+   std_msgs
+)
+
 catkin_package(
   CATKIN_DEPENDS 
+  message_generation
   cv_bridge
 )
 
