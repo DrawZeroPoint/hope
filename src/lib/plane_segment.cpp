@@ -1076,9 +1076,13 @@ bool PlaneSegmentRT::postProcessing(bool do_cluster, string type) {
         geometry_msgs::Pose pose;
         if (type == "cylinder")
           Utilities::getCylinderPose(cloud, pose, origin_height_);
-        else if (type == "box")
-          Utilities::getBoxPose(cloud, pose, origin_height_);
-        else {
+        else if (type == "box") {
+          try {
+            Utilities::getBoxPose(cloud, pose, origin_height_);
+          } catch (cv::Exception) {
+            ROS_WARN("HoPE: Exception raised during getting box pose");
+          }
+        } else {
           ROS_WARN("HoPE: Unknown object type %s", type.c_str());
           return false;
         }
