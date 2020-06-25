@@ -1423,7 +1423,7 @@ void Utilities::matrixToPoseArray(const Eigen::Matrix4f &mat, geometry_msgs::Pos
   array.poses.push_back(pose);
 }
 
-void Utilities::getCylinderPose(const PointCloudMono::Ptr& cloud, geometry_msgs::Pose &pose, float z) {
+bool Utilities::getCylinderPose(const PointCloudMono::Ptr& cloud, geometry_msgs::Pose &pose, float z) {
   float z_mean, z_max, z_min, z_mid, z_origin;
   getCloudZInfo(cloud, z_mean, z_max, z_min, z_mid);
   (z == 0) ? (z_origin = z_mid) : (z_origin = z);
@@ -1433,6 +1433,8 @@ void Utilities::getCylinderPose(const PointCloudMono::Ptr& cloud, geometry_msgs:
   sliceCloudWithPlane(coeff, 0.001, cloud, slice_2d);
 
   int sz = slice_2d->points.size();
+  if (sz <= 2) return false;  // not enough for constructing a circum circle
+
   int half_sz = sz / 2;
   float a[] = {slice_2d->points[0].x, slice_2d->points[0].y, slice_2d->points[0].z};
   float b[] = {slice_2d->points[half_sz].x, slice_2d->points[half_sz].y, slice_2d->points[half_sz].z};
@@ -1446,9 +1448,10 @@ void Utilities::getCylinderPose(const PointCloudMono::Ptr& cloud, geometry_msgs:
   pose.orientation.y = 0;
   pose.orientation.z = 0;
   pose.orientation.w = 1;
+  return true;
 }
 
-void Utilities::getBoxPose(const PointCloudMono::Ptr& cloud, geometry_msgs::Pose &pose, float z) {
+bool Utilities::getBoxPose(const PointCloudMono::Ptr& cloud, geometry_msgs::Pose &pose, float z) {
   float z_mean, z_max, z_min, z_mid, z_origin;
   getCloudZInfo(cloud, z_mean, z_max, z_min, z_mid);
   (z == 0) ? (z_origin = z_mid) : (z_origin = z);
@@ -1456,6 +1459,8 @@ void Utilities::getBoxPose(const PointCloudMono::Ptr& cloud, geometry_msgs::Pose
   pcl::ModelCoefficients::Ptr coeff = getPlaneCoeff(z_mid);
   PointCloudMono::Ptr slice_2d(new PointCloudMono);
   sliceCloudWithPlane(coeff, 0.001, cloud, slice_2d);
+  if (slice_2d->points.size() <= 2)
+    return false;  // not enough for constructing a convex hull
 
   vector<pcl::PointXY> rect;
   pcl::PointXY center{};
@@ -1472,6 +1477,7 @@ void Utilities::getBoxPose(const PointCloudMono::Ptr& cloud, geometry_msgs::Pose
   pose.orientation.y = q.y();
   pose.orientation.z = q.z();
   pose.orientation.w = q.w();
+  return true;
 }
 
 void Utilities::computeHull(PointCloudMono::Ptr cloud_2d, PointCloudMono::Ptr &cloud_hull)

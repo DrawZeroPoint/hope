@@ -303,7 +303,7 @@ public:
    *          otherwise use this z for the origin. This is useful when the cylinder exceeds the
    *          sensing range of the camera.
    */
-  static void getCylinderPose(const PointCloudMono::Ptr& cloud, geometry_msgs::Pose &pose, float z = 0);
+  static bool getCylinderPose(const PointCloudMono::Ptr& cloud, geometry_msgs::Pose &pose, float z = 0);
 
   /**
    * Given a isolated box type object (isolated means that the object is not adjacent with the wall),
@@ -312,7 +312,7 @@ public:
    * @param pose Pose of the box, the origin is located at half height, center of the confronting face
    * @param z See getCylinderPose
    */
-  static void getBoxPose(const PointCloudMono::Ptr& cloud, geometry_msgs::Pose &pose, float z = 0);
+  static bool getBoxPose(const PointCloudMono::Ptr& cloud, geometry_msgs::Pose &pose, float z = 0);
 
   /**
    * Get the bounding rect of a 2D cloud in XY plane. The rect's edges are aligned with the coordinates.
