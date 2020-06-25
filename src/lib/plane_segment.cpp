@@ -835,7 +835,8 @@ bool PlaneSegmentRT::extractOnTopCallback(hope::ExtractObjectOnTop::Request &req
     int time_interval = on_top_object_poses_.header.stamp.sec - req.header.stamp.sec;
     if (time_interval > 2) {
       ROS_WARN("HoPE Service: Extract on top object failed due to lagging %d.", time_interval);
-      res.result_status = res.FAILED;
+      res.result_status = res.SUCCEEDED;
+      res.obj_poses = on_top_object_poses_;
     } else if (time_interval < 0) {
       ROS_WARN("HoPE service: Extract on top object failed due to looking into past %d.", time_interval);
       res.result_status = res.FAILED;
