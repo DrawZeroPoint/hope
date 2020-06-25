@@ -57,7 +57,7 @@ PlaneSegment::PlaneSegment(string base_frame, float th_xy, float th_z) :
   pose_pub_ = nh_.advertise<geometry_msgs::PolygonStamped>("pose_array", 100);
   
   // Register the callback if using real point cloud data
-  sub_pointcloud_ = nh_.subscribe<sensor_msgs::PointCloud2>("/camera/depth/points", 1,
+  sub_pointcloud_ = nh_.subscribe<sensor_msgs::PointCloud2>("/oil/perception/head_camera/cloud", 1,
                                                             &PlaneSegment::cloudCallback, this);
   
   // Detect table obstacle
@@ -103,7 +103,7 @@ PlaneSegment::PlaneSegment(string base_frame, float th_xy, float th_z, ros::Node
   pose_pub_ = nh_.advertise<geometry_msgs::PolygonStamped>("pose_array", 100);
   
   // Register the callback if using real point cloud data
-  sub_pointcloud_ = nh_.subscribe<sensor_msgs::PointCloud2>("/oil/perception/head_camera/voxel_cloud", 1,
+  sub_pointcloud_ = nh_.subscribe<sensor_msgs::PointCloud2>("/oil/perception/head_camera/cloud", 1,
                                                             &PlaneSegment::cloudCallback, this);
   
   // Detect table obstacle
@@ -479,15 +479,25 @@ void PlaneSegment::setFeatures(float z_in, PointCloudMono::Ptr cluster)
   feature.push_back(maxPt.y); // cluster max y
   plane_coeff_.push_back(feature);
   geometry_msgs::Polygon polygon_points;
-  geometry_msgs::Point32 min_pts, max_pts;
-  min_pts.x = minPt.x;
-  min_pts.y = minPt.y;
-  min_pts.z = minPt.z;
-  max_pts.x = maxPt.x;
-  max_pts.y = maxPt.y;
-  max_pts.z = maxPt.z;
-  polygon_points.points.push_back(min_pts);
-  polygon_points.points.push_back(max_pts);
+  geometry_msgs::Point32 min_pts_bottom, min_pts_top, max_pts_bottom, max_pts_top;
+  min_pts_bottom.x = minPt.x;
+  min_pts_bottom.y = minPt.y;
+  min_pts_bottom.z = z_in;
+  min_pts_top.x = minPt.x;
+  min_pts_top.y = maxPt.y;
+  min_pts_top.z = z_in;
+  max_pts_bottom.x = maxPt.x;
+  max_pts_bottom.y = minPt.y;
+  max_pts_bottom.z = z_in;
+  max_pts_top.x = maxPt.x;
+  max_pts_top.y = maxPt.y;
+  max_pts_top.z = z_in;
+  
+  polygon_points.points.push_back(min_pts_bottom);
+  polygon_points.points.push_back(min_pts_top);
+  polygon_points.points.push_back(max_pts_top);
+  polygon_points.points.push_back(max_pts_bottom);
+  //polygon_points.points.push_back(min_pts_bottom);
   pose_array_.header.frame_id = base_frame_;
   pose_array_.polygon = polygon_points;
   pose_array_.header.stamp = ros::Time::now();
