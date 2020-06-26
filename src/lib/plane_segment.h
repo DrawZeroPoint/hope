@@ -134,6 +134,10 @@ public:
   void setRPY(float roll, float pitch, float yaw);
   void setQ(float qx, float qy, float qz, float qw);
   void setT(float tx, float ty, float tz);
+  PointCloud::Ptr get_cloud();
+  bool cloud_status();
+
+
 
 protected:
   data_type type_;

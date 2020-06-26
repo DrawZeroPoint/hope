@@ -234,6 +234,10 @@ void PlaneSegment::getHorizontalPlanes(PointCloud::Ptr cloud)
   visualizeResult(true, true, false, cal_hull_);
 }
 
+bool PlaneSegment::cloud_status() {
+  return src_rgb_cloud_->points.empty();
+}
+
 void PlaneSegment::findAllPlanesRG(int norm_k, int num_n, float s_th, float c_th)
 {
   cout << "Threshold for RG:" << endl;
@@ -695,6 +699,10 @@ void PlaneSegment::publishCloud(PointTPtr cloud, ros::Publisher pub)
   ros_cloud.header.frame_id = base_frame_;
   ros_cloud.header.stamp = ros::Time(0);
   pub.publish(ros_cloud);
+}
+
+PointCloud::Ptr PlaneSegment::get_cloud() {
+  return src_rgb_cloud_;
 }
 
 void PlaneSegment::cloudCallback(const sensor_msgs::PointCloud2ConstPtr &msg)
