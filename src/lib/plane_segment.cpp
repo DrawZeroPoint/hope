@@ -71,11 +71,14 @@ PlaneSegment::PlaneSegment(string base_frame, float th_xy, float th_z) :
   viewer->addCoordinateSystem(0.1);
 }
 
-PlaneSegment::PlaneSegment(string base_frame, float th_xy, float th_z, ros::NodeHandle nh) :
+PlaneSegment::PlaneSegment(string base_frame, float th_xy, float th_z, 
+                           ros::NodeHandle nh, int x_dim, int y_dim) :
   fi_(new FetchRGBD),
   type_(REAL),
   nh_(nh),
   pub_it_(nh_),
+  x_dim_(x_dim),
+  y_dim_(y_dim),
   src_mono_cloud_(new PointCloudMono),
   src_rgb_cloud_(new PointCloud),
   cloud_norm_fit_mono_(new PointCloudMono),
@@ -162,32 +165,22 @@ void PlaneSegment::setT(float tx = 0.0, float ty = 0.0, float tz = 0.0)
 }
 
 // Notice that the point cloud may not transformed before this function
-void PlaneSegment::getHorizontalPlanes(PointCloud::Ptr cloud)
+void PlaneSegment::getHorizontalPlanes()
 {
+  ROS_INFO("Horizontal planes called");
   PointCloud::Ptr temp(new PointCloud);
-  if (type_ == REAL || type_ == SYN) {
+  if (type_ == REAL) {
     // If using real data, the transform from camera frame to base frame
     // need to be provided
-    getSourceCloud();
-  }
-  else if (type_ == POINT_CLOUD) {
-    src_rgb_cloud_ = cloud;
-  }
-  else if (type_ >= TUM_SINGLE) {
-    // To remove Nan and unreliable points with z value
-    utl_->getCloudByZ(cloud, src_z_inliers_, temp, th_min_depth_, th_max_depth_);
-    //visualizeProcess(temp);
-
-    if (type_ <= TUM_LIST) {
-      tf_->doTransform(temp, src_rgb_cloud_, tx_, ty_, tz_, qx_, qy_, qz_, qw_);
-      //tf_->doTransform(temp, src_rgb_cloud_, 0, 0, 0, qx_, qy_, qz_, qw_);
-    }
-    else {
-      tf_->doTransform(temp, src_rgb_cloud_, roll_, pitch_, yaw_);
-    }
+    if (!getSourceCloud())
+      return;
+  } else {
+    ROS_WARN("Not supported");
+    return;
   }
 
-  utl_->pointTypeTransfer(src_rgb_cloud_, src_mono_cloud_);
+  ROS_INFO("If statement passed");
+ // utl_->pointTypeTransfer(src_rgb_cloud_, src_mono_cloud_);
 
   //visualizeProcess(src_rgb_cloud_);
   //pcl::io::savePCDFile("~/src.pcd", *src_rgb_cloud_);
@@ -232,10 +225,6 @@ void PlaneSegment::getHorizontalPlanes(PointCloud::Ptr cloud)
 
   setID();
   visualizeResult(true, true, false, cal_hull_);
-}
-
-bool PlaneSegment::cloud_status() {
-  return src_rgb_cloud_->points.empty();
 }
 
 void PlaneSegment::findAllPlanesRG(int norm_k, int num_n, float s_th, float c_th)
@@ -483,7 +472,7 @@ void PlaneSegment::setFeatures(float z_in, PointCloudMono::Ptr cluster)
   feature.push_back(maxPt.y); // cluster max y
   plane_coeff_.push_back(feature);
   geometry_msgs::Polygon polygon_points;
-  geometry_msgs::Point32 min_pts_bottom, min_pts_top, max_pts_bottom, max_pts_top;
+  /*geometry_msgs::Point32 min_pts_bottom, min_pts_top, max_pts_bottom, max_pts_top;
   min_pts_bottom.x = minPt.x;
   min_pts_bottom.y = minPt.y;
   min_pts_bottom.z = z_in;
@@ -500,8 +489,74 @@ void PlaneSegment::setFeatures(float z_in, PointCloudMono::Ptr cluster)
   polygon_points.points.push_back(min_pts_bottom);
   polygon_points.points.push_back(min_pts_top);
   polygon_points.points.push_back(max_pts_top);
-  polygon_points.points.push_back(max_pts_bottom);
+  polygon_points.points.push_back(max_pts_bottom);*/
   //polygon_points.points.push_back(min_pts_bottom);
+
+  int length_x = maxPt.x - minPt.x;
+  int length_y = maxPt.y - minPt.y;
+  geometry_msgs::Point32 vertex;
+
+  if (length_x >= x_dim_ && length_y >= y_dim_) {
+    for (size_t i = 1; i <= (length_x % x_dim_); i++) {
+    for (size_t j = 1; j <= (length_y % y_dim_); j++) {
+      vertex.x = minPt.x * i * 0.5;
+      vertex.y = minPt.y * j * 0.5;
+      vertex.z = z_in;
+      polygon_points.points.push_back(vertex);
+    }
+    if (length_y % y_dim_ != 0) {
+      vertex.x = minPt.x * i * 0.5;
+      vertex.y = minPt.y * (length_y % y_dim_);
+      vertex.z = z_in;
+      polygon_points.points.push_back(vertex);
+    }
+  }
+  if (length_x % x_dim_ != 0) {
+    for (size_t j = 1; j <= (length_y % y_dim_); j++) {
+      vertex.x = minPt.x * (length_x % x_dim_);
+      vertex.y = minPt.y * j * 0.5;
+      vertex.z = z_in;
+      polygon_points.points.push_back(vertex);
+    }
+    }
+  if (length_x % x_dim_ != 0 && length_y % y_dim_ != 0) {
+    vertex.x = minPt.x * (length_x % x_dim_);
+    vertex.y = minPt.y * (length_y % y_dim_);
+    vertex.z = z_in;
+    polygon_points.points.push_back(vertex);
+  }
+  }
+  else if (length_x < x_dim_) {
+    const double x_val = maxPt.x - minPt.x;
+    for (size_t j = 1; j <= (length_y % y_dim_); j++) {
+      vertex.x = x_val;
+      vertex.y = minPt.y * j * 0.5;
+      vertex.z = z_in;
+      polygon_points.points.push_back(vertex);
+    }
+    if (length_y % y_dim_ != 0) {
+      vertex.x = x_val;
+      vertex.y = minPt.y * (length_y % y_dim_);
+      vertex.z = z_in;
+      polygon_points.points.push_back(vertex);
+    }
+  }
+  else {
+    const double y_val = maxPt.y - minPt.y;
+    for (size_t i = 1; i <= (length_y % y_dim_); i++) {
+      vertex.x = minPt.x * i * 0.5;
+      vertex.y = y_val;
+      vertex.z = z_in;
+      polygon_points.points.push_back(vertex);
+    }
+    if (length_x % x_dim_ != 0) {
+      vertex.x = minPt.x * (length_x % x_dim_);
+      vertex.y = y_val;
+      vertex.z = z_in;
+      polygon_points.points.push_back(vertex);
+    }
+  }
+  std::cout << "The size of points is : " << polygon_points.points.size() << "\n";
   pose_array_.header.frame_id = base_frame_;
   pose_array_.polygon = polygon_points;
   pose_array_.header.stamp = ros::Time::now();
@@ -701,12 +756,9 @@ void PlaneSegment::publishCloud(PointTPtr cloud, ros::Publisher pub)
   pub.publish(ros_cloud);
 }
 
-PointCloud::Ptr PlaneSegment::get_cloud() {
-  return src_rgb_cloud_;
-}
-
 void PlaneSegment::cloudCallback(const sensor_msgs::PointCloud2ConstPtr &msg)
 {
+  ROS_INFO("Callback called");
   if (msg->data.empty()) {
     ROS_WARN_THROTTLE(31, "PlaneSegment: PointCloud is empty.");
     return;
@@ -789,16 +841,7 @@ void PlaneSegment::reset()
 }
 
 bool PlaneSegment::getSourceCloud()
-{
-  while (ros::ok()) {
-    if (!src_rgb_cloud_->points.empty())
-      return true;
-
-    // Handle callbacks and sleep for a small amount of time
-    // before looping again
-    ros::spinOnce();
-    ros::Duration(0.005).sleep();
-  }
+{ return !src_rgb_cloud_->points.empty();
 }
 
 void PlaneSegment::computeNormalAndFilter()

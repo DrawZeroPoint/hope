@@ -110,11 +110,11 @@ class PlaneSegment
 {
 public:
   PlaneSegment(string base_frame, float th_xy, float th_z);
-  PlaneSegment(string base_frame, float th_xy, float th_z, ros::NodeHandle nh);
+  PlaneSegment(string base_frame, float th_xy, float th_z, ros::NodeHandle nh, int x_dim, int y_dim);
 
   inline void setMode(data_type type) {type_ = type;}
 
-  void getHorizontalPlanes(PointCloud::Ptr cloud);
+  void getHorizontalPlanes();
   
   /// Container for storing final results
   vector<PointCloud::Ptr> plane_results_;
@@ -134,8 +134,6 @@ public:
   void setRPY(float roll, float pitch, float yaw);
   void setQ(float qx, float qy, float qz, float qw);
   void setT(float tx, float ty, float tz);
-  PointCloud::Ptr get_cloud();
-  bool cloud_status();
 
 
 
@@ -146,6 +144,8 @@ protected:
 private:
   /// Predefined camera orientations if not using real data
   // In Eular angle
+  int x_dim_;
+  int y_dim_;
   float roll_;
   float pitch_;
   float yaw_;
