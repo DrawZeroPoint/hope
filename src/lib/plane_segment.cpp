@@ -71,14 +71,16 @@ PlaneSegment::PlaneSegment(string base_frame, float th_xy, float th_z) :
   viewer->addCoordinateSystem(0.1);
 }
 
-PlaneSegment::PlaneSegment(string base_frame, float th_xy, float th_z, 
-                           ros::NodeHandle nh, int x_dim, int y_dim) :
+PlaneSegment::PlaneSegment(string base_frame, float th_xy, float th_z, ros::NodeHandle nh, 
+                           double x_dim, double y_dim, double z_min, double z_max) :
   fi_(new FetchRGBD),
   type_(REAL),
   nh_(nh),
   pub_it_(nh_),
   x_dim_(x_dim),
   y_dim_(y_dim),
+  z_min_(z_min),
+  z_max_(z_max),
   src_mono_cloud_(new PointCloudMono),
   src_rgb_cloud_(new PointCloud),
   cloud_norm_fit_mono_(new PointCloudMono),
@@ -492,70 +494,86 @@ void PlaneSegment::setFeatures(float z_in, PointCloudMono::Ptr cluster)
   polygon_points.points.push_back(max_pts_bottom);*/
   //polygon_points.points.push_back(min_pts_bottom);
 
-  int length_x = maxPt.x - minPt.x;
-  int length_y = maxPt.y - minPt.y;
+  if (z_in < z_min_ || z_in > z_max_) {
+    ROS_INFO("Plane ignored because of not within required height range");
+    return;
+  }
+
+  double length_x = maxPt.x - minPt.x;
+  double length_y = maxPt.y - minPt.y;
+  double x_multiplier = length_x / x_dim_;
+  double y_multiplier = length_y / y_dim_;
+
   geometry_msgs::Point32 vertex;
 
   if (length_x >= x_dim_ && length_y >= y_dim_) {
-    for (size_t i = 1; i <= (length_x % x_dim_); i++) {
-    for (size_t j = 1; j <= (length_y % y_dim_); j++) {
-      vertex.x = minPt.x * i * 0.5;
-      vertex.y = minPt.y * j * 0.5;
+    for (size_t i = 1; i <= (length_x / x_dim_); i++) {
+    for (size_t j = 1; j <= (length_y / y_dim_); j++) {
+      vertex.x = (minPt.x + minPt.x * i) * 0.5;
+      vertex.y = (minPt.y + minPt.y * j) * 0.5;
       vertex.z = z_in;
       polygon_points.points.push_back(vertex);
     }
-    if (length_y % y_dim_ != 0) {
-      vertex.x = minPt.x * i * 0.5;
-      vertex.y = minPt.y * (length_y % y_dim_);
+    if (y_multiplier * minPt.y < maxPt.y) {
+      vertex.x = (minPt.x + minPt.x * i) * 0.5;
+      vertex.y = (minPt.y + minPt.y * (length_y / y_dim_));
       vertex.z = z_in;
       polygon_points.points.push_back(vertex);
     }
   }
-  if (length_x % x_dim_ != 0) {
-    for (size_t j = 1; j <= (length_y % y_dim_); j++) {
-      vertex.x = minPt.x * (length_x % x_dim_);
-      vertex.y = minPt.y * j * 0.5;
+  if (x_multiplier * minPt.x < maxPt.x) {
+    for (size_t j = 1; j <= (length_y / y_dim_); j++) {
+      vertex.x = minPt.x + minPt.x * (length_x / x_dim_);
+      vertex.y = (minPt.y + minPt.y * j) * 0.5;
       vertex.z = z_in;
       polygon_points.points.push_back(vertex);
     }
     }
-  if (length_x % x_dim_ != 0 && length_y % y_dim_ != 0) {
-    vertex.x = minPt.x * (length_x % x_dim_);
-    vertex.y = minPt.y * (length_y % y_dim_);
+  if (x_multiplier * minPt.x < maxPt.x && y_multiplier * minPt.y < maxPt.y) {
+    vertex.x = minPt.x + minPt.x * (length_x / x_dim_);
+    vertex.y = minPt.y + minPt.y * (length_y / y_dim_);
     vertex.z = z_in;
     polygon_points.points.push_back(vertex);
   }
   }
   else if (length_x < x_dim_) {
-    const double x_val = maxPt.x - minPt.x;
-    for (size_t j = 1; j <= (length_y % y_dim_); j++) {
+    const double x_val = minPt.x + (maxPt.x - minPt.x) * 0.5;
+    for (size_t j = 1; j <= (length_y / y_dim_); j++) {
       vertex.x = x_val;
-      vertex.y = minPt.y * j * 0.5;
+      vertex.y = (minPt.y + minPt.y * j) * 0.5;
       vertex.z = z_in;
       polygon_points.points.push_back(vertex);
     }
-    if (length_y % y_dim_ != 0) {
+    if (y_multiplier * minPt.y < maxPt.y) {
       vertex.x = x_val;
-      vertex.y = minPt.y * (length_y % y_dim_);
+      vertex.y = minPt.y + minPt.y * (length_y / y_dim_);
+      vertex.z = z_in;
+      polygon_points.points.push_back(vertex);
+    }
+  }
+  else if (length_y < y_dim_) {
+    const double y_val = minPt.y + (maxPt.y - minPt.y) * 0.5;
+    for (size_t i = 1; i <= (length_y / y_dim_); i++) {
+      vertex.x = (minPt.x + minPt.x * i) * 0.5;
+      vertex.y = y_val;
+      vertex.z = z_in;
+      polygon_points.points.push_back(vertex);
+    }
+    if (x_multiplier * minPt.x < maxPt.x) {
+      vertex.x = minPt.x + minPt.x * (length_x / x_dim_);
+      vertex.y = y_val;
       vertex.z = z_in;
       polygon_points.points.push_back(vertex);
     }
   }
   else {
-    const double y_val = maxPt.y - minPt.y;
-    for (size_t i = 1; i <= (length_y % y_dim_); i++) {
-      vertex.x = minPt.x * i * 0.5;
-      vertex.y = y_val;
-      vertex.z = z_in;
-      polygon_points.points.push_back(vertex);
-    }
-    if (length_x % x_dim_ != 0) {
-      vertex.x = minPt.x * (length_x % x_dim_);
-      vertex.y = y_val;
-      vertex.z = z_in;
-      polygon_points.points.push_back(vertex);
-    }
-  }
+    vertex.x = (maxPt.x - minPt.x) * 0.5 + minPt.x;
+    vertex.y = (maxPt.y - minPt.y) * 0.5 + minPt.y;
+    vertex.z = z_in;
+    polygon_points.points.push_back(vertex);
+  };
+  if (polygon_points.points.size() == 0)
+    return;
   std::cout << "The size of points is : " << polygon_points.points.size() << "\n";
   pose_array_.header.frame_id = base_frame_;
   pose_array_.polygon = polygon_points;

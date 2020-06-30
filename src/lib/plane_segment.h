@@ -110,7 +110,8 @@ class PlaneSegment
 {
 public:
   PlaneSegment(string base_frame, float th_xy, float th_z);
-  PlaneSegment(string base_frame, float th_xy, float th_z, ros::NodeHandle nh, int x_dim, int y_dim);
+  PlaneSegment(string base_frame, float th_xy, float th_z, ros::NodeHandle nh, 
+               double x_dim, double y_dim, double z_min, double z_max);
 
   inline void setMode(data_type type) {type_ = type;}
 
@@ -144,8 +145,10 @@ protected:
 private:
   /// Predefined camera orientations if not using real data
   // In Eular angle
-  int x_dim_;
-  int y_dim_;
+  const double x_dim_{};
+  const double y_dim_{};
+  double z_min_;
+  double z_max_;
   float roll_;
   float pitch_;
   float yaw_;

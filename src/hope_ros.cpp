@@ -79,15 +79,19 @@ int main(int argc, char **argv)
   cout << "Using threshold: xy@" << xy_resolution 
        << " " << "z@" << z_resolution << endl;
 
-  int x_dim = 2;
-  int y_dim = 2;
+  double x_dim = 0.4;
+  double y_dim = 0.2;
+  double z_min = -0.12;
+  double z_max = 0.5;
 
   pnh.getParam("x_dim", x_dim);
   pnh.getParam("y_dim", y_dim);
+  pnh.getParam("z_min", z_min);
+  pnh.getParam("z_max", z_max);
 
-  PlaneSegment hope(base_frame_, xy_resolution, z_resolution, nh, x_dim, y_dim);
+  PlaneSegment hope(base_frame_, xy_resolution, z_resolution, nh, x_dim, y_dim, z_min, z_max);
 
-  ros::Rate loop_rate(1);
+  ros::Rate loop_rate(0.5);
   hope.setMode(type);
   while (ros::ok()) {
     // The src_cloud is actually not used here
