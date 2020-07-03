@@ -1,0 +1,18 @@
+# YAML parameters file for plane detection algorithm
+ground_clearance:
+  min_height: -0.012
+  max_height: 6.5
+
+blob_properties:
+  x_dimension: 0.07
+  y_dimension: 0.02
+  min_surface_area: 0.02
+  max_surface_area: 5.5
+
+plane_segment:
+  xy_resolution: 0.05
+  z_resolution: 0.02
+
+pointcloud:
+  base_frame: "mobile_base_link"
+  topic_name: "/oil/perception/head_camera/cloud"

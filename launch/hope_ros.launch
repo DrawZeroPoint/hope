@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<launch>
+    <node name="hope_ros" pkg="hope" type="hope_ros" output="screen" respawn="false">
+    	<rosparam command="load" file="$(find hope)/config/plane_detection_paramenters.yaml" />
+    </node>
+
+</launch>
