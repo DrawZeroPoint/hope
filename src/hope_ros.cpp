@@ -58,7 +58,6 @@ using namespace std;
 
 /// Transform frame, only used with real time data
 /// You may change the name based on your robot configuration
-string base_frame_ = "mobile_base_link"; // world frame
 
 int main(int argc, char **argv)
 {
@@ -73,25 +72,27 @@ int main(int argc, char **argv)
   ros::NodeHandle nh;
   ros::NodeHandle pnh("~");
 
-  float xy_resolution = 0.05; // In meter
-  float z_resolution = 0.02; // In meter
+  float xy_resolution, z_resolution; // In meter
 
   cout << "Using threshold: xy@" << xy_resolution 
        << " " << "z@" << z_resolution << endl;
 
-  double x_dim = 0.4;
-  double y_dim = 0.2;
-  double z_min = -0.12;
-  double z_max = 0.5;
+  Params params;
 
-  pnh.getParam("x_dim", x_dim);
-  pnh.getParam("y_dim", y_dim);
-  pnh.getParam("z_min", z_min);
-  pnh.getParam("z_max", z_max);
+  pnh.getParam("/hope_ros/blob_properties/x_dimension", params.x_dim);
+  pnh.getParam("/hope_ros/blob_properties/y_dimension", params.y_dim);
+  pnh.getParam("/hope_ros/ground_clearance/min_height", params.z_min);
+  pnh.getParam("/hope_ros/ground_clearance/max_height", params.z_max);
+  pnh.getParam("/hope_ros/blob_properties/min_surface_area", params.area_min);
+  pnh.getParam("/hope_ros/blob_properties/max_surface_area", params.area_max);
+  pnh.getParam("/hope_ros/plane_segment/xy_resolution", params.xy_resolution);
+  pnh.getParam("/hope_ros/plane_segment/z_resolution", params.z_resolution);
+  pnh.getParam("/hope_ros/pointcloud/base_frame", params.base_frame);
+  pnh.getParam("/hope_ros/pointcloud/topic_name", params.cloud_topic);
 
-  PlaneSegment hope(base_frame_, xy_resolution, z_resolution, nh, x_dim, y_dim, z_min, z_max);
+  PlaneSegment hope(params, nh);
 
-  ros::Rate loop_rate(0.5);
+  ros::Rate loop_rate(2);
   hope.setMode(type);
   while (ros::ok()) {
     // The src_cloud is actually not used here

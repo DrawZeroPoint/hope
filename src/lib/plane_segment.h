@@ -19,7 +19,6 @@
 #include <message_filters/sync_policies/approximate_time.h>
 
 #include <geometry_msgs/PoseStamped.h>
-#include <geometry_msgs/PolygonStamped.h>
 #include <cv_bridge/cv_bridge.h>
 #include <pcl_conversions/pcl_conversions.h>
 
@@ -83,6 +82,19 @@
 
 enum data_type{REAL, SYN, POINT_CLOUD, TUM_SINGLE, TUM_LIST};
 
+struct Params {
+  double x_dim = 0.0;
+  double y_dim = 0.0;
+  double z_min = 0.0;
+  double z_max = 0.0;
+  double area_min = 0.0;
+  double area_max = 0.0;
+  double xy_resolution = 0.05;
+  double z_resolution = 0.02;
+  std::string base_frame = "mobile_base_link";
+  std::string cloud_topic = "/oil/perception/head_camera/cloud";
+};
+
 class HopeResult
 {
 public:
@@ -109,9 +121,7 @@ public:
 class PlaneSegment
 {
 public:
-  PlaneSegment(string base_frame, float th_xy, float th_z);
-  PlaneSegment(string base_frame, float th_xy, float th_z, ros::NodeHandle nh, 
-               double x_dim, double y_dim, double z_min, double z_max);
+  PlaneSegment(Params params, ros::NodeHandle nh);
 
   inline void setMode(data_type type) {type_ = type;}
 
@@ -147,6 +157,8 @@ private:
   // In Eular angle
   const double x_dim_{};
   const double y_dim_{};
+  double min_area_;
+  double max_area_;
   double z_min_;
   double z_max_;
   float roll_;
@@ -167,14 +179,16 @@ private:
   /// ROS stuff
   ros::NodeHandle nh_;
   image_transport::ImageTransport pub_it_;
-  geometry_msgs::PolygonStamped pose_array_;
+  geometry_msgs::PolygonStamped polygon_array_;
+  geometry_msgs::PolygonStamped centroids_array_;
   // ROS pub-sub
   ros::Subscriber sub_pointcloud_;
   void cloudCallback(const sensor_msgs::PointCloud2ConstPtr &cloud_msg);
   ros::Publisher pub_max_plane_;
   ros::Publisher pub_cloud_;
   ros::Publisher pub_max_mesh_;
-  ros::Publisher pose_pub_;
+  ros::Publisher polygon_pub_;
+  ros::Publisher centroids_pub_;
   template <typename PointTPtr>
   void publishCloud(PointTPtr cloud, ros::Publisher pub);
   bool getSourceCloud();

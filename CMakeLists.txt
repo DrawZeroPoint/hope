@@ -38,12 +38,13 @@ message("Found OpenCV ${OpenCV_VERSION}")
 
 #add_message_files(
 #  FILES
-#  Pose.msg
+#  Segmentation.msg
 #)
 
 #generate_messages(
 #   DEPENDENCIES
 #   std_msgs
+#   geometry_msgs
 #)
 
 catkin_package(
