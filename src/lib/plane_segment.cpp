@@ -2,6 +2,8 @@
 
 #include <tf2/LinearMath/Quaternion.h>
 #include <geometry_msgs/PolygonStamped.h>
+#include <geometry_msgs/Polygon.h>
+#include <hope/Subsections.h>
 
 using namespace std;
 using namespace cv;
@@ -63,7 +65,7 @@ PlaneSegment::PlaneSegment(Params params, ros::NodeHandle nh) :
 
   polygon_pub_ = nh_.advertise<geometry_msgs::PolygonStamped>("polygon_array", 100);
 
-  centroids_pub_ = nh_.advertise<geometry_msgs::PolygonStamped>("centroids_array", 100);
+  subsections_pub_ = nh_.advertise<hope::Subsections>("subsections_array", 100);
   
   // Register the callback if using real point cloud data
   sub_pointcloud_ = nh_.subscribe<sensor_msgs::PointCloud2>(params.cloud_topic, 1,
@@ -106,7 +108,6 @@ void PlaneSegment::setT(float tx = 0.0, float ty = 0.0, float tz = 0.0)
 // Notice that the point cloud may not transformed before this function
 void PlaneSegment::getHorizontalPlanes()
 {
-  ROS_INFO("Horizontal planes called");
   PointCloud::Ptr temp(new PointCloud);
   if (type_ == REAL) {
     // If using real data, the transform from camera frame to base frame
@@ -118,7 +119,7 @@ void PlaneSegment::getHorizontalPlanes()
     return;
   }
 
-  ROS_INFO("If statement passed");
+  //ROS_INFO("If statement passed");
  // utl_->pointTypeTransfer(src_rgb_cloud_, src_mono_cloud_);
 
   //visualizeProcess(src_rgb_cloud_);
@@ -296,6 +297,7 @@ void PlaneSegment::computeHull(PointCloud::Ptr cluster_2d_rgb)
 
 void PlaneSegment::setFeatures(float z_in, PointCloudMono::Ptr cluster)
 {
+  ROS_INFO("Polygon found");
   // Prepare the feature vector for each plane to identify its id
   vector<float> feature;
   feature.push_back(z_in); // z value
@@ -307,13 +309,18 @@ void PlaneSegment::setFeatures(float z_in, PointCloudMono::Ptr cluster)
   feature.push_back(maxPt.y); // cluster max y
   plane_coeff_.push_back(feature);
   geometry_msgs::Polygon polygon_points;
-  geometry_msgs::Polygon centroid_points;
   double area = (maxPt.y - minPt.y) * (maxPt.x - minPt.x);
-  if (z_in < z_min_ || z_in > z_max_ || area < min_area_ || area > max_area_) {
-    ROS_INFO("Plane ignored because of not within required height/ area range");
+  if (z_in < z_min_ || z_in > z_max_) {
+    ROS_INFO("Plane ignored because of not within required height range");
     return;
   }
+  else if (area < min_area_ || area > max_area_) {
+  	ROS_INFO("Plane ignored because of not within required area range");
+    return;
+  }
+  subsections_.subsection_array.clear();
   geometry_msgs::Point32 min_pts_bottom, min_pts_top, max_pts_bottom, max_pts_top;
+  geometry_msgs::Point32 min_new, max_new;
   min_pts_bottom.x = minPt.x;
   min_pts_bottom.y = minPt.y;
   min_pts_bottom.z = z_in;
@@ -341,81 +348,162 @@ void PlaneSegment::setFeatures(float z_in, PointCloudMono::Ptr cluster)
   double x_multiplier = length_x / x_dim_;
   double y_multiplier = length_y / y_dim_;
 
-  geometry_msgs::Point32 vertex;
-
-  if (length_x >= x_dim_ && length_y >= y_dim_) {
-    for (size_t i = 1; i <= (length_x / x_dim_); i++) {
-    for (size_t j = 1; j <= (length_y / y_dim_); j++) {
-      vertex.x = (minPt.x + minPt.x * i) * 0.5;
-      vertex.y = (minPt.y + minPt.y * j) * 0.5;
-      vertex.z = z_in;
-      centroid_points.points.push_back(vertex);
-    }
-    if (y_multiplier * minPt.y < maxPt.y) {
-      vertex.x = (minPt.x + minPt.x * i) * 0.5;
-      vertex.y = (minPt.y + minPt.y * (length_y / y_dim_));
-      vertex.z = z_in;
-      centroid_points.points.push_back(vertex);
-    }
+  if (y_dim_ >= (maxPt.y - minPt.y) && x_dim_ >= (maxPt.x - minPt.x)) {
+  	for (size_t i = 2; i <= x_multiplier; i++) {
+  		for (size_t j = 2; j <= y_multiplier; j++) {
+  			min_pts_bottom.x = minPt.x * (i - 1);
+  			min_pts_bottom.y = minPt.y * (j - 1);
+  			min_pts_top.x = minPt.x * (i - 1);
+  			min_pts_top.y = minPt.y * j;
+  			max_pts_bottom.x = minPt.x * i;
+  			max_pts_bottom.y = minPt.y * (j - 1);
+  			max_pts_top.x = minPt.x * i;
+  			max_pts_top.y = minPt.y * j;
+  			polygon_points.points.clear();
+  			polygon_points.points.push_back(min_pts_bottom);
+  			polygon_points.points.push_back(min_pts_top);
+  			polygon_points.points.push_back(max_pts_bottom);
+  			polygon_points.points.push_back(max_pts_top);
+  			subsections_.subsection_array.push_back(polygon_points);
+  		}
+  		if (y_dim_ > (maxPt.y - minPt.y)) {
+  			min_pts_bottom.x = minPt.x * (i - 1);
+  			min_pts_bottom.y = minPt.y * y_multiplier;
+  			min_pts_top.x = minPt.x * (i - 1);
+  			min_pts_top.y = maxPt.y;
+  			max_pts_bottom.x = minPt.x * i;
+  			max_pts_bottom.y = minPt.y * y_multiplier;
+  			max_pts_top.x = minPt.x * i;
+  			max_pts_top.y = maxPt.y;
+  			polygon_points.points.clear();
+  			polygon_points.points.push_back(min_pts_bottom);
+  			polygon_points.points.push_back(min_pts_top);
+  			polygon_points.points.push_back(max_pts_bottom);
+  			polygon_points.points.push_back(max_pts_top);
+  			subsections_.subsection_array.push_back(polygon_points);
+  			}
+  	}
+  	if (x_dim_ > (maxPt.x - minPt.x)) {
+  		for (size_t j = 2; j <= y_multiplier; j++) {
+  			min_pts_bottom.x = minPt.x * x_multiplier;
+  			min_pts_bottom.y = minPt.y * (j - 1);
+  			min_pts_top.x = minPt.x * x_multiplier;
+  			min_pts_top.y = minPt.y * j;
+  			max_pts_bottom.x = maxPt.x;
+  			max_pts_bottom.y = minPt.y * (j - 1);
+  			max_pts_top.x = maxPt.x;
+  			max_pts_top.y = minPt.y * j;
+  			polygon_points.points.clear();
+  			polygon_points.points.push_back(min_pts_bottom);
+  			polygon_points.points.push_back(min_pts_top);
+  			polygon_points.points.push_back(max_pts_bottom);
+  			polygon_points.points.push_back(max_pts_top);
+  			subsections_.subsection_array.push_back(polygon_points);
+  		}
+  		if (y_dim_ > (maxPt.y - minPt.y)) {
+  			min_pts_bottom.x = minPt.x * x_multiplier;
+  			min_pts_bottom.y = minPt.y * y_multiplier;
+  			min_pts_top.x = minPt.x * x_multiplier;
+  			min_pts_top.y = maxPt.y;
+  			max_pts_bottom.x = maxPt.x;
+  			max_pts_bottom.y = minPt.y * y_multiplier;
+  			max_pts_top.x = maxPt.x;
+  			max_pts_top.y = maxPt.y;
+  			polygon_points.points.clear();
+  			polygon_points.points.push_back(min_pts_bottom);
+  			polygon_points.points.push_back(min_pts_top);
+  			polygon_points.points.push_back(max_pts_bottom);
+  			polygon_points.points.push_back(max_pts_top);
+  			subsections_.subsection_array.push_back(polygon_points);
+  			}
+  		}
   }
-  if (x_multiplier * minPt.x < maxPt.x) {
-    for (size_t j = 1; j <= (length_y / y_dim_); j++) {
-      vertex.x = minPt.x + minPt.x * (length_x / x_dim_);
-      vertex.y = (minPt.y + minPt.y * j) * 0.5;
-      vertex.z = z_in;
-      centroid_points.points.push_back(vertex);
-    }
-    }
-  if (x_multiplier * minPt.x < maxPt.x && y_multiplier * minPt.y < maxPt.y) {
-    vertex.x = minPt.x + minPt.x * (length_x / x_dim_);
-    vertex.y = minPt.y + minPt.y * (length_y / y_dim_);
-    vertex.z = z_in;
-    centroid_points.points.push_back(vertex);
+  else if (x_dim_ < (maxPt.x - minPt.x) && y_dim_ >= (maxPt.y - minPt.y)) {
+  	for (size_t j = 2; j <= y_multiplier; j++) {
+  		min_pts_bottom.x = minPt.x;
+  		min_pts_bottom.y = minPt.y * (j - 1);
+  		min_pts_top.x = minPt.x;
+  		min_pts_top.y = minPt.y * j;
+  		max_pts_bottom.x = maxPt.x;
+  		max_pts_bottom.y = minPt.y * (j - 1);
+  		max_pts_top.x = maxPt.x;
+  		max_pts_top.y = minPt.y * j;
+  		polygon_points.points.clear();
+  		polygon_points.points.push_back(min_pts_bottom);
+  		polygon_points.points.push_back(min_pts_top);
+  		polygon_points.points.push_back(max_pts_bottom);
+  		polygon_points.points.push_back(max_pts_top);
+  		subsections_.subsection_array.push_back(polygon_points);
+  	}
+  	if (y_dim_ > (maxPt.y - minPt.y)) {
+  		min_pts_bottom.x = minPt.x;
+  		min_pts_bottom.y = minPt.y * y_multiplier;
+  		min_pts_top.x = minPt.x;
+  		min_pts_top.y = maxPt.y;
+  		max_pts_bottom.x = maxPt.x;
+  		max_pts_bottom.y = minPt.y * y_multiplier;
+  		max_pts_top.x = maxPt.x;
+  		max_pts_top.y = maxPt.y;
+  		polygon_points.points.clear();
+  		polygon_points.points.push_back(min_pts_bottom);
+  		polygon_points.points.push_back(min_pts_top);
+  		polygon_points.points.push_back(max_pts_bottom);
+  		polygon_points.points.push_back(max_pts_top);
+  		subsections_.subsection_array.push_back(polygon_points);
+  	}
   }
+  else if (x_dim_ >= (maxPt.x - minPt.x) && y_dim_ < (maxPt.y - minPt.y)) {
+  	for (size_t i = 2; i <= x_multiplier; i++) {
+  		min_pts_bottom.x = minPt.x * (i - 1);
+  		min_pts_bottom.y = minPt.y;
+  		min_pts_top.x = minPt.x * (i - 1);
+  		min_pts_top.y = maxPt.y;
+  		max_pts_bottom.x = minPt.x * i;
+  		max_pts_bottom.y = minPt.y;
+  		max_pts_top.x = minPt.x * i;
+  		max_pts_top.y = maxPt.y;
+  		polygon_points.points.clear();
+  		polygon_points.points.push_back(min_pts_bottom);
+  		polygon_points.points.push_back(min_pts_top);
+  		polygon_points.points.push_back(max_pts_bottom);
+  		polygon_points.points.push_back(max_pts_top);
+  		subsections_.subsection_array.push_back(polygon_points);
+  	}
+  	if (x_dim_ > (maxPt.x - minPt.x)) {
+  		min_pts_bottom.x = minPt.x * x_multiplier;
+  		min_pts_bottom.y = minPt.y;
+  		min_pts_top.x = minPt.x * x_multiplier;
+  		min_pts_top.y = maxPt.y;
+  		max_pts_bottom.x = maxPt.x;
+  		max_pts_bottom.y = minPt.y;
+  		max_pts_top.x = maxPt.x;
+  		max_pts_top.y = maxPt.y;
+  		polygon_points.points.clear();
+  		polygon_points.points.push_back(min_pts_bottom);
+  		polygon_points.points.push_back(min_pts_top);
+  		polygon_points.points.push_back(max_pts_bottom);
+  		polygon_points.points.push_back(max_pts_top);
+  		subsections_.subsection_array.push_back(polygon_points);
+  	}
+  } else {
+  	min_pts_bottom.x = minPt.x;
+  	min_pts_bottom.y = minPt.y;
+  	min_pts_top.x = minPt.x;
+  	min_pts_top.y = maxPt.y;
+  	max_pts_bottom.x = maxPt.x;
+  	max_pts_bottom.y = minPt.y;
+  	max_pts_top.x = maxPt.x;
+  	max_pts_top.y = maxPt.y;
+  	polygon_points.points.clear();
+  	polygon_points.points.push_back(min_pts_bottom);
+  	polygon_points.points.push_back(min_pts_top);
+  	polygon_points.points.push_back(max_pts_bottom);
+  	polygon_points.points.push_back(max_pts_top);
+  	subsections_.subsection_array.push_back(polygon_points);
   }
-  else if (length_x < x_dim_) {
-    const double x_val = minPt.x + (maxPt.x - minPt.x) * 0.5;
-    for (size_t j = 1; j <= (length_y / y_dim_); j++) {
-      vertex.x = x_val;
-      vertex.y = (minPt.y + minPt.y * j) * 0.5;
-      vertex.z = z_in;
-      centroid_points.points.push_back(vertex);
-    }
-    if (y_multiplier * minPt.y < maxPt.y) {
-      vertex.x = x_val;
-      vertex.y = minPt.y + minPt.y * (length_y / y_dim_);
-      vertex.z = z_in;
-      centroid_points.points.push_back(vertex);
-    }
-  }
-  else if (length_y < y_dim_) {
-    const double y_val = minPt.y + (maxPt.y - minPt.y) * 0.5;
-    for (size_t i = 1; i <= (length_y / y_dim_); i++) {
-      vertex.x = (minPt.x + minPt.x * i) * 0.5;
-      vertex.y = y_val;
-      vertex.z = z_in;
-      centroid_points.points.push_back(vertex);
-    }
-    if (x_multiplier * minPt.x < maxPt.x) {
-      vertex.x = minPt.x + minPt.x * (length_x / x_dim_);
-      vertex.y = y_val;
-      vertex.z = z_in;
-      centroid_points.points.push_back(vertex);
-    }
-  }
-  else {
-    vertex.x = (maxPt.x - minPt.x) * 0.5 + minPt.x;
-    vertex.y = (maxPt.y - minPt.y) * 0.5 + minPt.y;
-    vertex.z = z_in;
-    centroid_points.points.push_back(vertex);
-  };
-  if (centroid_points.points.size() == 0)
-    return;
-  std::cout << "The size of points is : " << centroid_points.points.size() << "\n";
-  centroids_array_.polygon = centroid_points;
-  centroids_array_.header.stamp = ros::Time::now();
-  centroids_array_.header.frame_id = base_frame_;
-  centroids_pub_.publish(centroids_array_);
+  subsections_.header.frame_id = base_frame_;
+  subsections_.header.stamp = ros::Time::now();
+  subsections_pub_.publish(subsections_);
 }
 
 bool PlaneSegment::gaussianImageAnalysis(size_t id)
@@ -588,7 +676,6 @@ void PlaneSegment::visualizeResult(bool display_source, bool display_raw,
 
 void PlaneSegment::cloudCallback(const sensor_msgs::PointCloud2ConstPtr &msg)
 {
-  ROS_INFO("Callback called");
   if (msg->data.empty()) {
     ROS_WARN_THROTTLE(31, "PlaneSegment: PointCloud is empty.");
     return;

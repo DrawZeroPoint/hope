@@ -9,7 +9,7 @@ add_compile_options(-std=c++11)
 #set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O1")
 
 find_package(catkin REQUIRED COMPONENTS
-#  message_generation
+  message_generation
   cv_bridge
   geometry_msgs
   image_transport
@@ -36,28 +36,29 @@ add_definitions(${PCL_DEFINITIONS})
 find_package(OpenCV REQUIRED)
 message("Found OpenCV ${OpenCV_VERSION}")
 
-#add_message_files(
-#  FILES
-#  Segmentation.msg
-#)
-
-#generate_messages(
-#   DEPENDENCIES
-#   std_msgs
-#   geometry_msgs
-#)
-
-catkin_package(
-  CATKIN_DEPENDS 
-#  message_generation
-  cv_bridge
-)
-
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
   ${PCL_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
+)
+
+add_message_files(
+  DIRECTORY msg
+  FILES
+  Subsections.msg
+)
+
+generate_messages(
+   DEPENDENCIES
+   geometry_msgs
+)
+
+catkin_package(
+  CATKIN_DEPENDS 
+  message_generation
+  cv_bridge
+  INCLUDE_DIRS
 )
 
 # Declare a C++ library
@@ -92,15 +93,17 @@ target_link_libraries(${PROJECT_NAME}_node
   ${PCL_LIBRARIES}
   ${PROJECT_NAME}
 )
+add_dependencies(${PROJECT_NAME}_node ${PROJECT_NAME}_node_generate_message_cpp ${catkin_EXPORTED_TARGETS})
 
- add_executable(${PROJECT_NAME}_ros src/hope_ros.cpp)
- target_link_libraries(${PROJECT_NAME}_ros
-   ${catkin_LIBRARIES}
-   ${PROJECT_NAME}
-   ${GLOG_LIB}
-   ${OpenCV_LIBS}
-   ${PCL_LIBRARIES}
- )
+add_executable(${PROJECT_NAME}_ros src/hope_ros.cpp)
+target_link_libraries(${PROJECT_NAME}_ros
+  ${catkin_LIBRARIES}
+  ${PROJECT_NAME}
+  ${GLOG_LIB}
+  ${OpenCV_LIBS}
+  ${PCL_LIBRARIES}
+)
+add_dependencies(${PROJECT_NAME}_ros ${PROJECT_NAME}_ros_generate_message_cpp ${catkin_EXPORTED_TARGETS})
 
 add_executable(view_cloud src/view_cloud.cpp)
 target_link_libraries(view_cloud ${PCL_LIBRARIES})
