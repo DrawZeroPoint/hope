@@ -1,4 +1,5 @@
-﻿#include "plane_segment.h"
+﻿#include <cmath>
+#include "plane_segment.h"
 
 #include <tf2/LinearMath/Quaternion.h>
 #include <geometry_msgs/PolygonStamped.h>
@@ -343,22 +344,36 @@ void PlaneSegment::setFeatures(float z_in, PointCloudMono::Ptr cluster)
   polygon_array_.header.stamp = ros::Time::now();
   polygon_pub_.publish(polygon_array_);
 
-  double length_x = maxPt.x - minPt.x;
-  double length_y = maxPt.y - minPt.y;
-  double x_multiplier = length_x / x_dim_;
-  double y_multiplier = length_y / y_dim_;
+  double length_x = std::abs(maxPt.x - minPt.x);
+  double length_y = std::abs(maxPt.y - minPt.y);
+  double x_mul_big = length_x / x_dim_; //Always > 0
+  double y_mul_big = length_y / y_dim_; //Always > 0
+  unsigned int x_mul_small = std::floor(x_mul_big);
+  unsigned int y_mul_small = std::floor(y_mul_big);
 
-  if (y_dim_ >= (maxPt.y - minPt.y) && x_dim_ >= (maxPt.x - minPt.x)) {
-  	for (size_t i = 2; i <= x_multiplier; i++) {
-  		for (size_t j = 2; j <= y_multiplier; j++) {
-  			min_pts_bottom.x = minPt.x * (i - 1);
-  			min_pts_bottom.y = minPt.y * (j - 1);
-  			min_pts_top.x = minPt.x * (i - 1);
-  			min_pts_top.y = minPt.y * j;
-  			max_pts_bottom.x = minPt.x * i;
-  			max_pts_bottom.y = minPt.y * (j - 1);
-  			max_pts_top.x = minPt.x * i;
-  			max_pts_top.y = minPt.y * j;
+  /*Now we break down the original polygon into subsections based on, x_dim_ and y_dim_.
+    1.) length_x is perfectly divisible by x_mul_small; and 
+        length_y is perfectly divisible by y_mul_small;
+    2.) length_y > y_mul_small * y_dim_;
+    3.) length_x > x_mul_small * x_dim_;
+    4.) x_dim_ < length_x; and length_y >= y_mul_small * y_dim_;
+    5.) y_dim_ < length_y; and length_x >= x_mul_small * x_dim_;
+    6.) Both x_dim_ < length_x; and y_dim_ < length_y
+  */
+
+  // Cases 1, 2 and 3
+  if (x_mul_big >= x_mul_small && y_mul_big >= y_mul_small && 
+  	  x_mul_small >= 2 && y_mul_small >= 2) {
+  	for (size_t i = 2; i <= x_mul_small; i++) {
+  		for (size_t j = 2; j <= y_mul_small; j++) {
+  			min_pts_bottom.x = minPt.x + x_dim_ * (i - 1);
+  			min_pts_bottom.y = minPt.y + y_dim_ * (j - 1);
+  			min_pts_top.x = minPt.x + x_dim_ * (i - 1);
+  			min_pts_top.y = minPt.y + y_dim_ * j;
+  			max_pts_bottom.x = minPt.x + x_dim_ * i;
+  			max_pts_bottom.y = minPt.y + y_dim_ * (j - 1);
+  			max_pts_top.x = minPt.x + x_dim_ * i;
+  			max_pts_top.y = minPt.y + y_dim_ * j;
   			polygon_points.points.clear();
   			polygon_points.points.push_back(min_pts_bottom);
   			polygon_points.points.push_back(min_pts_top);
@@ -366,14 +381,14 @@ void PlaneSegment::setFeatures(float z_in, PointCloudMono::Ptr cluster)
   			polygon_points.points.push_back(max_pts_top);
   			subsections_.subsection_array.push_back(polygon_points);
   		}
-  		if (y_dim_ > (maxPt.y - minPt.y)) {
-  			min_pts_bottom.x = minPt.x * (i - 1);
-  			min_pts_bottom.y = minPt.y * y_multiplier;
-  			min_pts_top.x = minPt.x * (i - 1);
+  		if (length_y > y_mul_small * y_dim_) {
+  			min_pts_bottom.x = minPt.x + x_dim_ * (i - 1);
+  			min_pts_bottom.y = minPt.y + y_dim_ * y_mul_small;
+  			min_pts_top.x = minPt.x + x_dim_ * (i - 1);
   			min_pts_top.y = maxPt.y;
-  			max_pts_bottom.x = minPt.x * i;
-  			max_pts_bottom.y = minPt.y * y_multiplier;
-  			max_pts_top.x = minPt.x * i;
+  			max_pts_bottom.x = minPt.x + x_dim_ * i;
+  			max_pts_bottom.y = minPt.y + y_dim_ * y_mul_small;
+  			max_pts_top.x = minPt.x + x_dim_ * i;
   			max_pts_top.y = maxPt.y;
   			polygon_points.points.clear();
   			polygon_points.points.push_back(min_pts_bottom);
@@ -383,16 +398,16 @@ void PlaneSegment::setFeatures(float z_in, PointCloudMono::Ptr cluster)
   			subsections_.subsection_array.push_back(polygon_points);
   			}
   	}
-  	if (x_dim_ > (maxPt.x - minPt.x)) {
-  		for (size_t j = 2; j <= y_multiplier; j++) {
-  			min_pts_bottom.x = minPt.x * x_multiplier;
-  			min_pts_bottom.y = minPt.y * (j - 1);
-  			min_pts_top.x = minPt.x * x_multiplier;
-  			min_pts_top.y = minPt.y * j;
+  	if (length_x > x_mul_small * x_dim_) {
+  		for (size_t j = 2; j <= y_mul_small; j++) {
+  			min_pts_bottom.x = minPt.x + x_dim_ * x_mul_small;
+  			min_pts_bottom.y = minPt.y + y_dim_ * (j - 1);
+  			min_pts_top.x = minPt.x + x_dim_ * x_mul_small;
+  			min_pts_top.y = minPt.y + y_dim_ * j;
   			max_pts_bottom.x = maxPt.x;
-  			max_pts_bottom.y = minPt.y * (j - 1);
+  			max_pts_bottom.y = minPt.y + y_dim_ * (j - 1);
   			max_pts_top.x = maxPt.x;
-  			max_pts_top.y = minPt.y * j;
+  			max_pts_top.y = minPt.y + y_dim_ * j;
   			polygon_points.points.clear();
   			polygon_points.points.push_back(min_pts_bottom);
   			polygon_points.points.push_back(min_pts_top);
@@ -400,13 +415,13 @@ void PlaneSegment::setFeatures(float z_in, PointCloudMono::Ptr cluster)
   			polygon_points.points.push_back(max_pts_top);
   			subsections_.subsection_array.push_back(polygon_points);
   		}
-  		if (y_dim_ > (maxPt.y - minPt.y)) {
-  			min_pts_bottom.x = minPt.x * x_multiplier;
-  			min_pts_bottom.y = minPt.y * y_multiplier;
-  			min_pts_top.x = minPt.x * x_multiplier;
+  		if (length_y > y_mul_small * y_dim_) {
+  			min_pts_bottom.x = minPt.x + x_dim_ * x_mul_small;
+  			min_pts_bottom.y = minPt.y + y_dim_ * y_mul_small;
+  			min_pts_top.x = minPt.x + x_dim_ * x_mul_small;
   			min_pts_top.y = maxPt.y;
   			max_pts_bottom.x = maxPt.x;
-  			max_pts_bottom.y = minPt.y * y_multiplier;
+  			max_pts_bottom.y = minPt.y + y_dim_ * y_mul_small;
   			max_pts_top.x = maxPt.x;
   			max_pts_top.y = maxPt.y;
   			polygon_points.points.clear();
@@ -418,16 +433,17 @@ void PlaneSegment::setFeatures(float z_in, PointCloudMono::Ptr cluster)
   			}
   		}
   }
-  else if (x_dim_ < (maxPt.x - minPt.x) && y_dim_ >= (maxPt.y - minPt.y)) {
-  	for (size_t j = 2; j <= y_multiplier; j++) {
+  // Case 4
+  else if (x_dim_ < length_x && y_mul_big >= y_mul_small && y_mul_small >= 2) {
+  	for (size_t j = 2; j <= y_mul_small; j++) {
   		min_pts_bottom.x = minPt.x;
-  		min_pts_bottom.y = minPt.y * (j - 1);
+  		min_pts_bottom.y = minPt.y + y_dim_ * (j - 1);
   		min_pts_top.x = minPt.x;
-  		min_pts_top.y = minPt.y * j;
+  		min_pts_top.y = minPt.y + y_dim_ * j;
   		max_pts_bottom.x = maxPt.x;
-  		max_pts_bottom.y = minPt.y * (j - 1);
+  		max_pts_bottom.y = minPt.y + y_dim_ * (j - 1);
   		max_pts_top.x = maxPt.x;
-  		max_pts_top.y = minPt.y * j;
+  		max_pts_top.y = minPt.y + y_dim_ * j;
   		polygon_points.points.clear();
   		polygon_points.points.push_back(min_pts_bottom);
   		polygon_points.points.push_back(min_pts_top);
@@ -435,13 +451,13 @@ void PlaneSegment::setFeatures(float z_in, PointCloudMono::Ptr cluster)
   		polygon_points.points.push_back(max_pts_top);
   		subsections_.subsection_array.push_back(polygon_points);
   	}
-  	if (y_dim_ > (maxPt.y - minPt.y)) {
+  	if (y_mul_big >= y_mul_small) {
   		min_pts_bottom.x = minPt.x;
-  		min_pts_bottom.y = minPt.y * y_multiplier;
+  		min_pts_bottom.y = minPt.y + y_dim_ * y_mul_small;
   		min_pts_top.x = minPt.x;
   		min_pts_top.y = maxPt.y;
   		max_pts_bottom.x = maxPt.x;
-  		max_pts_bottom.y = minPt.y * y_multiplier;
+  		max_pts_bottom.y = minPt.y + y_dim_ * y_mul_small;
   		max_pts_top.x = maxPt.x;
   		max_pts_top.y = maxPt.y;
   		polygon_points.points.clear();
@@ -452,15 +468,16 @@ void PlaneSegment::setFeatures(float z_in, PointCloudMono::Ptr cluster)
   		subsections_.subsection_array.push_back(polygon_points);
   	}
   }
-  else if (x_dim_ >= (maxPt.x - minPt.x) && y_dim_ < (maxPt.y - minPt.y)) {
-  	for (size_t i = 2; i <= x_multiplier; i++) {
-  		min_pts_bottom.x = minPt.x * (i - 1);
+  // Case 5
+  else if (x_mul_big >= x_mul_small &&  x_mul_small >= 2 && y_dim_ < length_y) {
+  	for (size_t i = 2; i <= x_mul_small; i++) {
+  		min_pts_bottom.x = minPt.x + x_dim_ * (i - 1);
   		min_pts_bottom.y = minPt.y;
-  		min_pts_top.x = minPt.x * (i - 1);
+  		min_pts_top.x = minPt.x + x_dim_ * (i - 1);
   		min_pts_top.y = maxPt.y;
-  		max_pts_bottom.x = minPt.x * i;
+  		max_pts_bottom.x = minPt.x + x_dim_ * i;
   		max_pts_bottom.y = minPt.y;
-  		max_pts_top.x = minPt.x * i;
+  		max_pts_top.x = minPt.x + x_dim_ * i;
   		max_pts_top.y = maxPt.y;
   		polygon_points.points.clear();
   		polygon_points.points.push_back(min_pts_bottom);
@@ -469,10 +486,10 @@ void PlaneSegment::setFeatures(float z_in, PointCloudMono::Ptr cluster)
   		polygon_points.points.push_back(max_pts_top);
   		subsections_.subsection_array.push_back(polygon_points);
   	}
-  	if (x_dim_ > (maxPt.x - minPt.x)) {
-  		min_pts_bottom.x = minPt.x * x_multiplier;
+  	if (x_mul_big > x_mul_small) {
+  		min_pts_bottom.x = minPt.x + x_dim_ * x_mul_small;
   		min_pts_bottom.y = minPt.y;
-  		min_pts_top.x = minPt.x * x_multiplier;
+  		min_pts_top.x = minPt.x + x_dim_ * x_mul_small;
   		min_pts_top.y = maxPt.y;
   		max_pts_bottom.x = maxPt.x;
   		max_pts_bottom.y = minPt.y;
@@ -485,7 +502,9 @@ void PlaneSegment::setFeatures(float z_in, PointCloudMono::Ptr cluster)
   		polygon_points.points.push_back(max_pts_top);
   		subsections_.subsection_array.push_back(polygon_points);
   	}
-  } else {
+  } 
+  // Case 6
+  else {
   	min_pts_bottom.x = minPt.x;
   	min_pts_bottom.y = minPt.y;
   	min_pts_top.x = minPt.x;
