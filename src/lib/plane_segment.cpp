@@ -434,7 +434,7 @@ void PlaneSegment::setFeatures(float z_in, PointCloudMono::Ptr cluster)
   		}
   }
   // Case 4
-  else if (x_dim_ < length_x && y_mul_big >= y_mul_small && y_mul_small >= 2) {
+  else if (x_dim_ > length_x && y_mul_big >= y_mul_small && y_mul_small >= 2) {
   	for (size_t j = 2; j <= y_mul_small; j++) {
   		min_pts_bottom.x = minPt.x;
   		min_pts_bottom.y = minPt.y + y_dim_ * (j - 1);
@@ -451,7 +451,7 @@ void PlaneSegment::setFeatures(float z_in, PointCloudMono::Ptr cluster)
   		polygon_points.points.push_back(max_pts_top);
   		subsections_.subsection_array.push_back(polygon_points);
   	}
-  	if (y_mul_big >= y_mul_small) {
+  	if (y_mul_big > y_mul_small) {
   		min_pts_bottom.x = minPt.x;
   		min_pts_bottom.y = minPt.y + y_dim_ * y_mul_small;
   		min_pts_top.x = minPt.x;
@@ -469,7 +469,7 @@ void PlaneSegment::setFeatures(float z_in, PointCloudMono::Ptr cluster)
   	}
   }
   // Case 5
-  else if (x_mul_big >= x_mul_small &&  x_mul_small >= 2 && y_dim_ < length_y) {
+  else if (x_mul_big >= x_mul_small &&  x_mul_small >= 2 && y_dim_ > length_y) {
   	for (size_t i = 2; i <= x_mul_small; i++) {
   		min_pts_bottom.x = minPt.x + x_dim_ * (i - 1);
   		min_pts_bottom.y = minPt.y;
