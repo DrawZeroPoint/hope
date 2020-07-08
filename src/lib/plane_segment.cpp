@@ -356,8 +356,8 @@ void PlaneSegment::setFeatures(float z_in, PointCloudMono::Ptr cluster)
         length_y is perfectly divisible by y_mul_small;
     2.) length_y > y_mul_small * y_dim_;
     3.) length_x > x_mul_small * x_dim_;
-    4.) x_dim_ < length_x; and length_y >= y_mul_small * y_dim_;
-    5.) y_dim_ < length_y; and length_x >= x_mul_small * x_dim_;
+    4.) x_dim_ > length_x; and length_y >= y_mul_small * y_dim_;
+    5.) y_dim_ > length_y; and length_x >= x_mul_small * x_dim_;
     6.) Both x_dim_ < length_x; and y_dim_ < length_y
   */
 
