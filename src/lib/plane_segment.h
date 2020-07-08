@@ -21,6 +21,7 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <cv_bridge/cv_bridge.h>
 #include <pcl_conversions/pcl_conversions.h>
+#include <hope/Subsections.h>
 
 // PCL
 #include <pcl/common/common.h>
@@ -175,12 +176,12 @@ private:
   int global_size_temp_;
   vector<vector<float> > global_coeff_temp_;
   vector<int> global_id_temp_;
+  hope::Subsections subsections_;
   
   /// ROS stuff
   ros::NodeHandle nh_;
   image_transport::ImageTransport pub_it_;
   geometry_msgs::PolygonStamped polygon_array_;
-  geometry_msgs::PolygonStamped centroids_array_;
   // ROS pub-sub
   ros::Subscriber sub_pointcloud_;
   void cloudCallback(const sensor_msgs::PointCloud2ConstPtr &cloud_msg);
@@ -188,7 +189,7 @@ private:
   ros::Publisher pub_cloud_;
   ros::Publisher pub_max_mesh_;
   ros::Publisher polygon_pub_;
-  ros::Publisher centroids_pub_;
+  ros::Publisher subsections_pub_;
   template <typename PointTPtr>
   void publishCloud(PointTPtr cloud, ros::Publisher pub);
   bool getSourceCloud();

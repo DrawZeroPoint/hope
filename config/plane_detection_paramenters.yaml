@@ -1,12 +1,12 @@
 # YAML parameters file for plane detection algorithm
 ground_clearance:
-  min_height: -0.012
+  min_height: -0.0012
   max_height: 6.5
 
 blob_properties:
   x_dimension: 0.07
   y_dimension: 0.02
-  min_surface_area: 0.02
+  min_surface_area: 0.0002
   max_surface_area: 5.5
 
 plane_segment:
