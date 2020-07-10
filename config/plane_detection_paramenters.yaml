@@ -4,8 +4,8 @@ ground_clearance:
   max_height: 6.5 # ground clearance maximum in meters
 
 blob_properties:
-  x_dimension: 0.07  # The horizontal width of the individual subsection we want
-  y_dimension: 0.02  # The vertical height of the individual subsection we want
+  x_dimension: 0.20  # The horizontal width of the individual subsection we want
+  y_dimension: 0.30  # The vertical height of the individual subsection we want
   min_surface_area: 0.0002 # The minimum surface area of the complete polygon we are interested in
   max_surface_area: 5.5 # The maximum surface area of the complete polygon we are interested in
 
@@ -14,5 +14,5 @@ plane_segment:
   z_resolution: 0.02 # Nearest neighbor cluster growing resolution in z axis for plane detection
 
 pointcloud:
-  base_frame: "mobile_base_link"
+  base_frame: "map"
   topic_name: "/oil/perception/head_camera/cloud"
