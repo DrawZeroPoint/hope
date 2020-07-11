@@ -93,7 +93,7 @@ target_link_libraries(${PROJECT_NAME}_node
   ${PCL_LIBRARIES}
   ${PROJECT_NAME}
 )
-add_dependencies(${PROJECT_NAME}_node ${PROJECT_NAME}_node_generate_message_cpp ${catkin_EXPORTED_TARGETS})
+add_dependencies(${PROJECT_NAME}_node ${PROJECT_NAME}_node_generate_message_cpp ${${PROJECT_NAME}_EXPORTED_TARGETS})
 
 add_executable(${PROJECT_NAME}_ros src/hope_ros.cpp)
 target_link_libraries(${PROJECT_NAME}_ros
@@ -103,7 +103,7 @@ target_link_libraries(${PROJECT_NAME}_ros
   ${OpenCV_LIBS}
   ${PCL_LIBRARIES}
 )
-add_dependencies(${PROJECT_NAME}_ros ${PROJECT_NAME}_ros_generate_message_cpp ${catkin_EXPORTED_TARGETS})
+add_dependencies(${PROJECT_NAME}_ros ${PROJECT_NAME}_ros_generate_message_cpp ${${PROJECT_NAME}_EXPORTED_TARGETS})
 
 add_executable(view_cloud src/view_cloud.cpp)
 target_link_libraries(view_cloud ${PCL_LIBRARIES})
