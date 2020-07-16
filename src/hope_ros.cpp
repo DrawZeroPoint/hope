@@ -79,17 +79,17 @@ int main(int argc, char **argv)
 
   Params params;
 
-  pnh.getParam("/hope_ros/blob_properties/x_dimension", params.x_dim);
-  pnh.getParam("/hope_ros/blob_properties/y_dimension", params.y_dim);
-  pnh.getParam("/hope_ros/ground_clearance/min_height", params.z_min);
-  pnh.getParam("/hope_ros/ground_clearance/max_height", params.z_max);
-  pnh.getParam("/hope_ros/blob_properties/min_surface_area", params.area_min);
-  pnh.getParam("/hope_ros/blob_properties/max_surface_area", params.area_max);
-  pnh.getParam("/hope_ros/plane_segment/xy_resolution", params.xy_resolution);
-  pnh.getParam("/hope_ros/plane_segment/z_resolution", params.z_resolution);
-  pnh.getParam("/hope_ros/pointcloud/base_frame", params.base_frame);
-  pnh.getParam("/hope_ros/pointcloud/topic_name", params.cloud_topic);
-  pnh.getParam("/hope_ros/viz", params.viz);
+  pnh.getParam("blob_properties/x_dimension", params.x_dim);
+  pnh.getParam("blob_properties/y_dimension", params.y_dim);
+  pnh.getParam("ground_clearance/min_height", params.z_min);
+  pnh.getParam("ground_clearance/max_height", params.z_max);
+  pnh.getParam("blob_properties/min_surface_area", params.area_min);
+  pnh.getParam("blob_properties/max_surface_area", params.area_max);
+  pnh.getParam("plane_segment/xy_resolution", params.xy_resolution);
+  pnh.getParam("plane_segment/z_resolution", params.z_resolution);
+  pnh.getParam("pointcloud/base_frame", params.base_frame);
+  pnh.getParam("pointcloud/topic_name", params.cloud_topic);
+  pnh.getParam("viz", params.viz);
 
   PlaneSegment hope(params, nh);
 
