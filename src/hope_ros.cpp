@@ -67,15 +67,14 @@ int main(int argc, char **argv)
   data_type type;
 
   type = REAL;
-  ROS_INFO("Using real data.");
+  ROS_DEBUG("Using real data.");
 
   ros::NodeHandle nh;
   ros::NodeHandle pnh("~");
 
   float xy_resolution, z_resolution; // In meter
 
-  cout << "Using threshold: xy@" << xy_resolution 
-       << " " << "z@" << z_resolution << endl;
+  ROS_DEBUG_STREAM("Using threshold: xy@" << xy_resolution << " " << "z@" << z_resolution);
 
   Params params;
 

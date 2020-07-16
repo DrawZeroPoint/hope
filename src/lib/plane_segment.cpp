@@ -140,7 +140,7 @@ void PlaneSegment::getHorizontalPlanes()
     src_sp_rgb_ = src_rgb_cloud_;
   }
   //visualizeProcess(src_sp_rgb_);
-  cout << "Point number after down sampling: #" << src_sp_rgb_->points.size() << endl;
+  ROS_DEBUG_STREAM("Point number after down sampling: #" << src_sp_rgb_->points.size());
 
   if (src_sp_mono_->points.empty()) {
     ROS_WARN("PlaneSegment: Source cloud is empty.");
@@ -165,8 +165,8 @@ void PlaneSegment::getHorizontalPlanes()
   //findAllPlanesRG(20, 20, 8.0, 1.0);
   
   // Stop timer and get total processing time
-  hst_.stop();
-  hst_.print();
+  // hst_.stop();
+  // hst_.print();
 
   setID();
   if(viz){
@@ -306,7 +306,7 @@ void PlaneSegment::computeHull(PointCloud::Ptr cluster_2d_rgb)
 
 void PlaneSegment::setFeatures(float z_in, PointCloudMono::Ptr cluster)
 {
-  ROS_INFO("Polygon found");
+  ROS_DEBUG("Polygon found");
   // Prepare the feature vector for each plane to identify its id
   vector<float> feature;
   feature.push_back(z_in); // z value
@@ -320,11 +320,11 @@ void PlaneSegment::setFeatures(float z_in, PointCloudMono::Ptr cluster)
   geometry_msgs::Polygon polygon_points;
   double area = (maxPt.y - minPt.y) * (maxPt.x - minPt.x);
   if (z_in < z_min_ || z_in > z_max_) {
-    ROS_INFO("Plane ignored because of not within required height range");
+    ROS_DEBUG("Plane ignored because of not within required height range");
     return;
   }
   else if (area < min_area_ || area > max_area_) {
-  	ROS_INFO("Plane ignored because of not within required area range");
+  	ROS_DEBUG("Plane ignored because of not within required area range");
     return;
   }
   subsections_.subsection_array.clear();
@@ -696,7 +696,7 @@ void PlaneSegment::visualizeResult(bool display_source, bool display_raw,
     }
   }
 
-  cout << "Total plane patches #: " << plane_points_.size() << endl;
+  ROS_DEBUG_STREAM("Total plane patches #: " << plane_points_.size());
 
   while (!viewer->wasStopped()) {
     viewer->spinOnce(1); // ms
