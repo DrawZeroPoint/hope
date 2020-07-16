@@ -38,6 +38,7 @@ PlaneSegment::PlaneSegment(Params params, ros::NodeHandle nh) :
   y_dim_(params.y_dim),
   z_min_(params.z_min),
   z_max_(params.z_max),
+  viz(params.viz),
   src_mono_cloud_(new PointCloudMono),
   src_rgb_cloud_(new PointCloud),
   cloud_norm_fit_mono_(new PointCloudMono),
@@ -50,7 +51,6 @@ PlaneSegment::PlaneSegment(Params params, ros::NodeHandle nh) :
   tf_(new Transform),
   utl_(new Utilities),
   base_frame_(params.base_frame),
-  viewer(new pcl::visualization::PCLVisualizer("HOPE Result")),
   hst_("total"),
   min_area_(params.area_min),
   max_area_(params.area_max)
@@ -77,10 +77,14 @@ PlaneSegment::PlaneSegment(Params params, ros::NodeHandle nh) :
   pub_cloud_ = nh_.advertise<sensor_msgs::PointCloud2>("/vision/points", 1, true);
   pub_max_mesh_ = nh_.advertise<geometry_msgs::PolygonStamped>("/vision/max_mesh",1, true);
   
-  viewer->setBackgroundColor(0.8, 0.83, 0.86);
-  viewer->initCameraParameters();
-  viewer->setCameraPosition(1,0,2,0,0,1);
-  viewer->addCoordinateSystem(0.1);
+  // Visualizer
+  if(viz){    
+    viewer = boost::shared_ptr<pcl::visualization::PCLVisualizer>(new pcl::visualization::PCLVisualizer("HOPE Result"));
+    viewer->setBackgroundColor(0.8, 0.83, 0.86);
+    viewer->initCameraParameters();
+    viewer->setCameraPosition(1,0,2,0,0,1);
+    viewer->addCoordinateSystem(0.1);
+  }
 }
 
 void PlaneSegment::setRPY(float roll = 0.0, float pitch = 0.0, float yaw = 0.0)
@@ -165,7 +169,9 @@ void PlaneSegment::getHorizontalPlanes()
   hst_.print();
 
   setID();
-  visualizeResult(true, true, false, cal_hull_);
+  if(viz){
+    visualizeResult(true, true, false, cal_hull_);
+  }
 }
 
 void PlaneSegment::findAllPlanes()
@@ -195,9 +201,11 @@ void PlaneSegment::getMeanZofEachCluster(PointCloudMono::Ptr cloud_norm_fit_mono
         string name = utl_->getName(k, "part_", -1);
         Vec3f c = utl_->getColorWithID(k);
 
-        viewer->addPointCloud<pcl::PointXYZ>(cloud_fit_part, name);
-        viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 10.0, name);
-        viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0, 0.7, 0, name);
+        if(viz){
+          viewer->addPointCloud<pcl::PointXYZ>(cloud_fit_part, name);
+          viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 10.0, name);
+          viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0, 0.7, 0, name);
+        }
       }
       
       float part_mean_z = utl_->getCloudMeanZ(cloud_fit_part);
@@ -550,10 +558,6 @@ bool PlaneSegment::gaussianImageAnalysis(size_t id)
       cloud->points[k].z = fabs(cluster_normal->points[k].normal_z);
       k++;
     }
-    pcl::visualization::PCLVisualizer viewer ("EGI and normals distribution");
-    viewer.setBackgroundColor(0.8, 0.83, 0.86);
-    viewer.addPointCloud(cloud, "normals");
-    viewer.addCoordinateSystem(0.5);
 
     /// Use wire frame sphere
     //pcl::PointXYZ p;
@@ -584,16 +588,24 @@ bool PlaneSegment::gaussianImageAnalysis(size_t id)
       }
     }
     pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> sp_rgb(sphere);
-    viewer.addPointCloud<pcl::PointXYZRGB>(sphere, sp_rgb, "egi");
-    viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1.0, "egi");
+    
+    if(viz){
+      pcl::visualization::PCLVisualizer viewer_egi ("EGI and normals distribution");
+      viewer_egi.setBackgroundColor(0.8, 0.83, 0.86);
+      viewer_egi.addPointCloud(cloud, "normals");
+      viewer_egi.addCoordinateSystem(0.5);
 
-    // Show normal distribution on the sphere
-    viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2.0, "normals");
-    viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1, 0.4, 0, "normals");
+      viewer_egi.addPointCloud<pcl::PointXYZRGB>(sphere, sp_rgb, "egi");
+      viewer_egi.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1.0, "egi");
 
-    while (!viewer.wasStopped()) {
-      viewer.spinOnce(1); // ms
-    }
+      // Show normal distribution on the sphere
+      viewer_egi.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2.0, "normals");
+      viewer_egi.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1, 0.4, 0, "normals");
+
+      while (!viewer_egi.wasStopped()) {
+        viewer_egi.spinOnce(1); // ms
+      }
+    }  
   }
 
   return utl_->normalAnalysis(cluster_normal, th_angle_);

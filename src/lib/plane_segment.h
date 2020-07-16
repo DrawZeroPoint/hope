@@ -92,6 +92,7 @@ struct Params {
   double area_max = 0.0;
   double xy_resolution = 0.05;
   double z_resolution = 0.02;
+  bool viz = true;
   std::string base_frame = "mobile_base_link";
   std::string cloud_topic = "/oil/perception/head_camera/cloud";
 };
@@ -222,7 +223,8 @@ private:
   Utilities *utl_;
   HighResTimer hst_;
   boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer;
-
+  bool viz;
+  
   void computeNormalAndFilter();
   
   /// Core process for finding planes

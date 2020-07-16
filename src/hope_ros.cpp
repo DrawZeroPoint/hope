@@ -89,6 +89,7 @@ int main(int argc, char **argv)
   pnh.getParam("/hope_ros/plane_segment/z_resolution", params.z_resolution);
   pnh.getParam("/hope_ros/pointcloud/base_frame", params.base_frame);
   pnh.getParam("/hope_ros/pointcloud/topic_name", params.cloud_topic);
+  pnh.getParam("/hope_ros/viz", params.viz);
 
   PlaneSegment hope(params, nh);
 

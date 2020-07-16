@@ -16,3 +16,5 @@ plane_segment:
 pointcloud:
   base_frame: "map"
   topic_name: "/oil/perception/head_camera/filtered_cloud"
+
+viz: false
