@@ -56,7 +56,7 @@ generate_messages(
 
 catkin_package(
   CATKIN_DEPENDS 
-  message_generation
+  message_runtime
   cv_bridge
   INCLUDE_DIRS
 )
