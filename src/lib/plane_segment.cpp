@@ -73,9 +73,9 @@ PlaneSegment::PlaneSegment(Params params, ros::NodeHandle nh) :
                                                             &PlaneSegment::cloudCallback, this);
   
   // Detect table obstacle
-  pub_max_plane_ = nh_.advertise<sensor_msgs::PointCloud2>("/vision/max_plane", 1, true);
-  pub_cloud_ = nh_.advertise<sensor_msgs::PointCloud2>("/vision/points", 1, true);
-  pub_max_mesh_ = nh_.advertise<geometry_msgs::PolygonStamped>("/vision/max_mesh",1, true);
+  pub_max_plane_ = nh_.advertise<sensor_msgs::PointCloud2>("vision/max_plane", 1, true);
+  pub_cloud_ = nh_.advertise<sensor_msgs::PointCloud2>("vision/points", 1, true);
+  pub_max_mesh_ = nh_.advertise<geometry_msgs::PolygonStamped>("vision/max_mesh",1, true);
   
   // Visualizer
   if(viz){    
