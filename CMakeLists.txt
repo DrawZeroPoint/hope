@@ -44,7 +44,6 @@ include_directories(
 )
 
 add_message_files(
-  DIRECTORY msg
   FILES
   Subsections.msg
 )
@@ -52,6 +51,7 @@ add_message_files(
 generate_messages(
    DEPENDENCIES
    geometry_msgs
+   std_msgs
 )
 
 catkin_package(
