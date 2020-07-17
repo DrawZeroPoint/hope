@@ -44,7 +44,6 @@ include_directories(
 )
 
 add_message_files(
-  DIRECTORY msg
   FILES
   Subsections.msg
 )
@@ -52,11 +51,12 @@ add_message_files(
 generate_messages(
    DEPENDENCIES
    geometry_msgs
+   std_msgs
 )
 
 catkin_package(
   CATKIN_DEPENDS 
-  message_generation
+  message_runtime
   cv_bridge
   INCLUDE_DIRS
 )
@@ -82,6 +82,7 @@ add_library(${PROJECT_NAME}
 target_link_libraries(${PROJECT_NAME}
   ${catkin_LIBRARIES}
 )
+add_dependencies(${PROJECT_NAME} ${PROJECT_NAME}_generate_message_cpp ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
 
 # Declare C++ executables
 

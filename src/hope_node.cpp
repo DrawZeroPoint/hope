@@ -73,7 +73,7 @@ void phaseInput(string input, vector<string> &vrgb, vector<string> &vdepth,
   ifstream list(input.c_str());
   
   if(!list){
-    cout << "Unable to open the list" << endl;
+    ROS_ERROR("Unable to open the list");
     return;
   }
   char rgb[27];
