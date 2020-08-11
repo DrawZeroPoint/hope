@@ -78,17 +78,17 @@ int main(int argc, char **argv)
 
   Params params;
 
-  pnh.getParam("blob_properties/x_dimension", params.x_dim);
-  pnh.getParam("blob_properties/y_dimension", params.y_dim);
-  pnh.getParam("ground_clearance/min_height", params.z_min);
-  pnh.getParam("ground_clearance/max_height", params.z_max);
-  pnh.getParam("blob_properties/min_surface_area", params.area_min);
-  pnh.getParam("blob_properties/max_surface_area", params.area_max);
-  pnh.getParam("plane_segment/xy_resolution", params.xy_resolution);
-  pnh.getParam("plane_segment/z_resolution", params.z_resolution);
-  pnh.getParam("pointcloud/base_frame", params.base_frame);
-  pnh.getParam("pointcloud/topic_name", params.cloud_topic);
-  pnh.getParam("viz", params.viz);
+  nh.getParam("blob_properties/x_dimension", params.x_dim);
+  nh.getParam("blob_properties/y_dimension", params.y_dim);
+  nh.getParam("ground_clearance/min_height", params.z_min);
+  nh.getParam("ground_clearance/max_height", params.z_max);
+  nh.getParam("blob_properties/min_surface_area", params.area_min);
+  nh.getParam("blob_properties/max_surface_area", params.area_max);
+  nh.getParam("plane_segment/xy_resolution", params.xy_resolution);
+  nh.getParam("plane_segment/z_resolution", params.z_resolution);
+  nh.getParam("pointcloud/base_frame", params.base_frame);
+  nh.getParam("pointcloud/triggered_topic_name", params.cloud_topic);
+  nh.getParam("viz", params.viz);
 
   PlaneSegment hope(params, nh);
 

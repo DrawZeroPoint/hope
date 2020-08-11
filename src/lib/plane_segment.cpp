@@ -85,6 +85,9 @@ PlaneSegment::PlaneSegment(Params params, ros::NodeHandle nh) :
     viewer->setCameraPosition(1,0,2,0,0,1);
     viewer->addCoordinateSystem(0.1);
   }
+
+  last_cloud_time_ = ros::Time::now();
+  cloud_time_threshold_ = 2; 
 }
 
 void PlaneSegment::setRPY(float roll = 0.0, float pitch = 0.0, float yaw = 0.0)
@@ -730,6 +733,8 @@ void PlaneSegment::cloudCallback(const sensor_msgs::PointCloud2ConstPtr &msg)
   }
 
   utl_->pointTypeTransfer(src_rgb_cloud_, src_mono_cloud_);
+
+  last_cloud_time_ = ros::Time::now();
 }
 
 void PlaneSegment::poisson_reconstruction(NormalPointCloud::Ptr point_cloud, 
@@ -769,7 +774,12 @@ void PlaneSegment::reset()
 }
 
 bool PlaneSegment::getSourceCloud()
-{ return !src_rgb_cloud_->points.empty();
+{ 
+  ros::Time now = ros::Time::now();
+  ros::Duration diff = now - last_cloud_time_;
+  double secs = diff.toSec();
+
+  return (secs < cloud_time_threshold_) && (!src_rgb_cloud_->points.empty());
 }
 
 void PlaneSegment::computeNormalAndFilter()
