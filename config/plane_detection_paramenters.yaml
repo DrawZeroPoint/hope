@@ -1,12 +1,12 @@
 # YAML parameters file for plane detection algorithm
 ground_clearance:
   min_height: 0.3 # Ground clearance minimum in meters
-  max_height: 1.0 # ground clearance maximum in meters
+  max_height: 1.6 # ground clearance maximum in meters
 
 blob_properties:
   x_dimension: 0.20  # The horizontal width of the individual subsection we want
   y_dimension: 0.30  # The vertical height of the individual subsection we want
-  min_surface_area: 0.0025 # The minimum surface area of the complete polygon we are interested in
+  min_surface_area: 0.1 # The minimum surface area of the complete polygon we are interested in
   max_surface_area: 5.5 # The maximum surface area of the complete polygon we are interested in
 
 plane_segment:
