@@ -38,7 +38,7 @@ PlaneSegment::PlaneSegment(Params params, ros::NodeHandle nh) :
   y_dim_(params.y_dim),
   z_min_(params.z_min),
   z_max_(params.z_max),
-  viz(params.viz),
+  viz_(params.viz),
   src_mono_cloud_(new PointCloudMono),
   src_rgb_cloud_(new PointCloud),
   cloud_norm_fit_mono_(new PointCloudMono),
@@ -78,7 +78,7 @@ PlaneSegment::PlaneSegment(Params params, ros::NodeHandle nh) :
   pub_max_mesh_ = nh_.advertise<geometry_msgs::PolygonStamped>("vision/max_mesh",1, true);
   
   // Visualizer
-  if(viz){    
+  if(viz_){    
     viewer = boost::shared_ptr<pcl::visualization::PCLVisualizer>(new pcl::visualization::PCLVisualizer("HOPE Result"));
     viewer->setBackgroundColor(0.8, 0.83, 0.86);
     viewer->initCameraParameters();
@@ -172,7 +172,7 @@ void PlaneSegment::getHorizontalPlanes()
   // hst_.print();
 
   setID();
-  if(viz){
+  if(viz_){
     visualizeResult(true, true, false, cal_hull_);
   }
 }
@@ -204,7 +204,7 @@ void PlaneSegment::getMeanZofEachCluster(PointCloudMono::Ptr cloud_norm_fit_mono
         string name = utl_->getName(k, "part_", -1);
         Vec3f c = utl_->getColorWithID(k);
 
-        if(viz){
+        if(viz_){
           viewer->addPointCloud<pcl::PointXYZ>(cloud_fit_part, name);
           viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 10.0, name);
           viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0, 0.7, 0, name);
@@ -592,7 +592,7 @@ bool PlaneSegment::gaussianImageAnalysis(size_t id)
     }
     pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> sp_rgb(sphere);
     
-    if(viz){
+    if(viz_){
       pcl::visualization::PCLVisualizer viewer_egi ("EGI and normals distribution");
       viewer_egi.setBackgroundColor(0.8, 0.83, 0.86);
       viewer_egi.addPointCloud(cloud, "normals");

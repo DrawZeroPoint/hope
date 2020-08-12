@@ -225,8 +225,8 @@ private:
   Utilities *utl_;
   HighResTimer hst_;
   boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer;
-  bool viz;
-  
+  bool viz_;
+
   void computeNormalAndFilter();
   
   /// Core process for finding planes
