@@ -201,6 +201,8 @@ private:
   // Source point cloud
   PointCloud::Ptr src_rgb_cloud_;
   PointCloudMono::Ptr src_mono_cloud_;
+  ros::Time last_cloud_time_; 
+  double cloud_time_threshold_; 
 
   // Source cloud after down sampling
   PointCloudMono::Ptr src_sp_mono_;
@@ -223,8 +225,8 @@ private:
   Utilities *utl_;
   HighResTimer hst_;
   boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer;
-  bool viz;
-  
+  bool viz_;
+
   void computeNormalAndFilter();
   
   /// Core process for finding planes

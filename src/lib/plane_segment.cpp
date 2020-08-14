@@ -38,7 +38,7 @@ PlaneSegment::PlaneSegment(Params params, ros::NodeHandle nh) :
   y_dim_(params.y_dim),
   z_min_(params.z_min),
   z_max_(params.z_max),
-  viz(params.viz),
+  viz_(params.viz),
   src_mono_cloud_(new PointCloudMono),
   src_rgb_cloud_(new PointCloud),
   cloud_norm_fit_mono_(new PointCloudMono),
@@ -78,13 +78,16 @@ PlaneSegment::PlaneSegment(Params params, ros::NodeHandle nh) :
   pub_max_mesh_ = nh_.advertise<geometry_msgs::PolygonStamped>("vision/max_mesh",1, true);
   
   // Visualizer
-  if(viz){    
+  if(viz_){    
     viewer = boost::shared_ptr<pcl::visualization::PCLVisualizer>(new pcl::visualization::PCLVisualizer("HOPE Result"));
     viewer->setBackgroundColor(0.8, 0.83, 0.86);
     viewer->initCameraParameters();
     viewer->setCameraPosition(1,0,2,0,0,1);
     viewer->addCoordinateSystem(0.1);
   }
+
+  last_cloud_time_ = ros::Time::now();
+  cloud_time_threshold_ = 2; 
 }
 
 void PlaneSegment::setRPY(float roll = 0.0, float pitch = 0.0, float yaw = 0.0)
@@ -169,7 +172,7 @@ void PlaneSegment::getHorizontalPlanes()
   // hst_.print();
 
   setID();
-  if(viz){
+  if(viz_){
     visualizeResult(true, true, false, cal_hull_);
   }
 }
@@ -201,7 +204,7 @@ void PlaneSegment::getMeanZofEachCluster(PointCloudMono::Ptr cloud_norm_fit_mono
         string name = utl_->getName(k, "part_", -1);
         Vec3f c = utl_->getColorWithID(k);
 
-        if(viz){
+        if(viz_){
           viewer->addPointCloud<pcl::PointXYZ>(cloud_fit_part, name);
           viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 10.0, name);
           viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0, 0.7, 0, name);
@@ -589,7 +592,7 @@ bool PlaneSegment::gaussianImageAnalysis(size_t id)
     }
     pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> sp_rgb(sphere);
     
-    if(viz){
+    if(viz_){
       pcl::visualization::PCLVisualizer viewer_egi ("EGI and normals distribution");
       viewer_egi.setBackgroundColor(0.8, 0.83, 0.86);
       viewer_egi.addPointCloud(cloud, "normals");
@@ -730,6 +733,8 @@ void PlaneSegment::cloudCallback(const sensor_msgs::PointCloud2ConstPtr &msg)
   }
 
   utl_->pointTypeTransfer(src_rgb_cloud_, src_mono_cloud_);
+
+  last_cloud_time_ = ros::Time::now();
 }
 
 void PlaneSegment::poisson_reconstruction(NormalPointCloud::Ptr point_cloud, 
@@ -769,7 +774,12 @@ void PlaneSegment::reset()
 }
 
 bool PlaneSegment::getSourceCloud()
-{ return !src_rgb_cloud_->points.empty();
+{ 
+  ros::Time now = ros::Time::now();
+  ros::Duration diff = now - last_cloud_time_;
+  double secs = diff.toSec();
+
+  return (secs < cloud_time_threshold_) && (!src_rgb_cloud_->points.empty());
 }
 
 void PlaneSegment::computeNormalAndFilter()

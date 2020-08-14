@@ -1,7 +1,10 @@
 <?xml version="1.0"?>
 <launch>
+    <rosparam command="load" file="$(find hope)/config/plane_detection_paramenters.yaml" />
+    
     <node name="hope_ros" pkg="hope" type="hope_ros" output="screen" respawn="false">
-    	<rosparam command="load" file="$(find hope)/config/plane_detection_paramenters.yaml" />
+    </node>
+    <node name="hope_trigger" pkg="hope" type="trigger.py" output="screen" respawn="false">
     </node>
 
 </launch>

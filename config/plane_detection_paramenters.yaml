@@ -15,6 +15,7 @@ plane_segment:
 
 pointcloud:
   base_frame: "map"
-  topic_name: "/oil/perception/head_camera/cloud"
+  topic_name: "/oil/perception/head_camera/triggered_cloud"  # Topic that hope listens to for cloud data. This is the topic trigger.py publishes to
+  camera_source_topic_name: "/oil/perception/head_camera/filtered_cloud" # Topic onto which cloud filtered data from the camera is published to 
 
 viz: false
