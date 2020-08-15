@@ -26,8 +26,6 @@ bool cal_hull_ = false;
 bool show_cluster_ = false;
 bool show_egi_ = false;
 
-HighResTimer hst_1_("pca");
-HighResTimer hst_2_("ransac");
 
 PlaneSegment::PlaneSegment(Params params, ros::NodeHandle nh) :
   fi_(new FetchRGBD),
@@ -51,7 +49,6 @@ PlaneSegment::PlaneSegment(Params params, ros::NodeHandle nh) :
   tf_(new Transform),
   utl_(new Utilities),
   base_frame_(params.base_frame),
-  hst_("total"),
   min_area_(params.area_min),
   max_area_(params.area_max)
 {
@@ -156,9 +153,6 @@ void PlaneSegment::getHorizontalPlanes()
 
   //pcl::io::savePCDFile("~/normal_filter.pcd", *cloud_norm_fit_mono_);
   
-  // Start timer
-  hst_.start();
-  
   // Init marker
   polygon_markers_ =  visualization_msgs::MarkerArray();
   visualization_msgs::Marker marker;
@@ -179,10 +173,7 @@ void PlaneSegment::getHorizontalPlanes()
    */
   //findAllPlanesRANSAC(true, 500, 1.01*th_grid_rsl_, 0.001);
   //findAllPlanesRG(20, 20, 8.0, 1.0);
-  
-  // Stop timer and get total processing time
-  // hst_.stop();
-  // hst_.print();
+ 
 
   setID();
   if(viz_){
@@ -820,8 +811,6 @@ void PlaneSegment::reset()
   seed_clusters_indices_.clear();
 
   global_size_temp_ = 0;
-  // Reset timer
-  hst_.reset();
 }
 
 bool PlaneSegment::getSourceCloud()

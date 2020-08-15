@@ -77,7 +77,6 @@
 
 // HOPE
 #include "fetch_rgbd.h"
-#include "high_res_timer.h"
 #include "z_growing.h"
 #include "transform.h"
 #include "utilities.h"
@@ -231,7 +230,6 @@ private:
   FetchRGBD *fi_;
   Transform *tf_;
   Utilities *utl_;
-  HighResTimer hst_;
   boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer;
   bool viz_;
 
