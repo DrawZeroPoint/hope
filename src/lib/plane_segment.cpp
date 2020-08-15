@@ -28,7 +28,6 @@ bool show_egi_ = false;
 
 
 PlaneSegment::PlaneSegment(Params params, ros::NodeHandle nh) :
-  fi_(new FetchRGBD),
   type_(REAL),
   nh_(nh),
   pub_it_(nh_),

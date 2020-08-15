@@ -76,7 +76,6 @@
 #include <opencv2/opencv.hpp>
 
 // HOPE
-#include "fetch_rgbd.h"
 #include "z_growing.h"
 #include "transform.h"
 #include "utilities.h"
@@ -227,7 +226,6 @@ private:
   vector<pcl::PointIndices> seed_clusters_indices_;
   
   /// Tool objects
-  FetchRGBD *fi_;
   Transform *tf_;
   Utilities *utl_;
   boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer;

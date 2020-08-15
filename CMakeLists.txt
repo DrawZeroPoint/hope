@@ -64,14 +64,12 @@ catkin_package(
 
 # Declare a C++ library
 add_library(${PROJECT_NAME}
-  src/lib/fetch_rgbd.cpp
   src/lib/get_cloud.cpp
   src/lib/z_growing.cpp
   src/lib/transform.cpp
   src/lib/plane_segment.cpp
   src/lib/utilities.cpp
 
-  src/lib/fetch_rgbd.h
   src/lib/get_cloud.h
   src/lib/z_growing.h
   src/lib/transform.h
