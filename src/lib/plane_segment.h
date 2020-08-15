@@ -28,12 +28,6 @@
 
 #include <pcl/features/normal_3d.h>
 
-#include <pcl/filters/conditional_removal.h>
-#include <pcl/filters/extract_indices.h>
-#include <pcl/filters/passthrough.h>
-#include <pcl/filters/project_inliers.h>
-#include <pcl/filters/voxel_grid.h>
-
 #include <pcl/kdtree/kdtree.h>
 #include <pcl/kdtree/kdtree_flann.h>
 
@@ -93,28 +87,7 @@ struct Params {
   std::string cloud_topic = "/oil/perception/head_camera/cloud";
 };
 
-class HopeResult
-{
-public:
-  HopeResult();
-  
-  /// Container for storing final results
-  vector<PointCloud::Ptr> plane_results_;
-  vector<PointCloud::Ptr> plane_points_;
-  vector<PointCloud::Ptr> plane_hull_;
-  vector<pcl::PolygonMesh> plane_mesh_;
-  vector<vector<float> > plane_params_; // z area
-  
-  /// Container for storing the largest plane
-  PointCloud::Ptr plane_max_result_;
-  PointCloud::Ptr plane_max_points_;
-  PointCloud::Ptr plane_max_hull_;
-  pcl::PolygonMesh plane_max_mesh_;
-  vector<float> plane_max_param_;
-  
-  /// Container of plane id
-  
-};
+
 
 class PlaneSegment
 {
