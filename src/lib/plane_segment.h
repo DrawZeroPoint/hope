@@ -88,7 +88,6 @@ struct Params {
 };
 
 
-
 class PlaneSegment
 {
 public:
@@ -128,10 +127,7 @@ private:
   float roll_;
   float pitch_;
   float yaw_;
-  // In Quaternion
-  float qx_, qy_, qz_, qw_;
-  // Camera position in the world coordinates frame
-  float tx_, ty_, tz_;
+
   // Frame for point cloud to transfer
   string base_frame_;
   
