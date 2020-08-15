@@ -65,9 +65,9 @@ PlaneSegment::PlaneSegment(Params params, ros::NodeHandle nh) :
   global_size_temp_ = 0;
 
   polygon_pub_ = nh_.advertise<geometry_msgs::PolygonStamped>("polygon_array", 100);
-
   subsections_pub_ = nh_.advertise<hope::Subsections>("subsections_array", 100);
-  
+  marker_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("polygon_markers", 100);
+
   // Register the callback if using real point cloud data
   sub_pointcloud_ = nh_.subscribe<sensor_msgs::PointCloud2>(params.cloud_topic, 1,
                                                             &PlaneSegment::cloudCallback, this);
@@ -159,7 +159,20 @@ void PlaneSegment::getHorizontalPlanes()
   // Start timer
   hst_.start();
   
+  // Init marker
+  polygon_markers_ =  visualization_msgs::MarkerArray();
+  visualization_msgs::Marker marker;
+  marker.header.stamp = ros::Time();
+  marker.ns = "hope";
+  marker.id = 0;
+  marker.type = visualization_msgs::Marker::SPHERE;
+  marker.action = visualization_msgs::Marker::DELETEALL;
+  polygon_markers_.markers.push_back(marker);
+ 
   findAllPlanes();
+
+  // Publish markers
+  marker_pub_.publish(polygon_markers_);
 
   /* You can alternatively use RANSAC or Region Growing instead of HoPE
    * to carry out the comparision experiments in the paper
@@ -178,7 +191,7 @@ void PlaneSegment::getHorizontalPlanes()
 }
 
 void PlaneSegment::findAllPlanes()
-{
+{ 
   zClustering(cloud_norm_fit_mono_); // -> seed_clusters_indices_
   getMeanZofEachCluster(cloud_norm_fit_mono_); // -> plane_z_values_
   extractPlaneForEachZ(cloud_norm_fit_mono_);
@@ -288,6 +301,44 @@ void PlaneSegment::getPlane(size_t id, float z_in, PointCloudMono::Ptr &cloud_no
   //    plane_max_coeff_ = feature;
   //    global_size_temp_ = cluster_2d_rgb->points.size();
   //  }
+  
+  // Add markers
+  addMarkers(cluster_near_z, id, polygon_markers_);
+}
+
+void PlaneSegment::addMarkers(const PointCloudMono::Ptr cloud, const int id, visualization_msgs::MarkerArray& m_array){
+  float r = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+  float g = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+  float b = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+
+  visualization_msgs::Marker marker;
+  marker.header.frame_id = base_frame_;
+  marker.header.stamp = ros::Time();
+  marker.ns = "hope" + std::to_string(id);
+  marker.id = 0;
+  marker.type = visualization_msgs::Marker::CUBE_LIST;
+  marker.action = visualization_msgs::Marker::ADD;
+  marker.scale.x = 0.05;
+  marker.scale.y = 0.05;
+  marker.scale.z = 0.05;
+
+  for (PointCloudMono::const_iterator pit = cloud->begin(); pit != cloud->end(); ++pit) {
+    geometry_msgs::Point point;
+    std_msgs::ColorRGBA color;
+
+    point.x =  pit->x;
+    point.y =  pit->y;
+    point.z =  pit->z;
+    color.a = 1.0; 
+    color.r = r;
+    color.g = g;
+    color.b = b;
+    
+    marker.points.push_back(point);
+    marker.colors.push_back(color);
+  }
+  
+  m_array.markers.push_back(marker);
 }
 
 void PlaneSegment::computeHull(PointCloud::Ptr cluster_2d_rgb)

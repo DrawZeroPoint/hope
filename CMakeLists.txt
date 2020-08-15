@@ -20,6 +20,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   tf2
   tf2_ros
+  visualization_msgs
 )
 
 # Set BOOST_LIBRARYDIR accordingly in case that PCL could not find Boost

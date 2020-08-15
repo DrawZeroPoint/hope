@@ -10,6 +10,7 @@
 #include <sensor_msgs/image_encodings.h>
 #include <sensor_msgs/CameraInfo.h>
 #include <geometry_msgs/PolygonStamped.h>
+#include <geometry_msgs/Point.h>
 
 #include <image_transport/image_transport.h>
 #include <image_transport/subscriber_filter.h>
@@ -80,6 +81,10 @@
 #include "z_growing.h"
 #include "transform.h"
 #include "utilities.h"
+
+// viz 
+#include <visualization_msgs/Marker.h>
+#include <visualization_msgs/MarkerArray.h>
 
 enum data_type{REAL, SYN, POINT_CLOUD, TUM_SINGLE, TUM_LIST};
 
@@ -191,6 +196,9 @@ private:
   ros::Publisher pub_max_mesh_;
   ros::Publisher polygon_pub_;
   ros::Publisher subsections_pub_;
+  ros::Publisher marker_pub_;
+  visualization_msgs::MarkerArray polygon_markers_;
+
   template <typename PointTPtr>
   void publishCloud(PointTPtr cloud, ros::Publisher pub);
   bool getSourceCloud();
@@ -261,6 +269,9 @@ private:
   void visualizeProcess(PointCloud::Ptr cloud);
   void setFeatures(float z_in, PointCloudMono::Ptr cluster);
   void computeHull(PointCloud::Ptr cluster_2d_rgb);
+
+  void addMarkers(const PointCloudMono::Ptr cloud, const int id, visualization_msgs::MarkerArray& m_array);
+
 };
 
 #endif // PLANE_SEGMENT_H
