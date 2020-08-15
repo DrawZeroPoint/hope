@@ -12,13 +12,6 @@
 #include <geometry_msgs/PolygonStamped.h>
 #include <geometry_msgs/Point.h>
 
-#include <image_transport/image_transport.h>
-#include <image_transport/subscriber_filter.h>
-#include <image_geometry/pinhole_camera_model.h>
-#include <message_filters/subscriber.h>
-#include <message_filters/time_synchronizer.h>
-#include <message_filters/sync_policies/approximate_time.h>
-
 #include <geometry_msgs/PoseStamped.h>
 #include <cv_bridge/cv_bridge.h>
 #include <pcl_conversions/pcl_conversions.h>
@@ -147,16 +140,9 @@ public:
   pcl::PolygonMesh plane_max_mesh_;
   vector<float> plane_max_coeff_;  
 
-  void setRPY(float roll, float pitch, float yaw);
-  void setQ(float qx, float qy, float qz, float qw);
-  void setT(float tx, float ty, float tz);
-
-
-
 protected:
   data_type type_;
 
-  
 private:
   /// Predefined camera orientations if not using real data
   // In Eular angle
@@ -184,8 +170,8 @@ private:
   
   /// ROS stuff
   ros::NodeHandle nh_;
-  image_transport::ImageTransport pub_it_;
   geometry_msgs::PolygonStamped polygon_array_;
+  
   // ROS pub-sub
   ros::Subscriber sub_pointcloud_;
   void cloudCallback(const sensor_msgs::PointCloud2ConstPtr &cloud_msg);

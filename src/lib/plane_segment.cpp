@@ -30,7 +30,6 @@ bool show_egi_ = false;
 PlaneSegment::PlaneSegment(Params params, ros::NodeHandle nh) :
   type_(REAL),
   nh_(nh),
-  pub_it_(nh_),
   x_dim_(params.x_dim),
   y_dim_(params.y_dim),
   z_min_(params.z_min),
@@ -84,29 +83,6 @@ PlaneSegment::PlaneSegment(Params params, ros::NodeHandle nh) :
 
   last_cloud_time_ = ros::Time::now();
   cloud_time_threshold_ = 2; 
-}
-
-void PlaneSegment::setRPY(float roll = 0.0, float pitch = 0.0, float yaw = 0.0)
-{
-  roll_ = roll;
-  pitch_ = pitch;
-  yaw_ = yaw;
-}
-
-void PlaneSegment::setQ(float qx = 0.0, float qy = 0.0,
-                        float qz = 0.0, float qw = 1.0)
-{
-  qx_ = qx;
-  qy_ = qy;
-  qz_ = qz;
-  qw_ = qw;
-}
-
-void PlaneSegment::setT(float tx = 0.0, float ty = 0.0, float tz = 0.0)
-{
-  tx_ = tx;
-  ty_ = ty;
-  tz_ = tz;
 }
 
 // Notice that the point cloud may not transformed before this function
