@@ -86,6 +86,7 @@ PlaneSegment::PlaneSegment(Params params, ros::NodeHandle nh) :
 
   last_cloud_time_ = ros::Time::now();
   cloud_time_threshold_ = 2; 
+  min_cluster_size_ = 4;
 }
 
 // Notice that the point cloud may not transformed before this function
@@ -167,13 +168,12 @@ void PlaneSegment::getHorizontalPlanes()
 
   // Publish convex hull candidates
   pubishConvexHullCandidates();
-  
+
   /* You can alternatively use RANSAC or Region Growing instead of HoPE
    * to carry out the comparision experiments in the paper
    */
   //findAllPlanesRANSAC(true, 500, 1.01*th_grid_rsl_, 0.001);
   //findAllPlanesRG(20, 20, 8.0, 1.0);
- 
 
   setID();
   if(viz_){
@@ -185,6 +185,7 @@ void PlaneSegment::pubishConvexHullCandidates(){
   for(const auto& hull_pts : convex_hull_pts_){
     peanut_ods::PlanarCandidate msg;
     msg.header.stamp = last_cloud_msg_time_;
+    msg.header.frame_id = base_frame_;
     for(const auto pt : hull_pts){
       geometry_msgs::Point point = pt;
       msg.points.push_back(point);
@@ -292,11 +293,7 @@ void PlaneSegment::getPlane(size_t id, float z_in, PointCloudMono::Ptr &cloud_no
   plane_results_.push_back(cluster_2d_rgb);
   plane_points_.push_back(cluster_near_z);
   
-  // Use convex hull to represent the plane patch
-  if (true) {
-    computeHull(cluster_near_z);
-  }
-
+  computeHull(cluster_near_z);
   setFeatures(z_in, cluster_near_z);
   
   // Update the data of the max plane detected
@@ -353,11 +350,18 @@ void PlaneSegment::computeHull(PointCloudMono::Ptr cluster_2d_rgb)
   pcl::PolygonMesh cluster_mesh;
 
   // Generate convex hull
-  hull.setInputCloud(cluster_2d_rgb);
-  hull.setComputeAreaVolume(true);
-  hull.reconstruct(*cluster_hull);
-  hull.reconstruct(cluster_mesh);
-
+  if(cluster_2d_rgb->size() > min_cluster_size_){
+    hull.setInputCloud(cluster_2d_rgb);
+    hull.setComputeAreaVolume(true);
+    hull.reconstruct(*cluster_hull);
+    hull.reconstruct(cluster_mesh);
+  }
+  else{
+    ROS_WARN_STREAM("Cluster size of " << cluster_2d_rgb->size() << " is lesser than min " << min_cluster_size_);
+    ROS_WARN("TODO: Using pointcloud as convex hull");
+    return;
+  }
+  
   // Store results
   plane_hull_.push_back(cluster_hull);
   plane_mesh_.push_back(cluster_mesh);

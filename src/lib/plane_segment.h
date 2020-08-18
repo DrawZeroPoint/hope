@@ -144,7 +144,8 @@ private:
   /// ROS stuff
   ros::NodeHandle nh_;
   geometry_msgs::PolygonStamped polygon_array_;
-  
+  unsigned int min_cluster_size_; 
+
   // ROS pub-sub
   ros::Subscriber sub_pointcloud_;
   void cloudCallback(const sensor_msgs::PointCloud2ConstPtr &cloud_msg);
