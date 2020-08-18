@@ -16,6 +16,8 @@
 #include <cv_bridge/cv_bridge.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <hope/Subsections.h>
+#include <peanut_ods/ObjectCandidateArray.h>
+#include <peanut_ods/PlanarCandidate.h>
 
 // PCL
 #include <pcl/common/common.h>
@@ -154,6 +156,7 @@ private:
   ros::Publisher polygon_marker_pub_;
   ros::Publisher convex_hull_pub_;
   ros::Publisher convex_hull_marker_pub_;
+  ros::Publisher ods_planar_candidate_pub_;
 
   visualization_msgs::MarkerArray polygon_markers_;
   visualization_msgs::MarkerArray convex_hull_markers_; 
@@ -230,11 +233,11 @@ private:
   void visualizeProcess(PointCloud::Ptr cloud);
   void setFeatures(float z_in, PointCloudMono::Ptr cluster);
 
+  // Visualization and Convex hull
+  void computeHull(PointCloudMono::Ptr cluster_2d_rgb);
+  void pubishConvexHullCandidates();
   void addCloudMarkers(const PointCloudMono::Ptr cloud, const int id, visualization_msgs::MarkerArray& m_array);
   
-  void computeHull(PointCloudMono::Ptr cluster_2d_rgb);
-  void addConvexHullMarkers();
-
 };
 
 #endif // PLANE_SEGMENT_H

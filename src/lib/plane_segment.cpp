@@ -64,6 +64,7 @@ PlaneSegment::PlaneSegment(Params params, ros::NodeHandle nh) :
   // convex_hull_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("polygon_markers", 100);
   polygon_marker_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("polygon_markers", 100);
   convex_hull_marker_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("convex_hull_markers", 100);
+  ods_planar_candidate_pub_ = nh.advertise<peanut_ods::PlanarCandidate>("/oil/perception/ods/planar_candidate",100);
 
   // Register the callback if using real point cloud data
   sub_pointcloud_ = nh_.subscribe<sensor_msgs::PointCloud2>(params.cloud_topic, 1,
@@ -165,6 +166,8 @@ void PlaneSegment::getHorizontalPlanes()
   convex_hull_marker_pub_.publish(convex_hull_markers_);
 
   // Publish convex hull candidates
+  pubishConvexHullCandidates();
+  
   /* You can alternatively use RANSAC or Region Growing instead of HoPE
    * to carry out the comparision experiments in the paper
    */
@@ -178,18 +181,19 @@ void PlaneSegment::getHorizontalPlanes()
   }
 }
 
-// void PlaneSegment::addConvexHullMarkers(){
-//   int i = 0;
-  
-//   visualization_msgs::Marker marker;
-//   marker.header.stamp = ros::Time();
-//   marker.ns = "hope/hull";
-//   marker.id = i++;
-//   marker.type = visualization_msgs::Marker::SPHERE_LIST;
-//   marker.action = visualization_msgs::Marker::DELETEALL;
-//   convex_hull_markers_.markers.push_back(marker);
-
-// }
+void PlaneSegment::pubishConvexHullCandidates(){
+  for(const auto& hull_pts : convex_hull_pts_){
+    peanut_ods::PlanarCandidate msg;
+    msg.header.stamp = last_cloud_msg_time_;
+    for(const auto pt : hull_pts){
+      geometry_msgs::Point point = pt;
+      msg.points.push_back(point);
+      msg.tags = {"hope/surface"};
+      msg.thick = 0.05;
+    }
+    ods_planar_candidate_pub_.publish(msg);
+  }
+}
 
 void PlaneSegment::findAllPlanes()
 { 
