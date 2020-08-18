@@ -101,14 +101,14 @@ public:
   vector<PointCloud::Ptr> plane_results_;
   vector<PointCloudMono::Ptr> plane_points_;
   // Optional
-  vector<PointCloud::Ptr> plane_hull_;
+  vector<PointCloudMono::Ptr> plane_hull_;
   vector<pcl::PolygonMesh> plane_mesh_;
   vector<vector<float> > plane_coeff_;
 
   /// Container for storing the largest plane
   PointCloud::Ptr plane_max_result_;
   PointCloudMono::Ptr plane_max_points_;
-  PointCloud::Ptr plane_max_hull_;
+  PointCloudMono::Ptr plane_max_hull_;
   pcl::PolygonMesh plane_max_mesh_;
   vector<float> plane_max_coeff_;  
 
@@ -149,8 +149,12 @@ private:
   ros::Publisher pub_max_mesh_;
   ros::Publisher polygon_pub_;
   ros::Publisher subsections_pub_;
-  ros::Publisher marker_pub_;
+  ros::Publisher polygon_marker_pub_;
+  ros::Publisher convex_hull_pub_;
+  ros::Publisher convex_hull_marker_pub_;
+
   visualization_msgs::MarkerArray polygon_markers_;
+  visualization_msgs::MarkerArray convex_hull_markers_; 
 
   template <typename PointTPtr>
   void publishCloud(PointTPtr cloud, ros::Publisher pub);
@@ -159,6 +163,7 @@ private:
   /// Intermediate results
   // Source cloud index from raw cloud (contain Nans)
   pcl::PointIndices::Ptr src_z_inliers_;
+  
   // Source point cloud
   PointCloud::Ptr src_rgb_cloud_;
   PointCloudMono::Ptr src_mono_cloud_;
@@ -171,10 +176,12 @@ private:
 
   // Normals of down sampling cloud
   NormalCloud::Ptr src_normals_;
+  
   // Normal filtered cloud index and corresponding cloud
   pcl::PointIndices::Ptr idx_norm_fit_;
   PointCloudMono::Ptr cloud_norm_fit_mono_;
   NormalCloud::Ptr cloud_norm_fit_;
+  
   // Clustered points
   vector<float> plane_z_values_;
   vector<PointCloudRGBN::Ptr> cloud_fit_parts_;
@@ -219,9 +226,10 @@ private:
   
   void visualizeProcess(PointCloud::Ptr cloud);
   void setFeatures(float z_in, PointCloudMono::Ptr cluster);
-  void computeHull(PointCloud::Ptr cluster_2d_rgb);
+  void computeHull(PointCloudMono::Ptr cluster_2d_rgb);
 
-  void addMarkers(const PointCloudMono::Ptr cloud, const int id, visualization_msgs::MarkerArray& m_array);
+  void addCloudMarkers(const PointCloudMono::Ptr cloud, const int id, visualization_msgs::MarkerArray& m_array);
+  void addConvexHullMarkers();
 
 };
 
