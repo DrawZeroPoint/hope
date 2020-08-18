@@ -133,27 +133,38 @@ void PlaneSegment::getHorizontalPlanes()
   // Init marker
   polygon_markers_ =  visualization_msgs::MarkerArray();
   convex_hull_markers_ =  visualization_msgs::MarkerArray();
-
+  
   plane_mesh_.clear();
   plane_hull_.clear();
+  convex_hull_pts_.clear();
 
-  visualization_msgs::Marker marker;
-  marker.header.stamp = ros::Time();
-  marker.ns = "hope";
-  marker.id = 0;
-  marker.type = visualization_msgs::Marker::SPHERE;
-  marker.action = visualization_msgs::Marker::DELETEALL;
-  polygon_markers_.markers.push_back(marker);
- 
+  // Add delete all markers 
+  visualization_msgs::Marker marker_poly;
+  marker_poly.header.stamp = last_cloud_msg_time_;
+  marker_poly.ns = "hope";
+  marker_poly.id = 0;
+  marker_poly.type = visualization_msgs::Marker::SPHERE;
+  marker_poly.action = visualization_msgs::Marker::DELETEALL;
+  polygon_markers_.markers.push_back(marker_poly);
+  
+  visualization_msgs::Marker marker_convex;
+  marker_convex.header.stamp = last_cloud_msg_time_;
+  marker_convex.ns = "hope/hull";
+  marker_convex.id = 0;
+  marker_convex.type = visualization_msgs::Marker::SPHERE_LIST;
+  marker_convex.action = visualization_msgs::Marker::DELETEALL;
+  convex_hull_markers_.markers.push_back(marker_convex);
+
+  // Run main algorithm to find all planes
   findAllPlanes();
 
   // Publish markers
   polygon_marker_pub_.publish(polygon_markers_);
 
-  // Publish convexe hull 
-  addConvexHullMarkers();
+  // Publish convex hull 
   convex_hull_marker_pub_.publish(convex_hull_markers_);
 
+  // Publish convex hull candidates
   /* You can alternatively use RANSAC or Region Growing instead of HoPE
    * to carry out the comparision experiments in the paper
    */
@@ -167,51 +178,18 @@ void PlaneSegment::getHorizontalPlanes()
   }
 }
 
-void PlaneSegment::addConvexHullMarkers(){
-  int i = 0;
+// void PlaneSegment::addConvexHullMarkers(){
+//   int i = 0;
   
-  visualization_msgs::Marker marker;
-  marker.header.stamp = ros::Time();
-  marker.ns = "hope/hull";
-  marker.id = i++;
-  marker.type = visualization_msgs::Marker::SPHERE_LIST;
-  marker.action = visualization_msgs::Marker::DELETEALL;
-  convex_hull_markers_.markers.push_back(marker);
-  
-  for(const auto& hull: plane_hull_){
-    marker = visualization_msgs::Marker();
-    marker.header.frame_id = base_frame_;
-    marker.header.stamp = ros::Time();
-    marker.ns = "hope/hull";
-    marker.id = i++;
-    marker.type = visualization_msgs::Marker::SPHERE_LIST;
-    marker.action = visualization_msgs::Marker::ADD;
-    marker.scale.x = 0.05;
-    marker.scale.y = 0.05;
-    marker.scale.z = 0.05;
+//   visualization_msgs::Marker marker;
+//   marker.header.stamp = ros::Time();
+//   marker.ns = "hope/hull";
+//   marker.id = i++;
+//   marker.type = visualization_msgs::Marker::SPHERE_LIST;
+//   marker.action = visualization_msgs::Marker::DELETEALL;
+//   convex_hull_markers_.markers.push_back(marker);
 
-    float r = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
-    float g = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
-    float b = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
-    
-    for(PointCloudMono::const_iterator pit = hull->begin(); pit != hull->end(); ++pit){
-      geometry_msgs::Point point;
-      std_msgs::ColorRGBA color;
-
-      point.x =  pit->x;
-      point.y =  pit->y;
-      point.z =  pit->z;
-      color.a = 1.0; 
-      color.r = r;
-      color.g = g;
-      color.b = b;
-      
-      marker.points.push_back(point);
-      marker.colors.push_back(color);
-    }
-    convex_hull_markers_.markers.push_back(marker);
-  }
-}
+// }
 
 void PlaneSegment::findAllPlanes()
 { 
@@ -336,7 +314,7 @@ void PlaneSegment::addCloudMarkers(const PointCloudMono::Ptr cloud, const int id
 
   visualization_msgs::Marker marker;
   marker.header.frame_id = base_frame_;
-  marker.header.stamp = ros::Time();
+  marker.header.stamp = last_cloud_msg_time_;
   marker.ns = "hope" + std::to_string(id);
   marker.id = 0;
   marker.type = visualization_msgs::Marker::CUBE_LIST;
@@ -366,21 +344,65 @@ void PlaneSegment::addCloudMarkers(const PointCloudMono::Ptr cloud, const int id
 
 void PlaneSegment::computeHull(PointCloudMono::Ptr cluster_2d_rgb)
 {
-  ROS_INFO("Here");
-
   PointCloudMono::Ptr cluster_hull(new PointCloudMono);
   pcl::ConvexHull<pcl::PointXYZ> hull;
   pcl::PolygonMesh cluster_mesh;
 
+  // Generate convex hull
   hull.setInputCloud(cluster_2d_rgb);
   hull.setComputeAreaVolume(true);
   hull.reconstruct(*cluster_hull);
   hull.reconstruct(cluster_mesh);
 
+  // Store results
   plane_hull_.push_back(cluster_hull);
   plane_mesh_.push_back(cluster_mesh);
   plane_max_hull_ = cluster_hull;
   plane_max_mesh_ = cluster_mesh;
+
+  // Store pts 
+  std::vector<geometry_msgs::Point> hull_pts;
+  for(PointCloudMono::const_iterator pit = cluster_hull->begin(); pit != cluster_hull->end(); ++pit){
+    geometry_msgs::Point point;
+    point.x =  pit->x;
+    point.y =  pit->y;
+    point.z =  pit->z;
+    hull_pts.push_back(point);    
+  }
+  convex_hull_pts_.push_back(hull_pts);
+
+  // Build marker msg 
+  visualization_msgs::Marker marker;
+  marker.header.frame_id = base_frame_;
+  marker.header.stamp = last_cloud_msg_time_;
+  marker.ns = "hope/hull";
+  marker.id = convex_hull_pts_.size();
+  marker.type = visualization_msgs::Marker::SPHERE_LIST;
+  marker.action = visualization_msgs::Marker::ADD;
+  marker.scale.x = 0.05;
+  marker.scale.y = 0.05;
+  marker.scale.z = 0.05;
+
+  float r = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+  float g = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+  float b = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+  
+  for(const auto& pt : hull_pts){
+    geometry_msgs::Point point;
+    std_msgs::ColorRGBA color;
+
+    point.x =  pt.x;
+    point.y =  pt.y;
+    point.z =  pt.z;
+    color.a = 1.0; 
+    color.r = r;
+    color.g = g;
+    color.b = b;
+    
+    marker.points.push_back(point);
+    marker.colors.push_back(color);
+  }
+  convex_hull_markers_.markers.push_back(marker);
 }
 
 void PlaneSegment::setFeatures(float z_in, PointCloudMono::Ptr cluster)
@@ -428,7 +450,7 @@ void PlaneSegment::setFeatures(float z_in, PointCloudMono::Ptr cluster)
   polygon_points.points.push_back(max_pts_bottom);
   polygon_array_.header.frame_id = base_frame_;
   polygon_array_.polygon = polygon_points;
-  polygon_array_.header.stamp = ros::Time::now();
+  polygon_array_.header.stamp = last_cloud_msg_time_;
   polygon_pub_.publish(polygon_array_);
 
   double length_x = std::abs(maxPt.x - minPt.x);
@@ -608,7 +630,7 @@ void PlaneSegment::setFeatures(float z_in, PointCloudMono::Ptr cluster)
   	subsections_.subsection_array.push_back(polygon_points);
   }
   subsections_.header.frame_id = base_frame_;
-  subsections_.header.stamp = ros::Time::now();
+  subsections_.header.stamp = last_cloud_msg_time_;
   subsections_pub_.publish(subsections_);
 }
 
@@ -811,6 +833,7 @@ void PlaneSegment::cloudCallback(const sensor_msgs::PointCloud2ConstPtr &msg)
   utl_->pointTypeTransfer(src_rgb_cloud_, src_mono_cloud_);
 
   last_cloud_time_ = ros::Time::now();
+  last_cloud_msg_time_ = msg->header.stamp;
 }
 
 void PlaneSegment::poisson_reconstruction(NormalPointCloud::Ptr point_cloud, 

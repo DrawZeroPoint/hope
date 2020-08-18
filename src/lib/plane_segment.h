@@ -100,10 +100,12 @@ public:
   /// Container for storing final results
   vector<PointCloud::Ptr> plane_results_;
   vector<PointCloudMono::Ptr> plane_points_;
-  // Optional
+  
+  // Convex hull
   vector<PointCloudMono::Ptr> plane_hull_;
   vector<pcl::PolygonMesh> plane_mesh_;
   vector<vector<float> > plane_coeff_;
+  vector<vector<geometry_msgs::Point>> convex_hull_pts_; 
 
   /// Container for storing the largest plane
   PointCloud::Ptr plane_max_result_;
@@ -168,6 +170,7 @@ private:
   PointCloud::Ptr src_rgb_cloud_;
   PointCloudMono::Ptr src_mono_cloud_;
   ros::Time last_cloud_time_; 
+  ros::Time last_cloud_msg_time_;
   double cloud_time_threshold_; 
 
   // Source cloud after down sampling
@@ -226,9 +229,10 @@ private:
   
   void visualizeProcess(PointCloud::Ptr cloud);
   void setFeatures(float z_in, PointCloudMono::Ptr cluster);
-  void computeHull(PointCloudMono::Ptr cluster_2d_rgb);
 
   void addCloudMarkers(const PointCloudMono::Ptr cloud, const int id, visualization_msgs::MarkerArray& m_array);
+  
+  void computeHull(PointCloudMono::Ptr cluster_2d_rgb);
   void addConvexHullMarkers();
 
 };
