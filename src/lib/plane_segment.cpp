@@ -26,14 +26,10 @@ bool cal_hull_ = false;
 bool show_cluster_ = false;
 bool show_egi_ = false;
 
-HighResTimer hst_1_("pca");
-HighResTimer hst_2_("ransac");
 
 PlaneSegment::PlaneSegment(Params params, ros::NodeHandle nh) :
-  fi_(new FetchRGBD),
   type_(REAL),
   nh_(nh),
-  pub_it_(nh_),
   x_dim_(params.x_dim),
   y_dim_(params.y_dim),
   z_min_(params.z_min),
@@ -51,7 +47,6 @@ PlaneSegment::PlaneSegment(Params params, ros::NodeHandle nh) :
   tf_(new Transform),
   utl_(new Utilities),
   base_frame_(params.base_frame),
-  hst_("total"),
   min_area_(params.area_min),
   max_area_(params.area_max)
 {
@@ -65,9 +60,9 @@ PlaneSegment::PlaneSegment(Params params, ros::NodeHandle nh) :
   global_size_temp_ = 0;
 
   polygon_pub_ = nh_.advertise<geometry_msgs::PolygonStamped>("polygon_array", 100);
-
   subsections_pub_ = nh_.advertise<hope::Subsections>("subsections_array", 100);
-  
+  marker_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("polygon_markers", 100);
+
   // Register the callback if using real point cloud data
   sub_pointcloud_ = nh_.subscribe<sensor_msgs::PointCloud2>(params.cloud_topic, 1,
                                                             &PlaneSegment::cloudCallback, this);
@@ -88,29 +83,6 @@ PlaneSegment::PlaneSegment(Params params, ros::NodeHandle nh) :
 
   last_cloud_time_ = ros::Time::now();
   cloud_time_threshold_ = 2; 
-}
-
-void PlaneSegment::setRPY(float roll = 0.0, float pitch = 0.0, float yaw = 0.0)
-{
-  roll_ = roll;
-  pitch_ = pitch;
-  yaw_ = yaw;
-}
-
-void PlaneSegment::setQ(float qx = 0.0, float qy = 0.0,
-                        float qz = 0.0, float qw = 1.0)
-{
-  qx_ = qx;
-  qy_ = qy;
-  qz_ = qz;
-  qw_ = qw;
-}
-
-void PlaneSegment::setT(float tx = 0.0, float ty = 0.0, float tz = 0.0)
-{
-  tx_ = tx;
-  ty_ = ty;
-  tz_ = tz;
 }
 
 // Notice that the point cloud may not transformed before this function
@@ -156,20 +128,27 @@ void PlaneSegment::getHorizontalPlanes()
 
   //pcl::io::savePCDFile("~/normal_filter.pcd", *cloud_norm_fit_mono_);
   
-  // Start timer
-  hst_.start();
-  
+  // Init marker
+  polygon_markers_ =  visualization_msgs::MarkerArray();
+  visualization_msgs::Marker marker;
+  marker.header.stamp = ros::Time();
+  marker.ns = "hope";
+  marker.id = 0;
+  marker.type = visualization_msgs::Marker::SPHERE;
+  marker.action = visualization_msgs::Marker::DELETEALL;
+  polygon_markers_.markers.push_back(marker);
+ 
   findAllPlanes();
+
+  // Publish markers
+  marker_pub_.publish(polygon_markers_);
 
   /* You can alternatively use RANSAC or Region Growing instead of HoPE
    * to carry out the comparision experiments in the paper
    */
   //findAllPlanesRANSAC(true, 500, 1.01*th_grid_rsl_, 0.001);
   //findAllPlanesRG(20, 20, 8.0, 1.0);
-  
-  // Stop timer and get total processing time
-  // hst_.stop();
-  // hst_.print();
+ 
 
   setID();
   if(viz_){
@@ -178,7 +157,7 @@ void PlaneSegment::getHorizontalPlanes()
 }
 
 void PlaneSegment::findAllPlanes()
-{
+{ 
   zClustering(cloud_norm_fit_mono_); // -> seed_clusters_indices_
   getMeanZofEachCluster(cloud_norm_fit_mono_); // -> plane_z_values_
   extractPlaneForEachZ(cloud_norm_fit_mono_);
@@ -288,6 +267,44 @@ void PlaneSegment::getPlane(size_t id, float z_in, PointCloudMono::Ptr &cloud_no
   //    plane_max_coeff_ = feature;
   //    global_size_temp_ = cluster_2d_rgb->points.size();
   //  }
+  
+  // Add markers
+  addMarkers(cluster_near_z, id, polygon_markers_);
+}
+
+void PlaneSegment::addMarkers(const PointCloudMono::Ptr cloud, const int id, visualization_msgs::MarkerArray& m_array){
+  float r = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+  float g = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+  float b = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+
+  visualization_msgs::Marker marker;
+  marker.header.frame_id = base_frame_;
+  marker.header.stamp = ros::Time();
+  marker.ns = "hope" + std::to_string(id);
+  marker.id = 0;
+  marker.type = visualization_msgs::Marker::CUBE_LIST;
+  marker.action = visualization_msgs::Marker::ADD;
+  marker.scale.x = 0.05;
+  marker.scale.y = 0.05;
+  marker.scale.z = 0.05;
+
+  for (PointCloudMono::const_iterator pit = cloud->begin(); pit != cloud->end(); ++pit) {
+    geometry_msgs::Point point;
+    std_msgs::ColorRGBA color;
+
+    point.x =  pit->x;
+    point.y =  pit->y;
+    point.z =  pit->z;
+    color.a = 1.0; 
+    color.r = r;
+    color.g = g;
+    color.b = b;
+    
+    marker.points.push_back(point);
+    marker.colors.push_back(color);
+  }
+  
+  m_array.markers.push_back(marker);
 }
 
 void PlaneSegment::computeHull(PointCloud::Ptr cluster_2d_rgb)
@@ -769,8 +786,6 @@ void PlaneSegment::reset()
   seed_clusters_indices_.clear();
 
   global_size_temp_ = 0;
-  // Reset timer
-  hst_.reset();
 }
 
 bool PlaneSegment::getSourceCloud()

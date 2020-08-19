@@ -10,13 +10,7 @@
 #include <sensor_msgs/image_encodings.h>
 #include <sensor_msgs/CameraInfo.h>
 #include <geometry_msgs/PolygonStamped.h>
-
-#include <image_transport/image_transport.h>
-#include <image_transport/subscriber_filter.h>
-#include <image_geometry/pinhole_camera_model.h>
-#include <message_filters/subscriber.h>
-#include <message_filters/time_synchronizer.h>
-#include <message_filters/sync_policies/approximate_time.h>
+#include <geometry_msgs/Point.h>
 
 #include <geometry_msgs/PoseStamped.h>
 #include <cv_bridge/cv_bridge.h>
@@ -33,12 +27,6 @@
 #include <pcl/io/pcd_io.h>
 
 #include <pcl/features/normal_3d.h>
-
-#include <pcl/filters/conditional_removal.h>
-#include <pcl/filters/extract_indices.h>
-#include <pcl/filters/passthrough.h>
-#include <pcl/filters/project_inliers.h>
-#include <pcl/filters/voxel_grid.h>
 
 #include <pcl/kdtree/kdtree.h>
 #include <pcl/kdtree/kdtree_flann.h>
@@ -75,11 +63,13 @@
 #include <opencv2/opencv.hpp>
 
 // HOPE
-#include "fetch_rgbd.h"
-#include "high_res_timer.h"
 #include "z_growing.h"
 #include "transform.h"
 #include "utilities.h"
+
+// viz 
+#include <visualization_msgs/Marker.h>
+#include <visualization_msgs/MarkerArray.h>
 
 enum data_type{REAL, SYN, POINT_CLOUD, TUM_SINGLE, TUM_LIST};
 
@@ -97,28 +87,6 @@ struct Params {
   std::string cloud_topic = "/oil/perception/head_camera/cloud";
 };
 
-class HopeResult
-{
-public:
-  HopeResult();
-  
-  /// Container for storing final results
-  vector<PointCloud::Ptr> plane_results_;
-  vector<PointCloud::Ptr> plane_points_;
-  vector<PointCloud::Ptr> plane_hull_;
-  vector<pcl::PolygonMesh> plane_mesh_;
-  vector<vector<float> > plane_params_; // z area
-  
-  /// Container for storing the largest plane
-  PointCloud::Ptr plane_max_result_;
-  PointCloud::Ptr plane_max_points_;
-  PointCloud::Ptr plane_max_hull_;
-  pcl::PolygonMesh plane_max_mesh_;
-  vector<float> plane_max_param_;
-  
-  /// Container of plane id
-  
-};
 
 class PlaneSegment
 {
@@ -144,16 +112,9 @@ public:
   pcl::PolygonMesh plane_max_mesh_;
   vector<float> plane_max_coeff_;  
 
-  void setRPY(float roll, float pitch, float yaw);
-  void setQ(float qx, float qy, float qz, float qw);
-  void setT(float tx, float ty, float tz);
-
-
-
 protected:
   data_type type_;
 
-  
 private:
   /// Predefined camera orientations if not using real data
   // In Eular angle
@@ -166,10 +127,7 @@ private:
   float roll_;
   float pitch_;
   float yaw_;
-  // In Quaternion
-  float qx_, qy_, qz_, qw_;
-  // Camera position in the world coordinates frame
-  float tx_, ty_, tz_;
+
   // Frame for point cloud to transfer
   string base_frame_;
   
@@ -181,8 +139,8 @@ private:
   
   /// ROS stuff
   ros::NodeHandle nh_;
-  image_transport::ImageTransport pub_it_;
   geometry_msgs::PolygonStamped polygon_array_;
+  
   // ROS pub-sub
   ros::Subscriber sub_pointcloud_;
   void cloudCallback(const sensor_msgs::PointCloud2ConstPtr &cloud_msg);
@@ -191,6 +149,9 @@ private:
   ros::Publisher pub_max_mesh_;
   ros::Publisher polygon_pub_;
   ros::Publisher subsections_pub_;
+  ros::Publisher marker_pub_;
+  visualization_msgs::MarkerArray polygon_markers_;
+
   template <typename PointTPtr>
   void publishCloud(PointTPtr cloud, ros::Publisher pub);
   bool getSourceCloud();
@@ -220,10 +181,8 @@ private:
   vector<pcl::PointIndices> seed_clusters_indices_;
   
   /// Tool objects
-  FetchRGBD *fi_;
   Transform *tf_;
   Utilities *utl_;
-  HighResTimer hst_;
   boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer;
   bool viz_;
 
@@ -261,6 +220,9 @@ private:
   void visualizeProcess(PointCloud::Ptr cloud);
   void setFeatures(float z_in, PointCloudMono::Ptr cluster);
   void computeHull(PointCloud::Ptr cluster_2d_rgb);
+
+  void addMarkers(const PointCloudMono::Ptr cloud, const int id, visualization_msgs::MarkerArray& m_array);
+
 };
 
 #endif // PLANE_SEGMENT_H
