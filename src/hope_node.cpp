@@ -40,11 +40,6 @@ using namespace std;
 
 // Publishers
 
-// Transform frame, only used with real time data
-// You may change the name based on your robot configuration
-string base_frame_ = "mobile_base_link"; // world frame
-string camera_optical_frame_ = "/oil/perception/head_camera/cloud";
-
 /// Camera orientation params, only used for benchmarking
 float roll_angle_ = 0.0;
 float pitch_angle_ = 0.0;

@@ -72,10 +72,6 @@ int main(int argc, char **argv)
   ros::NodeHandle nh;
   ros::NodeHandle pnh("~");
 
-  float xy_resolution, z_resolution; // In meter
-
-  ROS_DEBUG_STREAM("Using threshold: xy@" << xy_resolution << " " << "z@" << z_resolution);
-
   Params params;
 
   nh.getParam("blob_properties/x_dimension", params.x_dim);
@@ -89,6 +85,8 @@ int main(int argc, char **argv)
   nh.getParam("pointcloud/base_frame", params.base_frame);
   nh.getParam("pointcloud/topic_name", params.cloud_topic);
   nh.getParam("viz", params.viz);
+
+  ROS_DEBUG_STREAM("Using threshold: xy@" << params.xy_resolution << " " << "z@" << params.z_resolution);
 
   PlaneSegment hope(params, nh);
 
