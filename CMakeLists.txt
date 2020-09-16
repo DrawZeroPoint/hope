@@ -87,6 +87,7 @@ add_library(${PROJECT_NAME}
   src/lib/transform.h
   src/lib/plane_segment.h
 )
+add_dependencies(${PROJECT_NAME} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(${PROJECT_NAME}
   ${catkin_LIBRARIES}
 )
