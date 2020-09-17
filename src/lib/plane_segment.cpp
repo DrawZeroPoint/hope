@@ -64,6 +64,7 @@ PlaneSegment::PlaneSegment(Params params, ros::NodeHandle nh) :
   marker_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("polygon_markers", 100);
 
   // Register the callback if using real point cloud data
+  ROS_INFO_STREAM("HOPE listening for cloud on " << params.cloud_topic);
   sub_pointcloud_ = nh_.subscribe<sensor_msgs::PointCloud2>(params.cloud_topic, 1,
                                                             &PlaneSegment::cloudCallback, this);
   
@@ -92,14 +93,14 @@ void PlaneSegment::getHorizontalPlanes()
   if (type_ == REAL) {
     // If using real data, the transform from camera frame to base frame
     // need to be provided
-    if (!getSourceCloud())
+    if (!getSourceCloud()) {
       return;
+    }
   } else {
     ROS_WARN("Not supported");
     return;
   }
 
-  //ROS_INFO("If statement passed");
  // utl_->pointTypeTransfer(src_rgb_cloud_, src_mono_cloud_);
 
   //visualizeProcess(src_rgb_cloud_);
@@ -165,8 +166,9 @@ void PlaneSegment::findAllPlanes()
 
 void PlaneSegment::getMeanZofEachCluster(PointCloudMono::Ptr cloud_norm_fit_mono)
 {
-  if (seed_clusters_indices_.empty())
+  if (seed_clusters_indices_.empty()) {
     ROS_DEBUG("PlaneSegment: Region growing get nothing.");
+  }
   
   else {
     size_t k = 0;

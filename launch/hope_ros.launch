@@ -1,9 +1,15 @@
 <?xml version="1.0"?>
 <launch>
-    <rosparam command="load" file="$(find hope)/config/plane_detection_paramenters.yaml" />
-    
+    <arg name="cloud_topic" default="" doc="Override Yaml cloud topic"/>
+     
+    <rosparam command="load" file="$(find hope)/config/plane_detection_parameters.yaml" />
+    <rosparam unless="$(eval cloud_topic == '')" param="pointcloud/topic_name" subst_value="True">
+        $(arg cloud_topic)
+    </rosparam>
+
     <node name="hope_ros" pkg="hope" type="hope_ros" output="screen" respawn="false">
     </node>
+
     <node name="hope_trigger" pkg="hope" type="trigger.py" output="screen" respawn="false">
     </node>
 
