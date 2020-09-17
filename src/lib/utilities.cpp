@@ -1480,6 +1480,43 @@ bool Utilities::getBoxPose(const PointCloudMono::Ptr& cloud, geometry_msgs::Pose
   return true;
 }
 
+bool Utilities::getBoxTopPose(const PointCloudMono::Ptr& cloud, geometry_msgs::Pose &pose, 
+                              int& category, std::vector<double> z_list) {
+  float z_mean, z_max, z_min, z_mid, z_origin;
+  getCloudZInfo(cloud, z_mean, z_max, z_min, z_mid);
+  
+  category = -1;
+  for (int i = 0; i < z_list.size(); ++i) {
+    double z = z_list[i];
+    if (fabs(z_mean - z) > 0.01)
+      continue;
+
+    pcl::ModelCoefficients::Ptr coeff = getPlaneCoeff(z);
+    PointCloudMono::Ptr slice_2d(new PointCloudMono);
+    sliceCloudWithPlane(coeff, 0.01, cloud, slice_2d);
+    if (slice_2d->points.size() <= 4)
+      continue;  // not enough for constructing a convex hull
+
+    vector<pcl::PointXY> rect;
+    pcl::PointXY center{};
+    pcl::PointXY edge_center{};
+    float width, height, rotation;
+    getRotatedRect2D(slice_2d, rect, center, edge_center, width, height, rotation);
+
+    Eigen::Quaternion<float> q;
+    quaternionFromPlanarRotation(rotation, q);
+    pose.position.x = center.x;
+    pose.position.y = center.y;
+    pose.position.z = z_origin;
+    pose.orientation.x = q.x();
+    pose.orientation.y = q.y();
+    pose.orientation.z = q.z();
+    pose.orientation.w = q.w();
+    category = i;
+  }
+  return category >= 0;
+}
+
 void Utilities::computeHull(PointCloudMono::Ptr cloud_2d, PointCloudMono::Ptr &cloud_hull)
 {
   pcl::ConvexHull<pcl::PointXYZ> hull;

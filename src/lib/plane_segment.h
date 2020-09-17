@@ -270,8 +270,14 @@ public:
   // with the mass centroid of the object, only used to infer its pose or ease
   // the manipulation as it should be fixed with the object body.
   float origin_height_;
+
+  std::vector<double> origin_heights_;
+
   // Extracted objects' pose
   geometry_msgs::PoseArray on_top_object_poses_;
+
+  // Extracted objects' categories
+  std::vector<int> on_top_object_categories_;
 
 private:
   string base_frame_;

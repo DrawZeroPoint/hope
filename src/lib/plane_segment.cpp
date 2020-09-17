@@ -806,17 +806,24 @@ bool PlaneSegmentRT::extractOnTopCallback(hope::ExtractObjectOnTop::Request &req
   ROS_INFO("HoPE Service: Received extract on top object %s call.", req.goal_id.id.c_str());
   string object_type = req.goal_id.id;
   bool do_cluster;
-  if (req.goal_id.id == "cylinder") {
+  if (req.goal_id.id == req.CYLINDER) {
+    origin_height_ = req.origin_height;
     object_type = "cylinder";
     do_cluster = true;
-  } else if (req.goal_id.id == "mesh") {
+  } else if (req.goal_id.id == req.MESH) {
     object_type = "mesh";
     object_model_path_ = req.mesh_path;
     do_cluster = false;
-  } else if (req.goal_id.id == "box") {
+  } else if (req.goal_id.id == req.BOX) {
+    origin_height_ = req.origin_height;
     object_type = "box";
     do_cluster = true;
+  } else if (req.goal_id.id == req.BOX_TOP) {
+    origin_heights_ = req.origin_heights;
+    object_type = "box_top";
+    do_cluster = true;
   } else if (req.goal_id.id == "debug") {
+    origin_height_ = req.origin_height;
     object_type = "cylinder";
     do_cluster = true;
     req.header.stamp = ros::Time::now();
@@ -827,7 +834,7 @@ bool PlaneSegmentRT::extractOnTopCallback(hope::ExtractObjectOnTop::Request &req
     return true;
   }
 
-  origin_height_ = req.origin_height;
+  
   aggressive_merge_ = req.aggressive_merge;
 
   bool ok = postProcessing(do_cluster, object_type);
@@ -837,6 +844,7 @@ bool PlaneSegmentRT::extractOnTopCallback(hope::ExtractObjectOnTop::Request &req
       ROS_WARN("HoPE Service: Extract on top object failed due to lagging %d.", time_interval);
       res.result_status = res.SUCCEEDED;
       res.obj_poses = on_top_object_poses_;
+      res.categories = on_top_object_categories_;
     } else if (time_interval < 0) {
       ROS_WARN("HoPE service: Extract on top object failed due to looking into past %d.", time_interval);
       res.result_status = res.FAILED;
@@ -844,6 +852,7 @@ bool PlaneSegmentRT::extractOnTopCallback(hope::ExtractObjectOnTop::Request &req
       ROS_INFO("HoPE Service: Extract on top object succeeded.");
       res.result_status = res.SUCCEEDED;
       res.obj_poses = on_top_object_poses_;
+      res.categories = on_top_object_categories_;
     }
   } else {
     res.result_status = res.FAILED;
@@ -1071,6 +1080,8 @@ bool PlaneSegmentRT::postProcessing(bool do_cluster, string type) {
     }
 
     on_top_object_poses_.poses.clear();
+    on_top_object_categories_.clear();
+    
     if (type != "mesh") {
       for (auto & cloud : clusters) {
         geometry_msgs::Pose pose;
@@ -1081,6 +1092,16 @@ bool PlaneSegmentRT::postProcessing(bool do_cluster, string type) {
           try {
             bool ok = Utilities::getBoxPose(cloud, pose, origin_height_);
             if (!ok) continue;
+          } catch (cv::Exception) {
+            ROS_WARN("HoPE: Exception raised during getting box pose");
+            continue;
+          }
+        } else if (type == "box_top") {
+          try {
+            int category;
+            bool ok = Utilities::getBoxTopPose(cloud, pose, category, origin_heights_);
+            if (!ok) continue;
+            on_top_object_categories_.push_back(category);
           } catch (cv::Exception) {
             ROS_WARN("HoPE: Exception raised during getting box pose");
             continue;

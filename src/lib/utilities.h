@@ -315,6 +315,15 @@ public:
   static bool getBoxPose(const PointCloudMono::Ptr& cloud, geometry_msgs::Pose &pose, float z = 0);
 
   /**
+   * Given cloud from the top surface of a box type object, calculate its pose in camera frame
+   * @param cloud Box top surface cloud
+   * @param pose Pose of the box, the origin is at the center of the surface
+   * @param category If cloud z_mean in z_list, category=idx of z_mean in z_list
+   * @param z_list A list of box top surface mean z value
+   */
+  static bool getBoxTopPose(const PointCloudMono::Ptr& cloud, geometry_msgs::Pose &pose, int& category, std::vector<double> z_list);
+
+  /**
    * Get the bounding rect of a 2D cloud in XY plane. The rect's edges are aligned with the coordinates.
    * The rect is represented with its 4 vertexes starting from the left bottom corner anti-clockwise
    * @param cloud A 2D cloud, like a contour. If 3d cloud is given, only x and y are considered.

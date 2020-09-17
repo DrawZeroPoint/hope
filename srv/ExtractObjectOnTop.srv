@@ -3,12 +3,17 @@ std_msgs/Header header
 # goal_id.id could be:
 string CYLINDER="cylinder"
 string BOX="box"
+string BOX_TOP="box_top"
 string MESH="mesh"
 actionlib_msgs/GoalID goal_id
 
 # Height of the object's origin regrading the object's base
 # Only used when goal_id.id = [cylinder, box]
 float32 origin_height
+
+# A list of multiple heights of the boxes 
+# Only used when goal_id.id = box_top
+float64[] origin_heights
 
 # Path to the .pcd file of the object,
 # Only used when goal_id.id = mesh
@@ -22,3 +27,7 @@ uint8 SUCCEEDED=0
 uint8 FAILED=1
 uint8 result_status
 geometry_msgs/PoseArray obj_poses
+
+# Object category corresponding to each obj_pose
+# Only used when goal_id.id = box_top
+int32[] categories
