@@ -1,0 +1,20 @@
+std_msgs/Header header
+
+sensor_msgs/PointCloud2 points
+
+# A list of multiple heights of the boxes 
+# Only used when goal_id.id = box_top
+float64[] origin_heights
+
+# If aggressively merge planes of same height to one plane
+# default is false in algorithm
+bool aggressive_merge
+---
+uint8 SUCCEEDED=0
+uint8 FAILED=1
+uint8 result_status
+geometry_msgs/Pose pose
+
+# Object category corresponding to each obj_pose
+# Only used when goal_id.id = box_top
+int32 category

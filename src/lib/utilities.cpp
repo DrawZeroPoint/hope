@@ -4,70 +4,70 @@ using namespace std;
 using namespace cv;
 
 Vec3b pascal_map[] = {
-  Vec3b(0,0,0),
-  Vec3b(128,0,0),
-  Vec3b(0,128,0),
-  Vec3b(128,128,0),
-  Vec3b(0,0,128),
-  Vec3b(128,0,128),
-  Vec3b(0,128,128),
-  Vec3b(128,128,128),
-  Vec3b(64,0,0),
-  Vec3b(192,0,0),
-  Vec3b(64,128,0),
-  Vec3b(192,128,0),
-  Vec3b(64,0,128),
-  Vec3b(192,0,128),
-  Vec3b(64,128,128),
-  Vec3b(192,128,128),
-  Vec3b(0,64,0),
-  Vec3b(128,64,0),
-  Vec3b(0,192,0),
-  Vec3b(128,192,0),
-  Vec3b(0,64,128),
-  Vec3b(128,64,128),
-  Vec3b(0,192,128),
-  Vec3b(128,192,128),
-  Vec3b(64,64,0),
-  Vec3b(192,64,0),
-  Vec3b(64,192,0),
-  Vec3b(192,192,0),
-  Vec3b(64,64,128),
-  Vec3b(192,64,128),
-  Vec3b(64,192,128),
-  Vec3b(192,192,128),
-  Vec3b(0,0,64),
-  Vec3b(128,0,64),
-  Vec3b(0,128,64),
-  Vec3b(128,128,64),
-  Vec3b(0,0,192),
-  Vec3b(128,0,192),
-  Vec3b(0,128,192),
-  Vec3b(128,128,192),
-  Vec3b(64,0,64),
-  Vec3b(192,0,64),
-  Vec3b(64,128,64),
-  Vec3b(192,128,64),
-  Vec3b(64,0,192),
-  Vec3b(192,0,192),
-  Vec3b(64,128,192),
-  Vec3b(192,128,192),
-  Vec3b(0,64,64),
-  Vec3b(128,64,64),
-  Vec3b(0,192,64),
-  Vec3b(128,192,64),
-  Vec3b(0,64,192),
-  Vec3b(128,64,192),
-  Vec3b(0,192,192),
-  Vec3b(128,192,192),
-  Vec3b(64,64,64),
-  Vec3b(192,64,64),
-  Vec3b(64,192,64),
-  Vec3b(192,192,64),
-  Vec3b(64,64,192),
-  Vec3b(192,64,192),
-  Vec3b(64,192,192),
-  Vec3b(192,192,192)
+    Vec3b(0,0,0),
+    Vec3b(128,0,0),
+    Vec3b(0,128,0),
+    Vec3b(128,128,0),
+    Vec3b(0,0,128),
+    Vec3b(128,0,128),
+    Vec3b(0,128,128),
+    Vec3b(128,128,128),
+    Vec3b(64,0,0),
+    Vec3b(192,0,0),
+    Vec3b(64,128,0),
+    Vec3b(192,128,0),
+    Vec3b(64,0,128),
+    Vec3b(192,0,128),
+    Vec3b(64,128,128),
+    Vec3b(192,128,128),
+    Vec3b(0,64,0),
+    Vec3b(128,64,0),
+    Vec3b(0,192,0),
+    Vec3b(128,192,0),
+    Vec3b(0,64,128),
+    Vec3b(128,64,128),
+    Vec3b(0,192,128),
+    Vec3b(128,192,128),
+    Vec3b(64,64,0),
+    Vec3b(192,64,0),
+    Vec3b(64,192,0),
+    Vec3b(192,192,0),
+    Vec3b(64,64,128),
+    Vec3b(192,64,128),
+    Vec3b(64,192,128),
+    Vec3b(192,192,128),
+    Vec3b(0,0,64),
+    Vec3b(128,0,64),
+    Vec3b(0,128,64),
+    Vec3b(128,128,64),
+    Vec3b(0,0,192),
+    Vec3b(128,0,192),
+    Vec3b(0,128,192),
+    Vec3b(128,128,192),
+    Vec3b(64,0,64),
+    Vec3b(192,0,64),
+    Vec3b(64,128,64),
+    Vec3b(192,128,64),
+    Vec3b(64,0,192),
+    Vec3b(192,0,192),
+    Vec3b(64,128,192),
+    Vec3b(192,128,192),
+    Vec3b(0,64,64),
+    Vec3b(128,64,64),
+    Vec3b(0,192,64),
+    Vec3b(128,192,64),
+    Vec3b(0,64,192),
+    Vec3b(128,64,192),
+    Vec3b(0,192,192),
+    Vec3b(128,192,192),
+    Vec3b(64,64,64),
+    Vec3b(192,64,64),
+    Vec3b(64,192,64),
+    Vec3b(192,192,64),
+    Vec3b(64,64,192),
+    Vec3b(192,64,192),
+    Vec3b(64,192,192),
+    Vec3b(192,192,192)
 };
 
 Utilities::Utilities() = default;
@@ -349,7 +349,7 @@ void Utilities::calRegionGrowing(PointCloudRGBN::Ptr cloud_in, int minsz, int ma
 {
   pcl::RegionGrowing<pcl::PointXYZRGBNormal, pcl::Normal> reg;
   pcl::search::Search<pcl::PointXYZRGBNormal>::Ptr tree = boost::shared_ptr<pcl::search::Search<pcl::PointXYZRGBNormal> >
-    (new pcl::search::KdTree<pcl::PointXYZRGBNormal>);
+      (new pcl::search::KdTree<pcl::PointXYZRGBNormal>);
 
   reg.setMinClusterSize(minsz);
   reg.setMaxClusterSize(maxsz);
@@ -542,7 +542,7 @@ void Utilities::sliceCloudWithPlane(pcl::ModelCoefficients::Ptr coeff_in, float 
   convertCloudType(cloud_in, cloud_in_mono);
   pcl::SampleConsensusModelPlane<pcl::PointXYZ> scmp(cloud_in_mono);
   int slice_count = 5;
-  while(slice_count) {
+  while (slice_count) {
     inliers.clear();
     scmp.selectWithinDistance(coeff, th_distance, inliers);
     if (inliers.size() >= 4) break;
@@ -1480,39 +1480,50 @@ bool Utilities::getBoxPose(const PointCloudMono::Ptr& cloud, geometry_msgs::Pose
   return true;
 }
 
-bool Utilities::getBoxTopPose(const PointCloudMono::Ptr& cloud, geometry_msgs::Pose &pose, 
+bool Utilities::getBoxTopPose(const PointCloudMono::Ptr& cloud, geometry_msgs::Pose &pose,
                               int& category, std::vector<double> z_list) {
-  float z_mean, z_max, z_min, z_mid, z_origin;
+  float z_mean, z_max, z_min, z_mid;
   getCloudZInfo(cloud, z_mean, z_max, z_min, z_mid);
-  
+
+  pcl::ModelCoefficients::Ptr coeff = getPlaneCoeff(z_mean);
+  PointCloudMono::Ptr slice_2d(new PointCloudMono);
+  sliceCloudWithPlane(coeff, 0.01, cloud, slice_2d);
+  if (slice_2d->points.size() <= 4) {
+    ROS_WARN("not enough point");
+    return false;  // not enough for constructing a convex hull
+  }
+
+  vector<pcl::PointXY> rect;
+  pcl::PointXY center{};
+  pcl::PointXY edge_center{};
+  float width, height, rotation;
+  getRotatedRect2D(slice_2d, rect, center, edge_center, width, height, rotation);
+
+  Eigen::Quaternion<float> q;
+  quaternionFromPlanarRotation(rotation + M_PI_2, q);
+  pose.position.x = center.x;
+  pose.position.y = center.y;
+  pose.position.z = z_mean;
+  pose.orientation.x = q.x();
+  pose.orientation.y = q.y();
+  pose.orientation.z = q.z();
+  pose.orientation.w = q.w();
+
   category = -1;
-  for (int i = 0; i < z_list.size(); ++i) {
-    double z = z_list[i];
-    if (fabs(z_mean - z) > 0.01)
-      continue;
-
-    pcl::ModelCoefficients::Ptr coeff = getPlaneCoeff(z);
-    PointCloudMono::Ptr slice_2d(new PointCloudMono);
-    sliceCloudWithPlane(coeff, 0.01, cloud, slice_2d);
-    if (slice_2d->points.size() <= 4)
-      continue;  // not enough for constructing a convex hull
-
-    vector<pcl::PointXY> rect;
-    pcl::PointXY center{};
-    pcl::PointXY edge_center{};
-    float width, height, rotation;
-    getRotatedRect2D(slice_2d, rect, center, edge_center, width, height, rotation);
-
-    Eigen::Quaternion<float> q;
-    quaternionFromPlanarRotation(rotation, q);
-    pose.position.x = center.x;
-    pose.position.y = center.y;
-    pose.position.z = z_origin;
-    pose.orientation.x = q.x();
-    pose.orientation.y = q.y();
-    pose.orientation.z = q.z();
-    pose.orientation.w = q.w();
-    category = i;
+  if (z_list.size() == 1) {
+    category = 0;
+  } else {
+    for (int i = 0; i < z_list.size(); ++i) {
+      if (z_mean <= z_list[i]) {
+        category = i;
+        break;
+      } else if (i + 1 < z_list.size()) {
+        if (fabs(z_mean - z_list[i]) < fabs(z_mean - z_list[i + 1])) {
+          category = i;
+          break;
+        }
+      }
+    }
   }
   return category >= 0;
 }

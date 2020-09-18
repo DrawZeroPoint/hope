@@ -1,0 +1,18 @@
+<launch>
+
+    <!-- Comment this if using wall time -->
+    <param name="/use_sim_time" value="true" />
+
+    <arg name="ns" default="vision"/>
+    <arg name="base_frame" default="mz25_link0"/>
+    <arg name="cloud_topic" default="/point_cloud"/>
+
+    <node ns="$(arg ns)" name="hope_palletization" pkg="hope" type="hope_palletization" respawn="false">
+        <!-- No slash on the front -->
+        <param name="base_frame" value="$(arg base_frame)" />
+        <param name="cloud_topic" value="$(arg cloud_topic)" />
+        <param name="xy_resolution" value="0.05" />
+        <param name="z_resolution" value="0.02" />
+    </node>
+
+</launch>

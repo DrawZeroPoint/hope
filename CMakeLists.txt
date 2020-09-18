@@ -41,6 +41,7 @@ message("Found OpenCV ${OpenCV_VERSION}")
 add_service_files(
   FILES
   ExtractObjectOnTop.srv
+  GetObjectPose.srv
 )
 
 generate_messages(
@@ -72,6 +73,8 @@ add_library(${PROJECT_NAME}
   src/lib/utilities.h
   src/lib/pose_estimation.cpp
   src/lib/pose_estimation.h
+  src/lib/palletization.cpp
+  src/lib/palletization.h
 
   src/lib/fetch_rgbd.cpp
   src/lib/get_cloud.cpp
@@ -105,6 +108,15 @@ target_link_libraries(${PROJECT_NAME}_node
 
 add_executable(${PROJECT_NAME}_ros src/hope_ros.cpp)
 target_link_libraries(${PROJECT_NAME}_ros
+  ${catkin_LIBRARIES}
+  ${PROJECT_NAME}
+  ${GLOG_LIB}
+  ${OpenCV_LIBS}
+  ${PCL_LIBRARIES}
+)
+
+add_executable(${PROJECT_NAME}_palletization src/hope_palletization.cpp)
+target_link_libraries(${PROJECT_NAME}_palletization
   ${catkin_LIBRARIES}
   ${PROJECT_NAME}
   ${GLOG_LIB}
