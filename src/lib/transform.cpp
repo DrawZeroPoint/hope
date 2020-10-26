@@ -12,19 +12,19 @@ Transform::Transform() :
   // Initialize node handler before tf_buffer is important
 }
 
-bool Transform::getTransform(string base_frame, string header_frame)
+bool Transform::getTransform(const string& base_frame, const string& header_frame, const ros::Time& stamp)
 {
   try {
     // While we aren't supposed to be shutting down
     while (ros::ok()) {
       // Check if the transform from map to quad can be made right now
-      if (tf_buffer_.canTransform(base_frame, header_frame, ros::Time(0))) {
+      if (tf_buffer_.canTransform(base_frame, header_frame, stamp)) {
         // Get the transform
-        tf_handle_ = tf_buffer_.lookupTransform(base_frame, header_frame, ros::Time(0));
+        tf_handle_ = tf_buffer_.lookupTransform(base_frame, header_frame, stamp);
         return true;
       }
       else {
-        ROS_WARN("Transform: Frame %s does not exist.", base_frame.c_str());
+        ROS_WARN("Transform: Frame '%s' or '%s' does not exist.", base_frame.c_str(), header_frame.c_str());
       }
       
       // Handle callbacks and sleep for a small amount of time

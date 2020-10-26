@@ -30,7 +30,7 @@ class Transform
 public:
   Transform();
 
-  bool getTransform(string base_frame, string header_frame);
+  bool getTransform(const string& base_frame, const string& header_frame, const ros::Time& stamp);
 
   void doTransform(PointCloud::Ptr cloud_in, PointCloud::Ptr &cloud_out);
   
