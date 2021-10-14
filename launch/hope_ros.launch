@@ -1,14 +1,18 @@
 <launch>
 
-    <!-- Comment this if using wall time -->
-    <param name="/use_sim_time" value="true" />
+    <arg name="sim" default="false" doc="Whether use simulation time. Default false." />
+    <group if="$(arg sim)">
+        <param name="/use_sim_time" value="true"/>
+    </group>
+    <group unless="$(arg sim)">
+        <param name="/use_sim_time" value="false"/>
+    </group>
 
     <arg name="ns" default="vision"/>
     <arg name="base_frame" default="base_link"/>
     <arg name="cloud_topic" default="/point_cloud"/>
 
     <node ns="$(arg ns)" name="hope_ros" pkg="hope" type="hope_ros" respawn="false">
-        <!-- No slash on the front -->
         <param name="base_frame" value="$(arg base_frame)" />
         <param name="cloud_topic" value="$(arg cloud_topic)" />
         <param name="xy_resolution" value="0.05" />
