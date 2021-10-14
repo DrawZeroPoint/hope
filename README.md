@@ -1,5 +1,5 @@
 <div align="center">
-<img src="illustration.png" width="800" alt="HoPE" />
+<img src="doc/illustration.png" width="800" alt="HoPE" />
 </div>
 
 **Horizontal Plane Extractor** (or **HoPE** for short) is a ROS package for extracting horizontal planes given 
@@ -20,7 +20,7 @@ On a fresh Ubuntu 14.04+ system, you can install aforementioned packages by inst
 sudo apt-get install ros-<distro>-desktop ros-<distro>-compressed-*
 ```
 
-Make sure to change `<distro>` to what your ROS distribution really is.
+Make sure to change `<distro>` to the ROS distribution you want to use.
 
 After these prerequisites have been met, if you only want to use HoPE without ROS:
 
@@ -43,23 +43,36 @@ catkin_make
 
 # Basic Usage
 
+Assume hope is built without ROS:
+
 ```
-roscore
-
-# assume hope is located at /home/USER
 cd ~/hope/build/devel/lib/hope
-
+roscore
 ./hope_node ~/hope/example/ 1305031459.259760.png 1305031459.274941.png -0.2171 -0.0799 1.3959 -0.8445 -0.0451 0.0954 0.5251 
 ```
 
-Or:
+Or, assume hope/ is built with ROS and located at `~/catkin_ws/devel/lib`
+
+```
+cd ~/catkin_ws/devel/lib/hope
+roscore
+./hope_node ../../../src/hope/example/ 1305031459.259760.png 1305031459.274941.png -0.2171 -0.0799 1.3959 -0.8445 -0.0451 0.0954 0.5251
+```
+
+The output should look like this:
+
+<div align="center">
+<img src="doc/demo.png" width="800" alt="HoPE" />
+</div>
+
+You can also start it using rosrun, by default, we assume the pointcloud file `model.pcd` is located at `~`
 
 ```
 roscore
 rosrun hope hope_ros
 ```
 
-**Note that since hope is mainly developed for robotic usage, running roscore beforehand is mandatory in either mode
+**Note that since hope is mainly developed for robotic usage, running roscore beforehand is mandatory in all modes
 for now.**
 
 # Advanced Usage
@@ -74,8 +87,9 @@ Using a single image pair (RGB and depth), in a terminal, navigate to the locati
 ./hope_node {PATH}/TUM/rgbd_dataset_freiburg1_desk/ rgb/1305031459.259760.png depth/1305031459.274941.png -0.2171 -0.0799 1.3959 -0.8445 -0.0451 0.0954 0.5251
 ```
 
-In this example, we assume that you have already downloaded the test set to your local folder `{PATH}`. 
-The camera position parameters (-0.2171 ...) could be found in the ground_truth.txt within the dataset. 
+In this example, we assume that you have already downloaded the TUM RGB-D test set to your local folder `{PATH}`. 
+The scenario to test on is given as the first parameter, followed by an RGB-D pair in that folder and the 
+camera position parameters (-0.2171 ...), which could be found in the ground_truth.txt within the dataset. 
 Please notice that the sequence numbers for an RGB-depth pair are not exactly the same.
 
 ## Test on [Indoor Lidar-RGBD](http://redwood-data.org/indoor_lidar_rgbd/) point cloud dataset
