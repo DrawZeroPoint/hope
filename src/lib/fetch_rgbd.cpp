@@ -1,4 +1,4 @@
-#include "fetch_rgbd.h"
+#include "hope/fetch_rgbd.h"
 
 using namespace image_transport;
 

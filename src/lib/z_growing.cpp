@@ -1,4 +1,4 @@
-#include "z_growing.h"
+#include "hope/z_growing.h"
 
 ZGrowing::ZGrowing() :
   min_pts_per_cluster_ (1),

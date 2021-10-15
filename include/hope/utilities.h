@@ -86,11 +86,11 @@ typedef pcl::FPFHSignature33 FeatureFPFH;
 typedef pcl::FPFHEstimationOMP<PointN, PointN, FeatureFPFH> FeatureEstimationFPFH;
 typedef pcl::PointCloud<FeatureFPFH> PointCloudFPFH;
 
-typedef pcl::PointCloud<pcl::PointXYZRGB> PointCloud;
-typedef pcl::PointCloud<pcl::PointXYZ> PointCloudMono;
-typedef pcl::PointCloud<pcl::PointXYZRGBNormal> PointCloudRGBN;
-typedef pcl::PointCloud<pcl::Normal> CloudN;
-typedef pcl::PointCloud<pcl::PointNormal> PointCloudN;
+typedef pcl::PointCloud<pcl::PointXYZRGB> Cloud_XYZRGB;
+typedef pcl::PointCloud<pcl::PointXYZ> Cloud_XYZ;
+typedef pcl::PointCloud<pcl::PointXYZRGBNormal> Cloud_XYZRGBN;
+typedef pcl::PointCloud<pcl::Normal> Cloud_N;
+typedef pcl::PointCloud<pcl::PointNormal> Cloud_XYZN;
 typedef pcl::visualization::PointCloudColorHandlerCustom<PointN> ColorHandler;
 
 
@@ -99,8 +99,8 @@ class Utilities
 public:
   Utilities();
 
-  static bool calRANSAC(const PointCloudMono::ConstPtr& cloud_3d_in, float dt, float &grad);
-  static void calRegionGrowing(PointCloudRGBN::Ptr cloud_in, int minsz, int maxsz, int nb, int smooth,
+  static bool calRANSAC(const Cloud_XYZ::ConstPtr& cloud_3d_in, float dt, float &grad);
+  static void calRegionGrowing(Cloud_XYZRGBN::Ptr cloud_in, int minsz, int maxsz, int nb, int smooth,
                                pcl::PointCloud<pcl::Normal>::Ptr normals, std::vector<pcl::PointIndices> &inliers);
 
   /**
@@ -119,7 +119,7 @@ public:
    * @param minsize MinClusterSize
    * @param maxsize MaxClusterSize
    */
-  static void extractClusters(PointCloudMono::Ptr cloud_in,
+  static void extractClusters(Cloud_XYZ::Ptr cloud_in,
                               std::vector<pcl::PointIndices> &cluster_indices,
                               float th_cluster, int minsize, int maxsize);
 
@@ -127,31 +127,31 @@ public:
   static void sliceCloudWithPlane(pcl::ModelCoefficients::Ptr coeff_in, float th_distance,
                                   T cloud_in, U &cloud_out);
 
-  static void downSampling(const PointCloudMono::Ptr& cloud_in, PointCloudMono::Ptr &cloud_out,
+  static void downSampling(const Cloud_XYZ::Ptr& cloud_in, Cloud_XYZ::Ptr &cloud_out,
                            float grid_sz = 0, float z_sz = 0);
 
-  static void downSampling(const PointCloud::Ptr& cloud_in, PointCloud::Ptr &cloud_out,
+  static void downSampling(const Cloud_XYZRGB::Ptr& cloud_in, Cloud_XYZRGB::Ptr &cloud_out,
                            float grid_sz = 0, float z_sz = 0);
 
-  static void downSampling(const PointCloudN::Ptr &cloud_in, PointCloudN::Ptr &cloud_out,
+  static void downSampling(const Cloud_XYZN::Ptr &cloud_in, Cloud_XYZN::Ptr &cloud_out,
                            float grid_sz = 0, float z_sz = 0);
 
-  static void estimateNorm(const PointCloudMono::Ptr& cloud_in,
-                           PointCloudRGBN::Ptr &cloud_out,
-                           CloudN::Ptr &normals_out,
+  static void estimateNorm(const Cloud_XYZ::Ptr& cloud_in,
+                           Cloud_XYZRGBN::Ptr &cloud_out,
+                           Cloud_N::Ptr &normals_out,
                            float norm_r);
 
-  static void estimateNorm(const PointCloudMono::Ptr& cloud_in,
-                           CloudN::Ptr &normals_out,
-                           float norm_r);
+  static void estimateNorm(const Cloud_XYZ::Ptr& cloud_in,
+                           Cloud_N::Ptr &normals_out,
+                           double norm_r);
 
-  static void estimateNormals(const PointCloudN::Ptr &cloud_in, PointCloudN::Ptr &cloud_out, float dsp_th);
+  static void estimateNormals(const Cloud_XYZN::Ptr &cloud_in, Cloud_XYZN::Ptr &cloud_out, float dsp_th);
 
-  static void estimateFPFH(PointCloudN::Ptr cloud_in, PointCloudFPFH::Ptr &features_out, float dsp_th);
+  static void estimateFPFH(Cloud_XYZN::Ptr cloud_in, PointCloudFPFH::Ptr &features_out, float dsp_th);
 
-  static bool alignmentWithFPFH(PointCloudN::Ptr src_cloud, PointCloudFPFH::Ptr src_features,
-                                PointCloudN::Ptr tgt_cloud, PointCloudFPFH::Ptr tgt_features,
-                                Eigen::Matrix4f &transformation, PointCloudN::Ptr &src_aligned, float leaf = 0.005f);
+  static bool alignmentWithFPFH(Cloud_XYZN::Ptr src_cloud, PointCloudFPFH::Ptr src_features,
+                                Cloud_XYZN::Ptr tgt_cloud, PointCloudFPFH::Ptr tgt_features,
+                                Eigen::Matrix4f &transformation, Cloud_XYZN::Ptr &src_aligned, float leaf = 0.005f);
 
   /**
    * @brief getClosestPoint
@@ -165,26 +165,26 @@ public:
    */
   static void getClosestPoint(pcl::PointXY p1, pcl::PointXY p2, pcl::PointXY p, pcl::PointXY &pc);
 
-  static void getCloudByInliers(const PointCloudMono::Ptr& cloud_in, PointCloudMono::Ptr &cloud_out,
+  static void getCloudByInliers(const Cloud_XYZ::Ptr& cloud_in, Cloud_XYZ::Ptr &cloud_out,
                                 const pcl::PointIndices::Ptr& inliers, bool negative, bool organized);
 
-  static void getCloudByInliers(const CloudN::Ptr& cloud_in, CloudN::Ptr &cloud_out,
+  static void getCloudByInliers(const Cloud_N::Ptr& cloud_in, Cloud_N::Ptr &cloud_out,
                                 const pcl::PointIndices::Ptr& inliers, bool negative, bool organized);
 
-  static void getCloudByInliers(const PointCloudRGBN::Ptr& cloud_in,
-                                PointCloudRGBN::Ptr &cloud_out,
+  static void getCloudByInliers(const Cloud_XYZRGBN::Ptr& cloud_in,
+                                Cloud_XYZRGBN::Ptr &cloud_out,
                                 const pcl::PointIndices::Ptr& inliers, bool negative, bool organized);
 
-  static void getCloudByNorm(const PointCloudRGBN::Ptr& cloud_in, pcl::PointIndices::Ptr &inliers,
+  static void getCloudByNorm(const Cloud_XYZRGBN::Ptr& cloud_in, pcl::PointIndices::Ptr &inliers,
                              float th_norm);
 
-  static void getCloudByNorm(const CloudN::Ptr& cloud_in, pcl::PointIndices::Ptr &inliers, float th_norm);
+  static void getCloudByNorm(const Cloud_N::Ptr& cloud_in, pcl::PointIndices::Ptr &inliers, double th_norm);
 
-  static void getCloudByZ(const PointCloudMono::Ptr& cloud_in, pcl::PointIndices::Ptr &inliers,
-                          PointCloudMono::Ptr &cloud_out, float z_min, float z_max);
+  static void getCloudByZ(const Cloud_XYZ::Ptr& cloud_in, pcl::PointIndices::Ptr &inliers,
+                          Cloud_XYZ::Ptr &cloud_out, double z_min, double z_max);
 
-  static void getCloudByZ(const PointCloud::Ptr& cloud_in, pcl::PointIndices::Ptr &inliers,
-                          PointCloud::Ptr &cloud_out, float z_min, float z_max);
+  static void getCloudByZ(const Cloud_XYZRGB::Ptr& cloud_in, pcl::PointIndices::Ptr &inliers,
+                          Cloud_XYZRGB::Ptr &cloud_out, float z_min, float z_max);
 
   /**
    * Given a cloud, get its average, maximum, minimum, and middle z values.
@@ -202,16 +202,16 @@ public:
 
   static float getDistance(std::vector<float> v1, std::vector<float> v2);
 
-  static pcl::PolygonMesh getMesh(PointCloudMono::Ptr point_cloud, CloudN::Ptr normals);
+  static pcl::PolygonMesh getMesh(Cloud_XYZ::Ptr point_cloud, Cloud_N::Ptr normals);
 
   static void getMinMax(std::vector<int> vec, int &minv, int &maxv);
 
   static std::string getName(int count, const std::string& pref, int surf);
 
-  static void getOccupancyMap(const PointCloudMono::Ptr& cloud_src, PointCloudMono::Ptr cloud_upper, std::vector<int> occupy,
-                              PointCloud::Ptr &cloud_out);
+  static void getOccupancyMap(const Cloud_XYZ::Ptr& cloud_src, const Cloud_XYZ::Ptr& cloud_upper, std::vector<int> occupy,
+                              Cloud_XYZRGB::Ptr &cloud_out);
 
-  static void getPointByZ(float z, const PointCloudMono::Ptr& cloud_in, pcl::PointXYZ &pt);
+  static void getPointByZ(float z, const Cloud_XYZ::Ptr& cloud_in, pcl::PointXYZ &pt);
 
   static void heatmapRGB(float gray, uint8_t &r, uint8_t &g, uint8_t &b);
 
@@ -224,27 +224,27 @@ public:
   static bool mergeOrReplace(size_t g_id, std::vector<int> l_ids, size_t q_id,
                              std::vector<std::vector<float> > global, std::vector<std::vector<float> > local);
 
-  static void msgToCloud(const PointCloud::ConstPtr& msg, PointCloudMono::Ptr cloud);
+  static void msgToCloud(const Cloud_XYZRGB::ConstPtr& msg, const Cloud_XYZ::Ptr& cloud);
 
-  static bool normalAnalysis(const CloudN::Ptr& cloud, float th_angle);
+  static bool normalAnalysis(const Cloud_N::Ptr& cloud, double th_angle);
 
   static float pointToSegDist(float x, float y, float x1, float y1, float x2, float y2);
 
-  static void convertToColorCloud(const PointCloudMono::Ptr& cloud_in,
-                                  PointCloud::Ptr &cloud_out, int r, int g, int b);
+  static void convertToColorCloud(const Cloud_XYZ::Ptr& cloud_in,
+                                  Cloud_XYZRGB::Ptr &cloud_out, int r, int g, int b);
 
   template <typename T, typename U>
   static void convertCloudType(T cloud_in, U &cloud_out);
 
-  static void planeTo2D(float z, PointCloudMono::Ptr cloud_in,
-                        PointCloudMono::Ptr &cloud_out);
+  static void planeTo2D(float z, Cloud_XYZ::Ptr cloud_in,
+                        Cloud_XYZ::Ptr &cloud_out);
 
   static void projectCloudTo2D(const pcl::ModelCoefficients::Ptr& coeff_in,
-                               const PointCloudMono::Ptr& cloud_in,
-                               PointCloudMono::Ptr &cloud_out);
+                               const Cloud_XYZ::Ptr& cloud_in,
+                               Cloud_XYZ::Ptr &cloud_out);
 
-  static void rotateCloudXY(const PointCloudRGBN::Ptr& cloud_in,
-                            PointCloudRGBN::Ptr &cloud_out,
+  static void rotateCloudXY(const Cloud_XYZRGBN::Ptr& cloud_in,
+                            Cloud_XYZRGBN::Ptr &cloud_out,
                             float rx, float ry, Eigen::Matrix4f &transform_inv);
 
   /**
@@ -253,7 +253,7 @@ public:
    * @param cloud_sk Shrinked cloud in XY plane
    * @param dis in meter
    */
-  static void shrinkHull(const PointCloudMono::Ptr& cloud, PointCloudMono::Ptr &cloud_sk, float dis);
+  static void shrinkHull(const Cloud_XYZ::Ptr& cloud, Cloud_XYZ::Ptr &cloud_sk, float dis);
 
   static float shortRainbowColorMap(const double &value, const double &min, const double &max);
 
@@ -278,7 +278,7 @@ public:
   template <typename T>
   static inline bool isPointCloudValid(T cloud) { return cloud->empty() == 0; }
 
-  static bool getClustersUponPlane(const PointCloudMono::Ptr& src_cloud, const PointCloudMono::Ptr& contour, std::vector<PointCloudMono::Ptr> &clusters);
+  static bool getClustersUponPlane(const Cloud_XYZ::Ptr& src_cloud, const Cloud_XYZ::Ptr& contour, std::vector<Cloud_XYZ::Ptr> &clusters);
 
   /**
    * Determine whether a given point p in XY plane is within a contour C in the same plane.
@@ -291,7 +291,7 @@ public:
    * @param contour A point cloud of vertexes from a contour, all points should have the same z value
    * @param p a point in Z=z plane
    */
-  static bool isInContour(const PointCloudMono::Ptr& contour, pcl::PointXY p);
+  static bool isInContour(const Cloud_XYZ::Ptr& contour, pcl::PointXY p);
 
   static void matrixToPoseArray(const Eigen::Matrix4f &mat, geometry_msgs::PoseArray &array);
 
@@ -303,7 +303,7 @@ public:
    *          otherwise use this z for the origin. This is useful when the cylinder exceeds the
    *          sensing range of the camera.
    */
-  static bool getCylinderPose(const PointCloudMono::Ptr& cloud, geometry_msgs::Pose &pose, float z = 0);
+  static bool getCylinderPose(const Cloud_XYZ::Ptr& cloud, geometry_msgs::Pose &pose, float z = 0);
 
   /**
    * Given a isolated box type object (isolated means that the object is not adjacent with the wall),
@@ -312,7 +312,7 @@ public:
    * @param pose Pose of the box, the origin is located at half height, center of the confronting face
    * @param z See getCylinderPose
    */
-  static bool getBoxPose(const PointCloudMono::Ptr& cloud, geometry_msgs::Pose &pose, float z = 0);
+  static bool getBoxPose(const Cloud_XYZ::Ptr& cloud, geometry_msgs::Pose &pose, float z = 0);
 
   /**
    * Given cloud from the top surface of a box type object, calculate its pose in camera frame
@@ -321,7 +321,7 @@ public:
    * @param category If cloud z_mean in z_list, category=idx of z_mean in z_list
    * @param z_list A list of box top surface mean z value
    */
-  static bool getBoxTopPose(const PointCloudMono::Ptr& cloud, geometry_msgs::Pose &pose, int& category, std::vector<double> z_list);
+  static bool getBoxTopPose(const Cloud_XYZ::Ptr& cloud, geometry_msgs::Pose &pose, int& category, std::vector<double> z_list);
 
   /**
    * Get the bounding rect of a 2D cloud in XY plane. The rect's edges are aligned with the coordinates.
@@ -332,7 +332,7 @@ public:
    * @param width Width of the rect
    * @param height Height of the rect
    */
-  static void getStraightRect2D(const PointCloudMono::Ptr &cloud, std::vector<pcl::PointXY> &rect,
+  static void getStraightRect2D(const Cloud_XYZ::Ptr &cloud, std::vector<pcl::PointXY> &rect,
                                 pcl::PointXY &center, float &width, float &height);
 
   /**
@@ -349,16 +349,16 @@ public:
    * @attention This function has the limitation that the observer mush roughly face
    *            the box face that is used as reference (where the edge_center locates)
    */
-  static void getRotatedRect2D(const PointCloudMono::Ptr &cloud_2d, std::vector<pcl::PointXY> &rect,
+  static void getRotatedRect2D(const Cloud_XYZ::Ptr &cloud_2d, std::vector<pcl::PointXY> &rect,
                                pcl::PointXY &center, pcl::PointXY &edge_center, float &width, float &height, float &rotation);
 
-  static void computeHull(PointCloudMono::Ptr cloud_2d, PointCloudMono::Ptr &cloud_hull);
+  static void computeHull(Cloud_XYZ::Ptr cloud_2d, Cloud_XYZ::Ptr &cloud_hull);
 
   static void quaternionFromMatrix(Eigen::Matrix4f mat, Eigen::Quaternion<float> &q);
 
   static void quaternionFromPlanarRotation(float rotation, Eigen::Quaternion<float> &q);
 
-  static void combineCloud(PointCloudMono::Ptr cloud_a, PointCloudMono::Ptr cloud_b, PointCloudMono::Ptr &cloud_out);
+  static void combineCloud(Cloud_XYZ::Ptr cloud_a, Cloud_XYZ::Ptr cloud_b, Cloud_XYZ::Ptr &cloud_out);
 
 private:
   static bool calNormalMean(Eigen::Matrix3Xf data, std::vector<int> part1, std::vector<int> part2,
@@ -381,7 +381,7 @@ private:
 
   static pcl::ModelCoefficients::Ptr getPlaneCoeff(float z);
 
-  static std::vector<cv::Point2f> cloudToCVPoints(PointCloudMono::Ptr cloud_hull);
+  static std::vector<cv::Point2f> cloudToCVPoints(Cloud_XYZ::Ptr cloud_hull);
 
   // MeshKit
   //  https://www.mcs.anl.gov/~fathom/meshkit-docs/html/circumcenter_8cpp_source.html

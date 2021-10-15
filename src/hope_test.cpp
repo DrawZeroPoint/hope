@@ -23,7 +23,7 @@ bool testQuaternionFromMatrix() {
 }
 
 bool testCVRotatedRect() {
-  PointCloudMono::Ptr hull(new PointCloudMono);
+  Cloud_XYZ::Ptr hull(new Cloud_XYZ);
   hull->points.resize(4);
 //  pcl::PointXYZ v0{1, 2, 0};
 //  pcl::PointXYZ v1{1, -2, 0};
@@ -51,7 +51,7 @@ bool testCVRotatedRect() {
 
 int main(int argc, char **argv)
 {
-  PointCloudMono::Ptr contour(new PointCloudMono);
+  Cloud_XYZ::Ptr contour(new Cloud_XYZ);
   contour->points.resize(4);
   contour->points[0].x = 1;
   contour->points[0].y = 1;
@@ -87,7 +87,7 @@ int main(int argc, char **argv)
 //  float dsp_th = 0.005f;
 //  PoseEstimation *pe = new PoseEstimation(dsp_th);
 //  std::string scene_path = "/home/dzp/scene.pcd";
-//  PointCloudN::Ptr scene_cloud(new PointCloudN);
+//  Cloud_XYZN::Ptr scene_cloud(new Cloud_XYZN);
 //  pcl::io::loadPCDFile<PointN>(scene_path, *scene_cloud);
 //
 //  Eigen::Matrix4f trans;

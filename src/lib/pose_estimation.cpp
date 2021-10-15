@@ -1,9 +1,9 @@
-#include "pose_estimation.h"
+#include "hope/pose_estimation.h"
 
 using namespace std;
 
 PoseEstimation::PoseEstimation(float dsp_th) :
-  object_cloud_(new PointCloudN),
+  object_cloud_(new Cloud_XYZN),
   object_features_(new PointCloudFPFH)
 {
   dsp_th_ = dsp_th;
@@ -19,7 +19,7 @@ PoseEstimation::PoseEstimation(float dsp_th) :
   }
 }
 
-bool PoseEstimation::estimate(PointCloudN::Ptr scene_cloud, Eigen::Matrix4f &trans, bool verbose) {
+bool PoseEstimation::estimate(Cloud_XYZN::Ptr scene_cloud, Eigen::Matrix4f &trans, bool verbose) {
   if (!has_object_model_) return false;
 
   Utilities::downSampling(scene_cloud, scene_cloud, dsp_th_, dsp_th_);
@@ -30,7 +30,7 @@ bool PoseEstimation::estimate(PointCloudN::Ptr scene_cloud, Eigen::Matrix4f &tra
   //  pcl::io::savePCDFile("/home/dzp/scene.pcd", *scene_cloud);
   //  pcl::io::savePCDFile("/home/dzp/obj.pcd", *object_cloud_);
 
-  PointCloudN::Ptr object_aligned(new PointCloudN);
+  Cloud_XYZN::Ptr object_aligned(new Cloud_XYZN);
   bool ok = Utilities::alignmentWithFPFH(object_cloud_, object_features_,
                                          scene_cloud, scene_features, trans, object_aligned, dsp_th_);
 

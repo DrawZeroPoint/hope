@@ -1,0 +1,51 @@
+<launch>
+  <arg name="serial_no" default=""/>
+  <arg name="json_file_path" default=""/>
+  <arg name="camera" default="camera"/>
+  <arg name="gui" default="true" />
+
+  <arg name="base_frame" default="base_link"/>
+  <arg name="child_frame" default="camera_link"/>
+  <arg name="gyro_topic" default="gyro/sample"/>
+  <arg name="accel_topic" default="accel/sample"/>
+
+  <node ns="$(arg camera)" name="hope_rs_rpy_ros" pkg="hope" type="hope_rs_rpy_ros" respawn="false">
+    <param name="base_frame" value="$(arg base_frame)" />
+    <param name="child_frame" value="$(arg child_frame)" />
+    <param name="gyro_topic" value="$(arg gyro_topic)" />
+    <param name="accel_topic" value="$(arg accel_topic)" />
+    <!--  The rate for publishing TF from base to child, should be comparable with FPS  -->
+    <param name="rate" value="30" />
+  </node>
+
+  <group ns="$(arg camera)">
+    <include file="$(find realsense2_camera)/launch/includes/nodelet.launch.xml">
+      <arg name="serial_no"         value="$(arg serial_no)"/>
+      <arg name="json_file_path"    value="$(arg json_file_path)"/>
+      <arg name="depth_width"       value="640"/>
+      <arg name="depth_height"      value="480"/>
+      <arg name="depth_fps"         value="30"/>
+      <arg name="color_width"       value="640"/>
+      <arg name="color_height"      value="480"/>
+      <arg name="color_fps"         value="30"/>
+      <arg name="enable_depth"      value="true"/>
+      <arg name="enable_color"      value="true"/>
+      <arg name="enable_infra1"     value="false"/>
+      <arg name="enable_infra2"     value="false"/>
+      <arg name="enable_fisheye"    value="false"/>
+      <arg name="enable_gyro"       value="true"/>
+      <arg name="enable_accel"      value="true"/>
+      <arg name="enable_pointcloud" value="true"/>
+      <arg name="enable_sync"       value="true"/>
+      <arg name="tf_prefix"         value="$(arg camera)"/>
+    </include>
+
+    <group if="$(arg gui)">
+      <node name="rviz" pkg="rviz" type="rviz"
+            args="-d $(find hope)/cfg/rviz/hope.rviz" required="true" />
+    </group>
+
+  </group>
+
+
+</launch>

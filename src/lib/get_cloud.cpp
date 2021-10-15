@@ -1,4 +1,4 @@
-#include "get_cloud.h"
+#include "hope/get_cloud.h"
 
 using namespace cv;
 
@@ -156,7 +156,7 @@ bool projectDepthTo3D(const Mat &depthImage, pcl::PointXYZ &pt,
 }
 
 bool GetCloud::getMonoCloud(const Mat& depth, float fx, float fy, float cx, float cy,
-                            float max_depth, float min_depth, PointCloudMono::Ptr &cloud)
+                            float max_depth, float min_depth, Cloud_XYZ::Ptr &cloud)
 {
   cloud->height = depth.rows;
   cloud->width  = depth.cols;
@@ -164,7 +164,7 @@ bool GetCloud::getMonoCloud(const Mat& depth, float fx, float fy, float cx, floa
   cloud->resize(cloud->height * cloud->width);
   
   size_t i = 0;
-  for (PointCloudMono::iterator pit = cloud->begin(); 
+  for (Cloud_XYZ::iterator pit = cloud->begin();
        pit != cloud->end(); ++pit) {
     pcl::PointXYZ pt;
     projectDepthTo3D(depth, pt, max_depth, min_depth, 
@@ -177,8 +177,8 @@ bool GetCloud::getMonoCloud(const Mat& depth, float fx, float fy, float cx, floa
   return true;
 }
 
-bool GetCloud::getColorCloud(Mat rgb, Mat depth, float fx, float fy, float cx, float cy, 
-                             float max_depth, float min_depth, PointCloud::Ptr &cloud)
+bool GetCloud::getColorCloud(Mat rgb, Mat depth, float fx, float fy, float cx, float cy,
+                             float max_depth, float min_depth, Cloud_XYZRGB::Ptr &cloud)
 {
   cloud->height = depth.rows;
   cloud->width  = depth.cols;
@@ -186,7 +186,7 @@ bool GetCloud::getColorCloud(Mat rgb, Mat depth, float fx, float fy, float cx, f
   cloud->resize(cloud->height * cloud->width);
   
   size_t i = 0;
-  for (PointCloud::iterator pit = cloud->begin(); 
+  for (Cloud_XYZRGB::iterator pit = cloud->begin();
        pit != cloud->end(); ++pit) {
     pcl::PointXYZ pt;
     projectDepthTo3D(depth, pt, max_depth, min_depth, 
@@ -204,7 +204,7 @@ bool GetCloud::getColorCloud(Mat rgb, Mat depth, float fx, float fy, float cx, f
   }
 }
 
-void GetCloud::getColorCloud(Mat rgb, Mat depth, PointCloud::Ptr &cloud,
+void GetCloud::getColorCloud(Mat rgb, Mat depth, Cloud_XYZRGB::Ptr &cloud,
                              float max_depth, float min_depth)
 {
   cloud->height = depth.rows;

@@ -282,7 +282,7 @@ main (int argc, char** argv)
   // -----Create example point cloud-----
   // ------------------------------------
   pcl::PointCloud<pcl::PointXYZ>::Ptr basic_cloud_ptr (new pcl::PointCloud<pcl::PointXYZ>);
-  //pcl::PointCloud<pcl::PointXYZRGB>::Ptr point_cloud_ptr (new pcl::PointCloud<pcl::PointXYZRGB>);
+  //pcl::Cloud_XYZRGB<pcl::PointXYZRGB>::Ptr point_cloud_ptr (new pcl::Cloud_XYZRGB<pcl::PointXYZRGB>);
   if (pcl::io::loadPCDFile<pcl::PointXYZ>("/home/aicrobo/pointcloud.pcd", *basic_cloud_ptr) == -1) //* load the file
   {
     PCL_ERROR ("Couldn't read file test_pcd.pcd \n");
@@ -301,14 +301,14 @@ main (int argc, char** argv)
 //  ne.setInputCloud(point_cloud_ptr);
 //  pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGB> ());
 //  ne.setSearchMethod (tree);
-//  pcl::PointCloud<pcl::Normal>::Ptr cloud_normals1 (new pcl::PointCloud<pcl::Normal>);
+//  pcl::Cloud_XYZRGB<pcl::Normal>::Ptr cloud_normals1 (new pcl::Cloud_XYZRGB<pcl::Normal>);
 //  ne.setRadiusSearch(0.05);
 //  ne.compute(*cloud_normals1);
   
 //  // ---------------------------------------------------------------
 //  // -----Calculate surface normals with a search radius of 0.1-----
 //  // ---------------------------------------------------------------
-//  pcl::PointCloud<pcl::Normal>::Ptr cloud_normals2 (new pcl::PointCloud<pcl::Normal>);
+//  pcl::Cloud_XYZRGB<pcl::Normal>::Ptr cloud_normals2 (new pcl::Cloud_XYZRGB<pcl::Normal>);
 //  ne.setRadiusSearch (0.1);
 //  ne.compute (*cloud_normals2);
   

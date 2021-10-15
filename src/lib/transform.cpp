@@ -1,4 +1,4 @@
-#include "transform.h"
+#include "hope/transform.h"
 
 // Translation param from camera to base, in meter
 float dx_camera_to_base = 0;
@@ -12,10 +12,10 @@ Transform::Transform() :
   // Initialize node handler before tf_buffer is important
 }
 
-bool Transform::getTransform(string base_frame, string header_frame)
+bool Transform::getTransform(const string& base_frame, const string& header_frame)
 {
   try {
-    // While we aren't supposed to be shutting down
+    // Loop until getting the transform
     while (ros::ok()) {
       // Check if the transform from map to quad can be made right now
       if (tf_buffer_.canTransform(base_frame, header_frame, ros::Time(0))) {
@@ -38,30 +38,28 @@ bool Transform::getTransform(string base_frame, string header_frame)
   }
 }
 
-void Transform::doTransform(PointCloud::Ptr cloud_in,
-                            PointCloud::Ptr &cloud_out)
+void Transform::doTransform(const Cloud_XYZRGB::Ptr& cloud_in,
+                            Cloud_XYZRGB::Ptr &cloud_out) const
 {
   geometry_msgs::Vector3 trans = tf_handle_.transform.translation;
   geometry_msgs::Quaternion rotate = tf_handle_.transform.rotation;
 
-  Eigen::Transform<float,3,Eigen::Affine> t = Eigen::Translation3f(trans.x,
-                                                                   trans.y,
-                                                                   trans.z)
-      * Eigen::Quaternion<float>(rotate.w, rotate.x, rotate.y, rotate.z);
+  Eigen::Transform<double, 3, Eigen::Affine> t = Eigen::Translation3d(trans.x, trans.y, trans.z)
+      * Eigen::Quaternion<double>(rotate.w, rotate.x, rotate.y, rotate.z);
 
   cloud_out->height = cloud_in->height;
   cloud_out->width  = cloud_in->width;
   cloud_out->is_dense = false;
   cloud_out->resize(cloud_out->height * cloud_out->width);
 
-  Eigen::Vector3f point;
+  Eigen::Vector3d point;
   size_t i = 0;
-  for (PointCloud::const_iterator pit = cloud_in->begin();
+  for (Cloud_XYZRGB::const_iterator pit = cloud_in->begin();
        pit != cloud_in->end(); ++pit) {
-    point = t * Eigen::Vector3f(pit->x, pit->y, pit->z);
-    cloud_out->points[i].x = point.x();
-    cloud_out->points[i].y = point.y();
-    cloud_out->points[i].z = point.z();
+    point = t * Eigen::Vector3d(pit->x, pit->y, pit->z);
+    cloud_out->points[i].x = static_cast<float>(point.x());
+    cloud_out->points[i].y = static_cast<float>(point.y());
+    cloud_out->points[i].z = static_cast<float>(point.z());
     cloud_out->points[i].r = cloud_in->points[i].r;
     cloud_out->points[i].g = cloud_in->points[i].g;
     cloud_out->points[i].b = cloud_in->points[i].b;
@@ -69,30 +67,28 @@ void Transform::doTransform(PointCloud::Ptr cloud_in,
   }
 }
 
-void Transform::doTransform(PointCloudMono::Ptr cloud_in, 
-                            PointCloudMono::Ptr &cloud_out)
+void Transform::doTransform(const Cloud_XYZ::Ptr& cloud_in,
+                            Cloud_XYZ::Ptr &cloud_out) const
 {
   geometry_msgs::Vector3 trans = tf_handle_.transform.translation;
   geometry_msgs::Quaternion rotate = tf_handle_.transform.rotation;
   
-  Eigen::Transform<float,3,Eigen::Affine> t = Eigen::Translation3f(trans.x,
-                                                                   trans.y,
-                                                                   trans.z)
-      * Eigen::Quaternion<float>(rotate.w, rotate.x, rotate.y, rotate.z);
+  Eigen::Transform<double, 3, Eigen::Affine> t = Eigen::Translation3d(trans.x, trans.y, trans.z)
+      * Eigen::Quaternion<double>(rotate.w, rotate.x, rotate.y, rotate.z);
   
   cloud_out->height = cloud_in->height;
   cloud_out->width  = cloud_in->width;
   cloud_out->is_dense = false;
   cloud_out->resize(cloud_out->height * cloud_out->width);
   
-  Eigen::Vector3f point;
+  Eigen::Vector3d point;
   size_t i = 0;
-  for (PointCloudMono::const_iterator pit = cloud_in->begin();
+  for (Cloud_XYZ::const_iterator pit = cloud_in->begin();
        pit != cloud_in->end(); ++pit) {
-    point = t * Eigen::Vector3f(pit->x, pit->y, pit->z);
-    cloud_out->points[i].x = point.x();
-    cloud_out->points[i].y = point.y();
-    cloud_out->points[i].z = point.z();
+    point = t * Eigen::Vector3d(pit->x, pit->y, pit->z);
+    cloud_out->points[i].x = static_cast<float>(point.x());
+    cloud_out->points[i].y = static_cast<float>(point.y());
+    cloud_out->points[i].z = static_cast<float>(point.z());
     ++i;
   }
 }
@@ -101,11 +97,11 @@ void Transform::doTransform(PointCloudMono::Ptr cloud_in,
  * @brief Transform::doTransform
  * @param cloud_in
  * @param cloud_out
- * @param roll The Eular Angle is in raidus
+ * @param roll The Euler Angle is in radius
  * @param pitch When pointing through the axis with thumb of right hand,
  * @param yaw the other 4 finger direct to the positive direction of the angle
  */
-void Transform::doTransform(PointCloud::Ptr cloud_in, PointCloud::Ptr &cloud_out, 
+void Transform::doTransform(const Cloud_XYZRGB::Ptr& cloud_in, Cloud_XYZRGB::Ptr &cloud_out,
                             float roll, float pitch, float yaw)
 {
   geometry_msgs::TransformStamped transformStamped;
@@ -136,7 +132,7 @@ void Transform::doTransform(PointCloud::Ptr cloud_in, PointCloud::Ptr &cloud_out
   
   Eigen::Vector3f point;
   size_t i = 0;
-  for (PointCloud::const_iterator pit = cloud_in->begin();
+  for (Cloud_XYZRGB::const_iterator pit = cloud_in->begin();
        pit != cloud_in->end(); ++pit) {
     point = t * Eigen::Vector3f(pit->x, pit->y, pit->z);
     cloud_out->points[i].x = point.x();
@@ -149,7 +145,7 @@ void Transform::doTransform(PointCloud::Ptr cloud_in, PointCloud::Ptr &cloud_out
   }
 }
 
-void Transform::doTransform(PointCloud::Ptr cloud_in, PointCloud::Ptr &cloud_out, 
+void Transform::doTransform(const Cloud_XYZRGB::Ptr& cloud_in, Cloud_XYZRGB::Ptr &cloud_out,
                             float tx, float ty, float tz, float qx, float qy, float qz, float qw)
 {
   geometry_msgs::TransformStamped transformStamped;
@@ -177,7 +173,7 @@ void Transform::doTransform(PointCloud::Ptr cloud_in, PointCloud::Ptr &cloud_out
   
   Eigen::Vector3f point;
   size_t i = 0;
-  for (PointCloud::const_iterator pit = cloud_in->begin();
+  for (Cloud_XYZRGB::const_iterator pit = cloud_in->begin();
        pit != cloud_in->end(); ++pit) {
     point = t * Eigen::Vector3f(pit->x, pit->y, pit->z);
     cloud_out->points[i].x = point.x();

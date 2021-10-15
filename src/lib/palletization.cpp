@@ -2,7 +2,7 @@
 // Created by dzp on 2020/9/18.
 //
 
-#include "palletization.h"
+#include "hope/palletization.h"
 
 
 Palletization::Palletization(ros::NodeHandle nh, string base_frame, float th_xy, float th_z)
@@ -18,7 +18,7 @@ Palletization::Palletization(ros::NodeHandle nh, string base_frame, float th_xy,
 bool Palletization::getObjectInfoCb(hope::GetObjectPose::Request &req,
                                     hope::GetObjectPose::Response &res) {
   origin_heights_ = req.origin_heights;
-  PointCloudMono::Ptr src_cloud(new PointCloudMono);
+  Cloud_XYZ::Ptr src_cloud(new Cloud_XYZ);
   pcl::fromROSMsg(req.points, *src_cloud);
 
   if (!Utilities::isPointCloudValid(src_cloud)) {
@@ -40,7 +40,7 @@ bool Palletization::getObjectInfoCb(hope::GetObjectPose::Request &req,
   }
 
   computeNormalAndFilter();
-  zClustering(cloud_norm_fit_mono_); // -> seed_clusters_indices_
+  zClustering(cloud_norm_fit_mono_); // -> z_clustered_indices_list_
   if (seed_clusters_indices_.empty()) {
     ROS_ERROR("HoPE: Z growing got nothing.");
     res.result_status = res.FAILED;
@@ -66,11 +66,11 @@ bool Palletization::getObjectInfoCb(hope::GetObjectPose::Request &req,
 
 void Palletization::reset()
 {
-  src_mono_cloud_.reset(new PointCloudMono);
-  src_dsp_mono_.reset(new PointCloudMono);
-  cloud_norm_fit_mono_.reset(new PointCloudMono);
-  max_plane_cloud_.reset(new PointCloudMono);
-  src_normals_.reset(new CloudN);
+  src_mono_cloud_.reset(new Cloud_XYZ);
+  src_dsp_mono_.reset(new Cloud_XYZ);
+  cloud_norm_fit_mono_.reset(new Cloud_XYZ);
+  max_plane_cloud_.reset(new Cloud_XYZ);
+  src_normals_.reset(new Cloud_N);
   idx_norm_fit_.reset(new pcl::PointIndices);
 
   plane_z_values_.clear();
@@ -90,7 +90,7 @@ void Palletization::computeNormalAndFilter()
   Utilities::getCloudByInliers(src_dsp_mono_, cloud_norm_fit_mono_, idx_norm_fit_, false, false);
 }
 
-void Palletization::extractPlaneForEachZ(PointCloudMono::Ptr cloud_norm_fit)
+void Palletization::extractPlaneForEachZ(Cloud_XYZ::Ptr cloud_norm_fit)
 {
   size_t id = 0;
   for (float & plane_z_value : plane_z_values_) {
@@ -99,13 +99,13 @@ void Palletization::extractPlaneForEachZ(PointCloudMono::Ptr cloud_norm_fit)
   }
 }
 
-void Palletization::getPlane(size_t id, float z_in, PointCloudMono::Ptr &cloud_norm_fit_mono)
+void Palletization::getPlane(size_t id, float z_in, Cloud_XYZ::Ptr &cloud_norm_fit_mono)
 {
   pcl::PointIndices::Ptr idx_seed(new pcl::PointIndices);
   idx_seed->indices = seed_clusters_indices_[id].indices;
 
   // Extract the plane points indexed by idx_seed
-  PointCloudMono::Ptr cloud_z(new PointCloudMono);
+  Cloud_XYZ::Ptr cloud_z(new Cloud_XYZ);
   Utilities::getCloudByInliers(cloud_norm_fit_mono, cloud_z, idx_seed, false, false);
 
   // Update the data of the max plane detected
@@ -117,7 +117,7 @@ void Palletization::getPlane(size_t id, float z_in, PointCloudMono::Ptr &cloud_n
   }
 }
 
-void Palletization::zClustering(const PointCloudMono::Ptr& cloud_norm_fit_mono)
+void Palletization::zClustering(const Cloud_XYZ::Ptr& cloud_norm_fit_mono)
 {
   ZGrowing zg;
   pcl::search::Search<pcl::PointXYZ>::Ptr tree = boost::shared_ptr<pcl::search::Search<pcl::PointXYZ> >

@@ -48,7 +48,7 @@ public:
    * @return Is cloud got
    */
   static bool getMonoCloud(const cv::Mat& depth, float fx, float fy, float cx, float cy,
-                           float max_depth, float min_depth, PointCloudMono::Ptr &cloud);
+                           float max_depth, float min_depth, Cloud_XYZ::Ptr &cloud);
 
   /** Get colored point cloud from RGB and depth images
    *
@@ -63,10 +63,10 @@ public:
    * @param cloud Output point cloud
    * @return is cloud got
    */
-  static bool getColorCloud(cv::Mat rgb, cv::Mat depth, float fx, float fy, float cx, float cy, 
-                            float max_depth, float min_depth, PointCloud::Ptr &cloud);
+  static bool getColorCloud(cv::Mat rgb, cv::Mat depth, float fx, float fy, float cx, float cy,
+                            float max_depth, float min_depth, Cloud_XYZRGB::Ptr &cloud);
   
-  static void getColorCloud(cv::Mat rgb, cv::Mat depth, PointCloud::Ptr &cloud, float max_depth, float min_depth);
+  static void getColorCloud(cv::Mat rgb, cv::Mat depth, Cloud_XYZRGB::Ptr &cloud, float max_depth, float min_depth);
   
   static bool getPoint(cv::Mat depth, int row, int col, float fx, float fy, float cx, float cy,
                        float maxDepth, float min_depth, pcl::PointXYZ &pt);

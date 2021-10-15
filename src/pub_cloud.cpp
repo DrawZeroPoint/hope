@@ -7,9 +7,9 @@
 // PCL
 #include <pcl/filters/extract_indices.h>
 
-#include "lib/fetch_rgbd.h"
-#include "lib/get_cloud.h"
-#include "lib/utilities.h"
+#include "hope/fetch_rgbd.h"
+#include "hope/get_cloud.h"
+#include "hope/utilities.h"
 
 //#define DEBUG
 
@@ -60,7 +60,7 @@ int main(int argc, char **argv)
        << "max_depth " << max_depth << endl;
 
   FetchRGBD fetcher(depth_topic);
-  PointCloudMono::Ptr src_cloud(new PointCloudMono);
+  Cloud_XYZ::Ptr src_cloud(new Cloud_XYZ);
 
   ros::Publisher pub_cloud = nh.advertise<sensor_msgs::PointCloud2>(cloud_topic, 1);
 
@@ -69,7 +69,7 @@ int main(int argc, char **argv)
     fetcher.fetchDepth(depth);
 
     GetCloud::getMonoCloud(depth->image, fx, fy, cx, cy, max_depth, min_depth, src_cloud);
-    Utilities::publishCloud<PointCloudMono::Ptr>(src_cloud, pub_cloud, camera_frame);
+    Utilities::publishCloud<Cloud_XYZ::Ptr>(src_cloud, pub_cloud, camera_frame);
   }
 
   return 0;

@@ -109,7 +109,7 @@ private:
   int max_plane_points_num_;
 
   /// Container for storing the largest plane
-  PointCloudMono::Ptr max_plane_cloud_;
+  Cloud_XYZ::Ptr max_plane_cloud_;
   float max_plane_z_;
 
   // The height of the object origin w.r.t. the base. This origin may not coincide
@@ -128,17 +128,17 @@ private:
 
   /// Point clouds
   // Source point cloud
-  PointCloudMono::Ptr src_mono_cloud_;
+  Cloud_XYZ::Ptr src_mono_cloud_;
 
   // Source cloud after down sampling
-  PointCloudMono::Ptr src_dsp_mono_;
+  Cloud_XYZ::Ptr src_dsp_mono_;
 
   // Normals of down sampling cloud
-  CloudN::Ptr src_normals_;
+  Cloud_N::Ptr src_normals_;
 
   // Normal filtered cloud index and corresponding cloud
   pcl::PointIndices::Ptr idx_norm_fit_;
-  PointCloudMono::Ptr cloud_norm_fit_mono_;
+  Cloud_XYZ::Ptr cloud_norm_fit_mono_;
 
   // Clustered points
   vector<float> plane_z_values_;
@@ -150,10 +150,10 @@ private:
   void computeNormalAndFilter();
   void reset();
 
-  void extractPlaneForEachZ(PointCloudMono::Ptr cloud_norm_fit);
-  void zClustering(const PointCloudMono::Ptr& cloud_norm_fit_mono);
+  void extractPlaneForEachZ(Cloud_XYZ::Ptr cloud_norm_fit);
+  void zClustering(const Cloud_XYZ::Ptr& cloud_norm_fit_mono);
 
-  void getPlane(size_t id, float z_in, PointCloudMono::Ptr &cloud_norm_fit_mono);
+  void getPlane(size_t id, float z_in, Cloud_XYZ::Ptr &cloud_norm_fit_mono);
   bool postProcessing(int& category, geometry_msgs::Pose& pose);
 };
 

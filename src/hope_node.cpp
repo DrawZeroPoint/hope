@@ -162,7 +162,7 @@ int main(int argc, char **argv)
   cout << "Using threshold: xy@" << xy_resolution << " " << "z@" << z_resolution << endl;
 
   PlaneSegment hope(type, xy_resolution, z_resolution);
-  PointCloud::Ptr src_cloud(new PointCloud); // Cloud input for all pipelines
+  Cloud_XYZRGB::Ptr src_cloud(new Cloud_XYZRGB); // Cloud input for all pipelines
 
   if (type == SYN) {
     // -2.0944 0 0

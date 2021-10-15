@@ -1,4 +1,4 @@
-#include "high_res_timer.h"
+#include "hope/high_res_timer.h"
 
 HighResTimer::HighResTimer(const std::string& description,
                            const clockid_t& clock)

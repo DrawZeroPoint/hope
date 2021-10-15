@@ -4,7 +4,6 @@
 #include <ros/ros.h>
 
 #include <tf2/transform_datatypes.h>
-//#include <tf2_sensor_msgs/tf2_sensor_msgs.h>
 #include <tf2_ros/transform_listener.h>
 
 #include <geometry_msgs/TransformStamped.h>
@@ -18,8 +17,8 @@
 
 #include <geometry_msgs/PoseStamped.h>
 
-#include <math.h>
-#include <string.h>
+#include <cmath>
+#include <cstring>
 
 #include "utilities.h"
 
@@ -30,24 +29,24 @@ class Transform
 public:
   Transform();
 
-  bool getTransform(string base_frame, string header_frame);
+  bool getTransform(const string& base_frame, const string& header_frame);
 
-  void doTransform(PointCloud::Ptr cloud_in, PointCloud::Ptr &cloud_out);
+  void doTransform(const Cloud_XYZRGB::Ptr& cloud_in, Cloud_XYZRGB::Ptr &cloud_out) const;
   
-  void doTransform(PointCloudMono::Ptr cloud_in, PointCloudMono::Ptr &cloud_out);
+  void doTransform(const Cloud_XYZ::Ptr& cloud_in, Cloud_XYZ::Ptr &cloud_out) const;
   
-  void doTransform(PointCloud::Ptr cloud_in, PointCloud::Ptr &cloud_out,
+  void doTransform(const Cloud_XYZRGB::Ptr& cloud_in, Cloud_XYZRGB::Ptr &cloud_out,
                    float roll, float pitch, float yaw);
   
   
   void doTransform(pcl::PointXYZ p_in, pcl::PointXYZ &p_out);
   
-  void doTransform(PointCloud::Ptr cloud_in, PointCloud::Ptr &cloud_out, float tx, float ty, float tz, 
+  void doTransform(const Cloud_XYZRGB::Ptr& cloud_in, Cloud_XYZRGB::Ptr &cloud_out, float tx, float ty, float tz,
                    float qx, float qy, float qz, float qw);
   
 private:
   ros::NodeHandle nh_;
-  // These declaration must be after the node initialization
+  // These declarations must be after the node initialization
   tf2_ros::Buffer tf_buffer_;
   // This is mandatory and should be declared before while loop  
   tf2_ros::TransformListener tf_listener_;
