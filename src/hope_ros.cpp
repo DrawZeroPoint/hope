@@ -6,7 +6,6 @@
 
 #include "hope/plane_segment_ros.h"
 
-//#define DEBUG
 
 using namespace std;
 

@@ -18,7 +18,7 @@ namespace hope {
       const string& cloud_topic,
       const string& imu_topic
   ):
-      PlaneSegment(th_xy, th_z),
+      PlaneSegment(th_xy, th_z, CLOUD_STREAM, false),
       nh_(nh),
       min_depth_(min_depth),
       max_depth_(max_depth),
@@ -48,7 +48,7 @@ namespace hope {
     // Detect table surface as an obstacle
     plane_cloud_publisher_ = nh_.advertise<sensor_msgs::PointCloud2>("planes", 1);
     max_plane_cloud_publisher_ = nh_.advertise<sensor_msgs::PointCloud2>("max_plane", 1);
-    max_plane_hull_publisher_ = nh_.advertise<sensor_msgs::PointCloud2>("max_hull", 1);
+    max_plane_hull_publisher_ = nh_.advertise<sensor_msgs::PointCloud2>("max_plane_hull", 1);
     on_plane_obj_publisher_ = nh_.advertise<geometry_msgs::PoseArray>("obj_poses", 1, true);
   }
 
@@ -73,7 +73,7 @@ namespace hope {
     tf_->doTransform(src_clamped, src_transformed);
     {
       const std::lock_guard<std::mutex> lock(mutex_);
-      results_ = getHorizontalPlanes(src_transformed);
+      getHorizontalPlanes(src_transformed);  // --> results_
       publishResults();
     }
   }
@@ -87,8 +87,8 @@ namespace hope {
 
   void PlaneSegmentROS::publishResults() {
     if (results_.n_plane <= 0) return;
-    Utilities::publishCloud(results_.max_points, max_plane_cloud_publisher_, base_frame_);
-    Utilities::publishCloud(results_.max_hull, max_plane_hull_publisher_, base_frame_);
+    Utilities::publishCloud(results_.max_plane, max_plane_cloud_publisher_, base_frame_);
+    Utilities::publishCloud(results_.max_plane_hull, max_plane_hull_publisher_, base_frame_);
   }
 
   bool PlaneSegmentROS::extractOnTopCallback(hope::ExtractObjectOnTop::Request &req,
@@ -150,16 +150,16 @@ namespace hope {
 
   bool PlaneSegmentROS::postProcessing(bool do_cluster, const string& type) {
     const std::lock_guard<std::mutex> lock(mutex_);
-    if (Utilities::isPointCloudValid(results_.max_hull)) {
+    if (Utilities::isPointCloudValid(results_.max_plane_hull)) {
       vector<Cloud_XYZ::Ptr> clusters;
       if (do_cluster) {
-        if (!Utilities::getClustersUponPlane(src_cloud_xyz_, results_.max_hull, clusters))
+        if (!Utilities::getClustersUponPlane(src_cloud_xyz_, results_.max_plane_hull, clusters))
           return false;
         ROS_INFO("HoPE: Object clusters on plane #: %d", static_cast<int>(clusters.size()));
       } else {
         pcl::PointIndices::Ptr indices(new pcl::PointIndices);
         Cloud_XYZ::Ptr upper_cloud(new Cloud_XYZ);
-        Utilities::getCloudByZ(src_cloud_xyz_, indices, upper_cloud, results_.max_z + 0.05f, 1000.0f);
+        Utilities::getCloudByZ(src_cloud_xyz_, indices, upper_cloud, results_.max_plane_z + 0.05f, 1000.0f);
         if (!Utilities::isPointCloudValid(upper_cloud)) {
           ROS_WARN("HoPE: No point cloud on top of the max plane.");
           return false;

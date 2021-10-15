@@ -10,7 +10,7 @@
 
   <arg name="ns" default="camera"/>
   <arg name="base_frame" default="base_link"/>
-  <!-- The default one is comparable with the realsense camera -->
+  <!-- The default one is comparable with hope_realsense.launch -->
   <arg name="cloud_topic" default="depth/color/points"/>
 
   <node ns="$(arg ns)" name="hope_ros" pkg="hope" type="hope_ros" respawn="false">

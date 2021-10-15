@@ -1,7 +1,7 @@
 #ifndef PLANE_SEGMENT_H
 #define PLANE_SEGMENT_H
 
-// ROS
+// CLOUD_STREAM
 #include <ros/ros.h>
 
 // PCL
@@ -54,7 +54,7 @@
 #include "pose_estimation.h"
 
 
-enum data_type{SYN, POINT_CLOUD, TUM_SINGLE, TUM_LIST};
+enum data_type{CLOUD_STREAM, PCD_PLY, TUM_SINGLE, TUM_LIST};
 
 
 namespace hope {
@@ -64,14 +64,14 @@ namespace hope {
     size_t n_plane;
 
     /// Container for storing final results
-    vector<Cloud_XYZ::Ptr> hull_results;
-    vector<Cloud_XYZ::Ptr> point_results;
+    vector<Cloud_XYZ::Ptr> hulls;
+    vector<Cloud_XYZ::Ptr> planes;
     vector<vector<float> > plane_params; // z area
 
     /// Container for storing the largest plane
-    Cloud_XYZ::Ptr max_hull;
-    Cloud_XYZ::Ptr max_points;
-    float max_z;
+    Cloud_XYZ::Ptr max_plane_hull;
+    Cloud_XYZ::Ptr max_plane;
+    float max_plane_z;
 
     /// Container of plane id
   };
@@ -85,16 +85,18 @@ namespace hope {
      * @param th_xy Clustering threshold for points in x-y plane
      * @param th_z Clustering threshold in z direction
      */
-    PlaneSegment(float th_xy, float th_z);
+    PlaneSegment(float th_xy, float th_z, data_type type, bool verbose = false);
 
     /**
      * Get all planes being parallel with the X-Y plane of the given cloud's coordinate frame.
      * @param cloud
      */
-    PlaneSegmentResults getHorizontalPlanes(const Cloud_XYZ::Ptr& cloud, bool verbose = false);
+    void getHorizontalPlanes(const Cloud_XYZ::Ptr& cloud);
+    void getHorizontalPlanes(const Cloud_XYZRGB::Ptr& cloud);
 
   protected:
     data_type type_;
+    PlaneSegmentResults results_;
 
     /// Parameters of HOPE
     float th_xy_; // Resolution in XY direction
@@ -107,6 +109,7 @@ namespace hope {
 
     /// Intermediate results
     // Source point cloud
+    Cloud_XYZRGB::Ptr src_cloud_xyzrgb_;
     Cloud_XYZ::Ptr src_cloud_xyz_;
 
   private:
@@ -123,18 +126,19 @@ namespace hope {
     vector<Cloud_XYZRGBN::Ptr> cloud_fit_parts_;
     vector<pcl::PointIndices> z_clustered_indices_list_;
 
+    std::shared_ptr<pcl::visualization::PCLVisualizer> viewer_;
     HighResTimer hst_;
-
-    bool computeNormalAndFilter();
+    bool verbose_;
 
     /// Core process for finding planes
 //    void findAllPlanesRANSAC(bool isOptimize, int maxIter, float disThresh, float omit);
 //    void findAllPlanesRG(int norm_k, int num_n, float s_th, float c_th);
 
+    bool computeNormalAndFilter();
     /// Tool functions
     void reset();
     bool zClustering();
-    bool getClustersMeanZ(bool verbose);
+    bool getClustersMeanZ();
     void extractPlaneForEachZ(PlaneSegmentResults &results);
     bool getPlane(size_t id, float z_in, Cloud_XYZ::Ptr &plane_cloud);
     static bool getHull(Cloud_XYZ::Ptr cloud_xyz, Cloud_XYZ::Ptr &hull_xyz);
@@ -143,6 +147,12 @@ namespace hope {
     // Reconstruct mesh from point cloud
     static void poisson_reconstruction(const Cloud_XYZN::Ptr& point_cloud, pcl::PolygonMesh &mesh);
     static pcl::PolygonMesh mesh(const Cloud_XYZ::Ptr& point_cloud, const Cloud_N::Ptr& normals);
+
+    /**
+     * @brief visualizeResult
+     */
+    void visualizeResult();
+
   };
 }
 //
@@ -154,8 +164,8 @@ namespace hope {
 //   *
 //   * @param th_xy Clustering threshold for points in x-y plane
 //   * @param th_z Clustering threshold in z direction
-//   * @param base_frame Optional, only used for point clouds obtained from ROS in real-time
-//   * @param cloud_topic Optional, only used for point clouds obtained from ROS in real-time
+//   * @param base_frame Optional, only used for point clouds obtained from CLOUD_STREAM in real-time
+//   * @param cloud_topic Optional, only used for point clouds obtained from CLOUD_STREAM in real-time
 //   */
 //  PlaneSegment(data_type mode, float th_xy, float th_z, string base_frame = "", const string& cloud_topic = "");
 //
@@ -202,9 +212,9 @@ namespace hope {
 //  vector<vector<float> > global_coeff_temp_;
 //  vector<int> global_id_temp_;
 //
-//  /// ROS stuff
+//  /// CLOUD_STREAM stuff
 //  ros::NodeHandle nh_;
-//  // ROS pub-sub
+//  // CLOUD_STREAM pub-sub
 //  ros::Subscriber sub_pointcloud_;
 //  void cloudCallback(const sensor_msgs::PointCloud2ConstPtr &cloud_msg);
 //
@@ -283,9 +293,9 @@ namespace hope {
 //   *
 //   * @param th_xy Clustering threshold for points in x-y plane
 //   * @param th_z Clustering threshold in z direction
-//   * @param nh The ROS node handle passed by outer function
-//   * @param base_frame Optional, only used for point clouds obtained from ROS in real-time
-//   * @param cloud_topic Optional, only used for point clouds obtained from ROS in real-time
+//   * @param nh The CLOUD_STREAM node handle passed by outer function
+//   * @param base_frame Optional, only used for point clouds obtained from CLOUD_STREAM in real-time
+//   * @param cloud_topic Optional, only used for point clouds obtained from CLOUD_STREAM in real-time
 //   */
 //  PlaneSegmentRT(float th_xy, float th_z, ros::NodeHandle nh,
 //    string base_frame = "", const string& cloud_topic = "");
@@ -323,7 +333,7 @@ namespace hope {
 //  float max_height_;
 //  vector<int> global_id_temp_;
 //
-//  /// ROS stuff
+//  /// CLOUD_STREAM stuff
 //  ros::NodeHandle nh_;
 //  dynamic_reconfigure::Server<hope::hopeConfig> config_server_;
 //  ros::ServiceServer extract_on_top_server_;

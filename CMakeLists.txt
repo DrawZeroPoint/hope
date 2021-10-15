@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(hope)
 
-## Compile as C++11, supported in ROS Kinetic and newer
+## Compile as C++11, supported in CLOUD_STREAM Kinetic and newer
 add_compile_options(-std=c++11)
 
 #Comment this if don't want debug
@@ -81,7 +81,6 @@ include_directories(
 add_library(${PROJECT_NAME}_LIB
     src/lib/utilities.cpp
     src/lib/pose_estimation.cpp
-    src/lib/palletization.cpp
     src/lib/fetch_rgbd.cpp
     src/lib/get_cloud.cpp
     src/lib/high_res_timer.cpp
@@ -107,27 +106,25 @@ if (${USE_REALSENSE})
       )
 endif()
 
-#add_executable(${PROJECT_NAME}_node src/hope_node.cpp)
-#target_link_libraries(${PROJECT_NAME}_node
-#  ${catkin_LIBRARIES}
-#  ${GLOG_LIB}
-#  ${OpenCV_LIBS}
-#  ${PCL_LIBRARIES}
-#  ${PROJECT_NAME}_LIB
-#)
+add_executable(${PROJECT_NAME}_node src/hope_node.cpp)
+target_link_libraries(${PROJECT_NAME}_node
+  ${catkin_LIBRARIES}
+  ${OpenCV_LIBS}
+  ${PCL_LIBRARIES}
+  ${PROJECT_NAME}_LIB
+)
 
 add_executable(${PROJECT_NAME}_ros src/hope_ros.cpp)
 target_link_libraries(${PROJECT_NAME}_ros
     ${catkin_LIBRARIES}
     ${PROJECT_NAME}_LIB
-    ${GLOG_LIB}
     ${OpenCV_LIBS}
     ${PCL_LIBRARIES}
     )
 
 if (${USE_REALSENSE})
-  add_executable(${PROJECT_NAME}_rs_orientation src/hope_realsense_orientation.cpp)
-  target_link_libraries(${PROJECT_NAME}_rs_orientation
+  add_executable(${PROJECT_NAME}_rs_rpy src/hope_realsense_rpy.cpp)
+  target_link_libraries(${PROJECT_NAME}_rs_rpy
       ${catkin_LIBRARIES}
       ${PROJECT_NAME}_rs_lib
       )
@@ -137,15 +134,6 @@ if (${USE_REALSENSE})
       ${PROJECT_NAME}_rs_lib
       )
 endif()
-
-#add_executable(${PROJECT_NAME}_palletization src/hope_palletization.cpp)
-#target_link_libraries(${PROJECT_NAME}_palletization
-#  ${catkin_LIBRARIES}
-#  ${PROJECT_NAME}_LIB
-#  ${GLOG_LIB}
-#  ${OpenCV_LIBS}
-#  ${PCL_LIBRARIES}
-#)
 
 add_executable(pub_cloud src/pub_cloud.cpp)
 target_link_libraries(pub_cloud
@@ -159,9 +147,9 @@ target_link_libraries(pub_cloud
 add_executable(view_cloud src/view_cloud.cpp)
 target_link_libraries(view_cloud ${PCL_LIBRARIES})
 
-#add_executable(hope_test src/hope_test.cpp)
-#target_link_libraries(hope_test
-#  ${PCL_LIBRARIES}
-#  ${OpenCV_LIBS}
-#  ${PROJECT_NAME}_LIB
-#)
+add_executable(hope_test src/hope_test.cpp)
+target_link_libraries(hope_test
+  ${PCL_LIBRARIES}
+  ${OpenCV_LIBS}
+  ${PROJECT_NAME}_LIB
+)

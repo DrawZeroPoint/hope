@@ -30,47 +30,50 @@
 
 using namespace std;
 
-class GetCloud
-{
-public:
-  GetCloud();
+namespace hope {
 
-  /** Get point cloud with no color
-   *
-   * @param depth Depth image
-   * @param fx focal length of the depth camera in the x-axis of the image frame, pixel/m
-   * @param fy focal length of the depth camera in the y-axis of the image frame, pixel/m
-   * @param cx bias along the x-axis, pixel
-   * @param cy bias along the y-axis, pixel
-   * @param max_depth Maximum depth sensing range of the depth camera, m
-   * @param min_depth Minimum depth sensing range of the depth camera, m
-   * @param cloud Output point cloud
-   * @return Is cloud got
-   */
-  static bool getMonoCloud(const cv::Mat& depth, float fx, float fy, float cx, float cy,
-                           float max_depth, float min_depth, Cloud_XYZ::Ptr &cloud);
+  class GetCloud
+  {
+  public:
+    GetCloud();
 
-  /** Get colored point cloud from RGB and depth images
-   *
-   * @param rgb RGB image
-   * @param depth Depth image
-   * @param fx focal length of the depth camera in the x-axis of the image frame, pixel/m
-   * @param fy focal length in the y-axis, pixel/m
-   * @param cx bias along the x-axis, pixel
-   * @param cy bias along the y-axis, pixel
-   * @param max_depth Maximum depth sensing range of the depth camera, m
-   * @param min_depth Min depth sensing range of the depth camera, m
-   * @param cloud Output point cloud
-   * @return is cloud got
-   */
-  static bool getColorCloud(cv::Mat rgb, cv::Mat depth, float fx, float fy, float cx, float cy,
-                            float max_depth, float min_depth, Cloud_XYZRGB::Ptr &cloud);
-  
-  static void getColorCloud(cv::Mat rgb, cv::Mat depth, Cloud_XYZRGB::Ptr &cloud, float max_depth, float min_depth);
-  
-  static bool getPoint(cv::Mat depth, int row, int col, float fx, float fy, float cx, float cy,
-                       float maxDepth, float min_depth, pcl::PointXYZ &pt);
-  
-};
+    /** Get point cloud with no color
+     *
+     * @param depth Depth image
+     * @param fx focal length of the depth camera in the x-axis of the image frame, pixel/m
+     * @param fy focal length of the depth camera in the y-axis of the image frame, pixel/m
+     * @param cx bias along the x-axis, pixel
+     * @param cy bias along the y-axis, pixel
+     * @param max_depth Maximum depth sensing range of the depth camera, m
+     * @param min_depth Minimum depth sensing range of the depth camera, m
+     * @param cloud Output point cloud
+     * @return Is cloud got
+     */
+    static bool getMonoCloud(const cv::Mat& depth, float fx, float fy, float cx, float cy,
+                             float max_depth, float min_depth, Cloud_XYZ::Ptr &cloud);
+
+    /** Get colored point cloud from RGB and depth images
+     *
+     * @param rgb RGB image
+     * @param depth Depth image
+     * @param fx focal length of the depth camera in the x-axis of the image frame, pixel/m
+     * @param fy focal length in the y-axis, pixel/m
+     * @param cx bias along the x-axis, pixel
+     * @param cy bias along the y-axis, pixel
+     * @param max_depth Maximum depth sensing range of the depth camera, m
+     * @param min_depth Min depth sensing range of the depth camera, m
+     * @param cloud Output point cloud
+     * @return is cloud got
+     */
+    static bool getColorCloud(cv::Mat rgb, cv::Mat depth, float fx, float fy, float cx, float cy,
+                              float max_depth, float min_depth, Cloud_XYZRGB::Ptr &cloud);
+
+    static void getColorCloud(cv::Mat rgb, cv::Mat depth, Cloud_XYZRGB::Ptr &cloud, float max_depth, float min_depth);
+
+    static bool getPoint(cv::Mat depth, int row, int col, float fx, float fy, float cx, float cy,
+                         float maxDepth, float min_depth, pcl::PointXYZ &pt);
+
+  };
+}
 
 #endif // GET_CLOUD_H

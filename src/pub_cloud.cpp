@@ -14,6 +14,7 @@
 //#define DEBUG
 
 using namespace std;
+using namespace hope;
 
 
 int main(int argc, char **argv)

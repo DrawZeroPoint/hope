@@ -2,13 +2,12 @@
 
 #include <Eigen/Core>
 
-#include "lib/utilities.h"
-#include "lib/pose_estimation.h"
+#include "hope/utilities.h"
+#include "hope/pose_estimation.h"
 
-
-#define DEBUG
 
 using namespace std;
+using namespace hope;
 
 
 bool testQuaternionFromMatrix() {
@@ -88,7 +87,7 @@ int main(int argc, char **argv)
 //  PoseEstimation *pe = new PoseEstimation(dsp_th);
 //  std::string scene_path = "/home/dzp/scene.pcd";
 //  Cloud_XYZN::Ptr scene_cloud(new Cloud_XYZN);
-//  pcl::io::loadPCDFile<PointN>(scene_path, *scene_cloud);
+//  pcl::io::loadPCDFile<Point_N>(scene_path, *scene_cloud);
 //
 //  Eigen::Matrix4f trans;
 //  pe->estimate(scene_cloud, trans, true);

@@ -5,7 +5,7 @@
 #ifndef SRC_PLANE_SEGMENT_ROS_H
 #define SRC_PLANE_SEGMENT_ROS_H
 
-// ROS
+// CLOUD_STREAM
 #include <ros/ros.h>
 #include <nodelet/nodelet.h>
 
@@ -32,7 +32,7 @@
 namespace hope {
 
 /**
- * Class for extracting horizontal planes from ROS point cloud topic.
+ * Class for extracting horizontal planes from CLOUD_STREAM point cloud topic.
  */
   class PlaneSegmentROS : public hope::PlaneSegment
   {
@@ -40,11 +40,11 @@ namespace hope {
 
     /** Class for extracting planes in point cloud
      *
-     * @param nh The ROS node handle passed by outer function
+     * @param nh The CLOUD_STREAM node handle passed by outer function
      * @param th_xy Clustering threshold for points in x-y plane
      * @param th_z Clustering threshold in z direction
-     * @param base_frame Optional, only used for point clouds obtained from ROS in real-time
-     * @param cloud_topic Optional, only used for point clouds obtained from ROS in real-time
+     * @param base_frame Optional, only used for point clouds obtained from CLOUD_STREAM in real-time
+     * @param cloud_topic Optional, only used for point clouds obtained from CLOUD_STREAM in real-time
      */
     PlaneSegmentROS(
         const ros::NodeHandle& nh,
@@ -63,9 +63,6 @@ namespace hope {
 
     // If aggressively merge all planes with same height to one
     bool aggressive_merge_;
-
-    /// Container for storing the largest plane
-    PlaneSegmentResults results_;
 
     // The height of the object origin w.r.t. the base. This origin may not coincide
     // with the mass centroid of the object, only used to infer its pose or ease
@@ -90,7 +87,7 @@ namespace hope {
     double min_height_;
     double max_height_;
 
-    /// ROS stuff
+    /// CLOUD_STREAM stuff
     ros::NodeHandle nh_;
     dynamic_reconfigure::Server<hope::hopeConfig> config_server_;
     ros::ServiceServer extract_on_top_server_;

@@ -64,7 +64,7 @@ Visualization Manager:
       Color: 255; 255; 255
       Color Transformer: RGB8
       Decay Time: 0
-      Enabled: false
+      Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Min Color: 0; 0; 0
@@ -74,12 +74,12 @@ Visualization Manager:
       Selectable: true
       Size (Pixels): 3
       Size (m): 0.009999999776482582
-      Style: Flat Squares
+      Style: Points
       Topic: /camera/depth/color/points
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
-      Value: false
+      Value: true
     - Class: rviz/TF
       Enabled: true
       Frame Timeout: 15
@@ -130,8 +130,8 @@ Visualization Manager:
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
-        Max Value: -0.10850575566291809
-        Min Value: -0.17293833196163177
+        Max Value: -0.11253461241722107
+        Min Value: -0.14549805223941803
         Value: true
       Axis: Z
       Channel Name: x
@@ -158,8 +158,8 @@ Visualization Manager:
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
-        Max Value: 1.0061283111572266
-        Min Value: 0.08569549769163132
+        Max Value: 0.772645115852356
+        Min Value: 0.09117820113897324
         Value: true
       Axis: X
       Channel Name: intensity
@@ -211,25 +211,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/ThirdPersonFollower
-      Distance: 1.1022127866744995
+      Distance: 0.7470691204071045
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0.3410913348197937
-        Y: -0.13933300971984863
-        Z: 1.9007143237104174e-7
+        X: 0.10665687918663025
+        Y: -0.11549708247184753
+        Z: 1.304667875956511e-7
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.5297973155975342
+      Pitch: 0.7447974681854248
       Target Frame: <Fixed Frame>
       Value: ThirdPersonFollower (rviz)
-      Yaw: 4.35723352432251
+      Yaw: 3.967236280441284
     Saved: ~
 Window Geometry:
   Displays:

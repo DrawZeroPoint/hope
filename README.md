@@ -2,13 +2,13 @@
 <img src="doc/illustration.png" width="800" alt="HoPE" />
 </div>
 
-**Horizontal Plane Extractor** (or **HoPE** for short) is a ROS package for extracting horizontal planes given 
+**Horizontal Plane Extractor** (or **HoPE** for short) is a CLOUD_STREAM package for extracting horizontal planes given 
 point cloud input. The planes can be for example the ground or a tabletop surface, with which robotic tasks such 
 as navigation or manipulation can be performed with ease.
 
 # Installation
 This package requests following dependencies:
-* ROS (tested on Indigo, Kinetic, and Melodic)
+* CLOUD_STREAM (tested on Indigo, Kinetic, and Melodic)
 * PCL 1.7+
 * OpenCV (tested on 2.4 and 3.3)
 * Boost
@@ -20,9 +20,9 @@ On a fresh Ubuntu 14.04+ system, you can install aforementioned packages by inst
 sudo apt-get install ros-<distro>-desktop ros-<distro>-compressed-*
 ```
 
-Make sure to change `<distro>` to the ROS distribution you want to use.
+Make sure to change `<distro>` to the CLOUD_STREAM distribution you want to use.
 
-After these prerequisites have been met, if you only want to use HoPE without ROS:
+After these prerequisites have been met, if you only want to use HoPE without CLOUD_STREAM:
 
 ```
 git clone https://github.com/DrawZeroPoint/hope.git
@@ -32,7 +32,7 @@ cmake ..
 make -j
 ```
 
-Or with ROS:
+Or with CLOUD_STREAM:
 
 ```
 cd catkin_ws/src
@@ -43,7 +43,7 @@ catkin_make
 
 # Basic Usage
 
-Assume hope is built without ROS:
+Assume hope is built without CLOUD_STREAM:
 
 ```
 cd ~/hope/build/devel/lib/hope
@@ -51,7 +51,7 @@ roscore
 ./hope_node ~/hope/example/ 1305031459.259760.png 1305031459.274941.png -0.2171 -0.0799 1.3959 -0.8445 -0.0451 0.0954 0.5251 
 ```
 
-Or, assume hope/ is built with ROS and located at `~/catkin_ws/devel/lib`
+Or, assume hope/ is built with CLOUD_STREAM and located at `~/catkin_ws/devel/lib`
 
 ```
 cd ~/catkin_ws/devel/lib/hope
@@ -105,7 +105,7 @@ Please notice that to use HoPE extracting the horizontal planes within the point
 we must **align the normal direction of these planes with the z-axis of that scene.** 
 We recommend using [CloudCompare](https://www.danielgm.net/cc/) to do that.
 
-## Customize the parameters in real-time ROS usage
+## Customize the parameters in real-time CLOUD_STREAM usage
 
 The launch files in `launch/` provides some references for using HoPE in real-time. `hope_ros.launch`
 initialize the hope node and ready for extracting planes from given point cloud with `cloud_topic`.
