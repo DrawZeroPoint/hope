@@ -89,7 +89,10 @@ add_library(${PROJECT_NAME}_LIB
     src/lib/plane_segment.cpp
     src/lib/plane_segment_ros.cpp
     )
-add_dependencies(${PROJECT_NAME}_LIB ${catkin_EXPORTED_TARGETS})
+add_dependencies(${PROJECT_NAME}_LIB
+    ${catkin_EXPORTED_TARGETS}
+    ${PROJECT_NAME}_generate_messages_cpp
+    )
 target_link_libraries(${PROJECT_NAME}_LIB
     ${catkin_LIBRARIES}
     ${realsense_INCLUDE_DIR}
